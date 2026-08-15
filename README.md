@@ -25,6 +25,8 @@ Application development has not started yet. The product assumptions will first 
 ## Documentation
 
 * [Product brief](docs/product-brief.md)
+* [Discovery interview guide](docs/discovery-interview-guide.md)
+* [Discovery interview notes template](docs/discovery-interview-notes-template.md)
 
 Additional research, recommendation, analytics, privacy, and product-review documents will be added as the project develops.
 
