@@ -37,3 +37,6 @@ pnpm-debug.log*
 # Operating-system files
 .DS_Store
 Thumbs.db
+
+# Private user-research data
+research-private/
