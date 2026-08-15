@@ -7,6 +7,21 @@
 
 > PickTonight is a working title only. Do not purchase a domain or invest in branding until name and trademark availability have been checked.
 
+## Origin and design goal
+
+PickTonight began from a repeated household problem: the founder's wife often spends a long time deciding what to watch. She currently uses two main approaches:
+
+* searches TikTok for fresh movie and television recommendations;
+* describes her mood to ChatGPT, reviews suggested titles, and then searches for trailers before deciding.
+
+This observation is the project's starting point, not evidence that every viewer behaves the same way. Discovery interviews will test how common these behaviors are and which parts create the most friction.
+
+The design goal is to combine the freshness of social discovery with the flexibility of conversational input, then improve the decision with verified entertainment data, regional streaming availability, trailers, transparent explanations, and exactly three choices.
+
+**Design principle:** flexible input, constrained output.
+
+PickTonight should compete on decision quality, trust, and speed rather than trying to contain more titles than every entertainment platform. TikTok scraping and an LLM selecting or inventing titles remain outside the MVP. A future conversational layer may translate free-form requests into validated preferences, while the source-backed recommendation engine remains responsible for selecting titles.
+
 ## Problem
 
 People often spend too much of their available viewing time browsing large streaming catalogs instead of watching something. Existing services provide many choices, but they do not always help users make a quick decision based on their immediate situation, including their mood, available time, viewing companions, genre preferences, and streaming access.
