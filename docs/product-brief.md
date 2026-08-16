@@ -85,7 +85,7 @@ Each recommendation provides supported information such as:
 - concise overview;
 - genres;
 - runtime or episode-length context;
-- rating-confidence context;
+- rating and rating-confidence context;
 - freshness evidence;
 - regional provider availability;
 - trailer link;
