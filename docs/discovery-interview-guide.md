@@ -4,7 +4,7 @@
 - **Research round:** Week 1 discovery
 - **Owner:** ZK Zhao
 - **Related issue:** [#2 — Prepare the discovery interview guide](https://github.com/zkzzk34/pick-tonight/issues/2)
-- **Target:** At least three interviews, aiming for five
+- **Research scope:** Exploratory discovery interviews
 - **Session length:** Approximately 25 to 30 minutes
 - **Recording:** No recording by default; private notes only
 
@@ -46,7 +46,7 @@ Seek variation in:
 
 Do not require participants to use TikTok, ChatGPT, or any other named tool.
 
-The founder's wife may participate because her experience inspired the project, but her behavior must not be treated as representative. Recruit outside the household as well.
+Do not treat any single participant's behavior as representative.
 
 ## Privacy and note handling
 
