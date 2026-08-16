@@ -1,101 +1,192 @@
 # PickTonight Product Brief
 
-**Status:** Working draft
-**Owner:** ZK Zhao
-**Date:** August 15, 2026
-**Working title:** PickTonight
+- **Status:** Working draft
+- **Owner:** ZK Zhao
+- **Date:** August 16, 2026
+- **Working title:** PickTonight
+- **Detailed requirements:** [Product Requirements and Research Boundaries](./product-requirements.md)
 
 > PickTonight is a working title only. Do not purchase a domain or invest in branding until name and trademark availability have been checked.
 
-## Origin and design goal
+## Origin
 
-PickTonight began from a repeated household problem: the founder's wife often spends a long time deciding what to watch. She currently uses two main approaches:
+PickTonight began after the founder noticed that his wife sometimes spent a long time deciding what to watch. That everyday observation motivated a broader product question: how can streaming viewers move from uncertainty to a confident choice quickly?
 
-* searches TikTok for fresh movie and television recommendations;
-* describes her mood to ChatGPT, reviews suggested titles, and then searches for trailers before deciding.
-
-This observation is the project's starting point, not evidence that every viewer behaves the same way. Discovery interviews will test how common these behaviors are and which parts create the most friction.
-
-The design goal is to combine the freshness of social discovery with the flexibility of conversational input, then improve the decision with verified entertainment data, regional streaming availability, trailers, transparent explanations, and exactly three choices.
-
-**Design principle:** flexible input, constrained output.
-
-PickTonight should compete on decision quality, trust, and speed rather than trying to contain more titles than every entertainment platform. TikTok scraping and an LLM selecting or inventing titles remain outside the MVP. A future conversational layer may translate free-form requests into validated preferences, while the source-backed recommendation engine remains responsible for selecting titles.
+This is a starting observation, not a claim that every viewer has the same experience. Discovery interviews will investigate how different viewers make recent real decisions and where friction occurs.
 
 ## Problem
 
-People often spend too much of their available viewing time browsing large streaming catalogs instead of watching something. Existing services provide many choices, but they do not always help users make a quick decision based on their immediate situation, including their mood, available time, viewing companions, genre preferences, and streaming access.
+People can spend too much of their available viewing time browsing large catalogs instead of watching something. Existing services provide many choices, but they do not always help someone make a quick decision based on the immediate situation, including mood, time, companions, preferences, and streaming access.
 
 ## Product promise
 
-PickTonight helps someone choose something to watch in under two minutes by returning exactly three explainable recommendations suited to their current situation.
+PickTonight helps someone choose what to watch in under two minutes by returning exactly three explainable recommendations suited to the current situation.
+
+## Product principle
+
+> Flexible input, constrained output.
+
+PickTonight should compete on decision quality, trust, and speed rather than trying to present the largest catalog.
 
 ## Initial target user
 
 The initial user is an adult viewer who:
 
-* subscribes to at least one streaming service;
-* sometimes experiences decision fatigue when choosing a movie or television show;
-* watches alone, with a partner, with friends, or with family;
-* values a short, relevant list more than a large catalog;
-* is comfortable using a mobile or desktop web application.
+- uses at least one legal streaming service;
+- sometimes has difficulty choosing a movie or television show;
+- watches alone, with a partner, with friends, or with family;
+- values a short relevant list more than a large catalog;
+- is comfortable using a mobile or desktop web application.
 
 ## Job to be done
 
-> When I want to watch something but do not know what to choose, help me quickly find a few options that fit my mood, time, company, and streaming access so I can spend my time watching rather than browsing.
+> When I want to watch something but do not know what to choose, help me quickly find a few options that fit my current situation so I can spend my time watching rather than browsing.
 
 ## Proposed experience
 
-The user answers a short series of questions about:
+### Start
 
-* movie, television, or either;
-* current mood;
-* available time;
-* viewing companions;
-* preferred and excluded genres;
-* country or region;
-* available streaming services.
+The user can:
 
-PickTonight returns three ranked recommendations. Each recommendation explains why it fits the supplied preferences. The user can view details, confirm watch intent, save the title, reject it with a structured reason, or request another option.
+- enter a few supported preference words;
+- select simple preference tags or controls;
+- use both methods together.
 
-The product records watch intent, not whether the user actually watched the title.
+Supported text is interpreted deterministically as structured preferences. The user can review and correct the interpretation before requesting recommendations.
+
+A broad request remains valid. Additional preferences may focus the result, but the interface must not promise that more selections automatically produce greater accuracy.
+
+### Preferences
+
+Possible preferences include:
+
+- movie, television, or either;
+- mood;
+- preferred and excluded genres;
+- available time;
+- viewing companions;
+- freshness;
+- content language or origin country;
+- watch region;
+- available streaming providers.
+
+Hard restrictions, including excluded genres, maximum runtime, and required provider availability, are applied before scoring.
+
+Soft preferences, including mood, preferred genres, freshness, and rating confidence, influence ranking without automatically excluding a title.
+
+### Results
+
+PickTonight returns exactly three initial recommendations when enough eligible candidates exist.
+
+Each recommendation provides supported information such as:
+
+- poster or accessible placeholder;
+- title, year, and media type;
+- concise overview;
+- genres;
+- runtime or episode-length context;
+- rating and rating-confidence context;
+- freshness evidence;
+- regional provider availability;
+- trailer link;
+- explanation of why the title fits.
+
+An unsuitable recommendation can be replaced individually without restarting the decision.
+
+### Actions
+
+The interface distinguishes:
+
+- `Choose tonight`;
+- `Save`;
+- `More like this`;
+- `Not tonight`;
+- `Not my taste`;
+- `Already watched`;
+- `Replace`.
+
+These actions have different meanings. Watch intent is not completed viewing, a temporary rejection is not a lasting dislike, and an already-watched title is not automatically negative taste evidence.
+
+## Optional local personalization
+
+If the user enables personalization, PickTonight may store a first-version taste profile locally in the same browser without an account or permanent application database.
+
+It may contain only minimal normalized signals, such as positive or negative genre preferences, media-type tendency, supported language or origin preferences, title identifiers, and explicit taste actions.
+
+Current-session preferences always take priority over historical taste. Raw free-form preference text is not persisted.
+
+Personalization is optional, limited to the current browser and device, and includes a complete reset action.
 
 ## Initial hypotheses
 
-1. Recommendations that incorporate mood, time, and streaming access will feel more relevant than generic popular-title recommendations.
-2. Limiting the result to three choices will reduce decision friction without feeling overly restrictive.
-3. Clear explanations will increase trust and willingness to explore or select a recommendation.
-4. Structured rejection reasons will produce more actionable product evidence than a generic dislike button.
-5. People who frequently watch with partners or friends will express interest in a shared decision-making mode, but that feature should be validated before it is built.
+1. Immediate context such as mood, time, and provider access materially affects viewing decisions.
+2. Exactly three recommendations reduce decision friction without feeling overly restrictive.
+3. Clear explanations increase confidence in unfamiliar recommendations.
+4. Structured feedback produces more useful evidence than a generic dislike button.
+5. Individual replacement reduces the cost of correcting one unsuitable result.
+6. People who frequently watch with others may value shared decision support, but that feature requires evidence before implementation.
+
+These hypotheses remain separate from confirmed founder requirements.
 
 ## MVP scope
 
-The first version must include:
+The first version includes:
 
-* a landing page explaining the product and its privacy approach;
-* a short preference flow;
-* three ranked and explainable recommendations;
-* title details and regional provider information when available;
-* choose, save, reject, replace, and feedback actions;
-* consent-based anonymous product analytics;
-* responsive and accessible layouts;
-* graceful loading, empty-result, and error states;
-* required entertainment-data attribution.
+- a landing page explaining the product and privacy approach;
+- text, tags, or both as preference-entry methods;
+- editable structured interpretation of supported text;
+- hard eligibility filters and explainable scoring;
+- exactly three ranked recommendations when available;
+- recommendation cards and title details;
+- regional provider information when supported;
+- trailer links when suitable normalized videos are available;
+- choose, save, taste-feedback, session-rejection, already-watched, and replacement actions;
+- a local watchlist;
+- optional local taste personalization;
+- consent-based anonymous product analytics;
+- responsive and accessible layouts;
+- loading, empty-result, timeout, retry, and honest insufficient-result states;
+- required TMDB and JustWatch attribution.
 
 ## Non-goals
 
-The MVP will not include:
+The MVP does not include:
 
-* native mobile applications;
-* user accounts or a permanent application database;
-* payments or subscriptions;
-* video hosting or playback;
-* scraping streaming services;
-* social profiles, feeds, or chat;
-* machine-learning or collaborative-filtering recommendations;
-* an LLM selecting titles or inventing title information;
-* claims that watch intent proves a title was actually watched;
-* group-preference matching before user research validates the need.
+- native mobile applications;
+- user accounts;
+- cross-device synchronization;
+- a permanent application database;
+- payments or subscriptions;
+- video hosting or playback;
+- scraping TikTok or streaming services;
+- social profiles, feeds, or chat;
+- sophisticated machine-learning recommendations;
+- an LLM selecting titles or inventing metadata;
+- complete English and Simplified Chinese localization;
+- claims that PickTonight contains every title;
+- claims that watch intent proves completed viewing;
+- unsupported claims about virality or provider availability;
+- group-preference matching before evidence supports it.
+
+## Data and trust boundaries
+
+TMDB is accessed through a server-only API boundary. The browser must not receive the TMDB credential.
+
+Recommendation candidates and displayed metadata remain source-backed. The recommendation engine is deterministic and explainable.
+
+Provider information is regional and is displayed only when supported. JustWatch attribution is required for provider data supplied through TMDB.
+
+Low vote counts for new titles are represented as limited confidence rather than automatic evidence of low quality.
+
+## Research plan
+
+Discovery interviews will include adult streaming viewers selected using the criteria in the interview guide, with variation in viewing situations and decision-making behavior where practical.
+
+Interviews focus on recent real behavior rather than asking participants to design or approve PickTonight.
+
+Raw notes remain private. The public synthesis will contain only anonymized patterns, contradictions, outliers, design implications, and methodological limitations. The interviews will not be used to make prevalence claims.
+
+The interviews inform the design but do not constitute market validation.
 
 ## Primary metric
 
@@ -109,10 +200,10 @@ This measures intention, not completed viewing.
 
 The initial pilot should aim for:
 
-* at least eight people completing a real recommendation session;
-* at least 25 recommendation sessions, if recruitment permits;
-* at least five pieces of written feedback;
-* at least five structured rejection reasons;
-* one meaningful product change based on observed evidence.
+- at least eight people completing a real recommendation session;
+- at least 25 recommendation sessions, if recruitment permits;
+- at least five pieces of written feedback;
+- at least five structured rejection reasons;
+- one meaningful product change based on observed evidence.
 
 These thresholds indicate completion of a credible portfolio pilot, not proof of product-market fit.
