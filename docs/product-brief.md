@@ -143,7 +143,7 @@ The first version includes:
 - choose, save, taste-feedback, session-rejection, already-watched, and replacement actions;
 - a local watchlist;
 - optional local taste personalization;
-- consent-based anonymous product analytics;
+- consent-based optional product analytics;
 - responsive and accessible layouts;
 - loading, empty-result, timeout, retry, and honest insufficient-result states;
 - required TMDB and JustWatch attribution.
