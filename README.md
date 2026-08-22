@@ -27,6 +27,7 @@ Application development has not started yet. The product assumptions will first 
 * [Product brief](docs/product-brief.md)
 * [Product requirements and research boundaries](docs/product-requirements.md)
 * [Privacy, local data, and optional analytics](docs/privacy-and-local-data.md)
+* [Discovery interview synthesis](docs/discovery-interview-synthesis.md)
 * [Discovery interview guide](docs/discovery-interview-guide.md)
 * [Discovery interview notes template](docs/discovery-interview-notes-template.md)
 
