@@ -2,8 +2,9 @@
 
 - **Status:** Confirmed founder baseline for the MVP
 - **Owner:** ZK Zhao
-- **Date:** August 16, 2026
-- **Related issue:** [#49 — Document refined founder requirements and reconcile the MVP backlog](https://github.com/zkzzk34/pick-tonight/issues/49)
+- **Last updated:** August 31, 2026
+- **Related issues:** [#49 — Document refined founder requirements and reconcile the MVP backlog](https://github.com/zkzzk34/pick-tonight/issues/49); [#4 — Finalize the target persona and job to be done](https://github.com/zkzzk34/pick-tonight/issues/4)
+- **Research evidence:** [Discovery interview synthesis](./discovery-interview-synthesis.md)
 
 ## Purpose
 
@@ -16,6 +17,35 @@ The product brief explains the product at a higher level. GitHub issues translat
 > Flexible input, constrained output.
 
 PickTonight should help someone choose what to watch in under two minutes. It should compete on decision quality, trust, and speed rather than on presenting the largest possible catalog.
+
+## Evidence-informed target and job to be done
+
+### Behavior-based target
+
+PickTonight's initial target is an adult streaming viewer in an immediate decision situation who:
+
+- is ready to watch a movie or show now, or choose the next series to begin, but has not committed to a title;
+- may begin without a precise genre, mood, or title preference and refine the decision after seeing candidates;
+- evaluates fit through a context-dependent combination of signals such as poster, synopsis, cast, trailer, tone, runtime, ratings, reviews, and another viewer's interest;
+- may encounter repetitive scrolling or switch between sources for variety or verification;
+- wants enough relevant evidence to choose confidently without comparing a large catalog;
+- may decide alone or with another person, without requiring group accounts or group-preference matching.
+
+This target is defined by the viewing situation and decision behavior rather than by a detailed demographic profile.
+
+### Primary viewing situation
+
+The chosen primary situation is an immediate viewing decision: the viewer is ready to watch a movie or show now, or choose the next series to begin, but has not selected a title.
+
+This is a product focus informed by exploratory observations, not a claim that this is the most common situation across a broader population.
+
+### Decision trigger
+
+The trigger is the gap between wanting to watch and having enough clarity or confidence to commit. That gap may exist before browsing begins or become more noticeable when results feel repetitive, too broad, or insufficient and the viewer starts comparing or verifying candidates elsewhere.
+
+### Job to be done
+
+> When I am ready to watch a movie or show but have not settled on a title or precise preference, help me quickly evaluate a few relevant options using the information that matters in this situation, so I can choose with confidence without prolonged scrolling or switching between sources.
 
 ## Confirmed founder requirements
 
@@ -236,33 +266,60 @@ Provider information derived through TMDB requires JustWatch attribution. TMDB's
 - Resetting local data or withdrawing consent rotates or removes the persistent analytics identifier.
 - The public project must never contain raw participant records.
 
-## Assumptions to test through discovery
+## Discovery evidence status
 
-The following statements are research assumptions, not confirmed facts:
+The completed exploratory round provides design direction but does not convert founder requirements into validated facts.
+
+### Supported by the exploratory round
+
+- Uncertainty about the desired title, genre, or mood can be part of the starting condition.
+- Viewers can combine several forms of evidence rather than follow one universal decision rule.
+- Ratings do not have the same importance in every decision.
+- Repetition, prolonged scrolling, and switching between sources can create decision friction.
+- Mood, emotional tone, cast, synopsis, and trailer information can influence confidence.
+- A viewing attempt can end without a title being selected.
+- Another viewer's interest can affect a shared decision, without establishing demand for group matching.
+
+These are qualitative observations from the completed round. They do not establish how common each behavior is.
+
+### Still assumptions to test
 
 1. Difficult viewing decisions occur often enough to justify a dedicated decision tool.
-2. Mood, available time, companions, and provider access materially affect real decisions.
-3. Exactly three options feel manageable without feeling too restrictive.
-4. Explanations increase confidence in unfamiliar recommendations.
-5. Viewers regularly move between multiple tools before choosing.
-6. Trailers play a meaningful role in final evaluation.
-7. Text input and preference controls serve different starting behaviors.
-8. Individual replacement is more useful than restarting the full decision.
-9. People understand and value the distinction between temporary rejection and lasting taste feedback.
-10. Optional local personalization provides enough value to justify its controls and explanation.
-11. Shared group-preference matching is important enough to consider after the MVP.
+2. Exactly three initial recommendations provide enough choice without feeling too restrictive.
+3. A viewer can consistently reach a confident decision within the two-minute product promise.
+4. Concise explanations increase confidence without adding excessive cognitive load.
+5. Supported free-form preference text can be interpreted accurately enough to be useful and correctable.
+6. Text input and preference controls serve meaningfully different starting behaviors.
+7. Individual replacement satisfies the need for additional options without recreating overload.
+8. People understand and value the distinction between temporary rejection and lasting taste feedback.
+9. Optional local personalization provides enough value to justify its controls and explanation.
+10. Available MVP data can support honest mood and tone mapping and a useful mobile information hierarchy.
+11. Companion-oriented functions beyond showing or sharing details would provide enough value for the MVP.
+12. The observed behaviors extend beyond the limited recruitment pool to a broader range of viewers, accessibility needs, languages, regions, providers, and viewing contexts.
 
-Discovery interviews should investigate participants' recent behavior. They should not ask participants to approve these requirements or design the application.
+Exactly three recommendations and the under-two-minute goal remain confirmed founder requirements for the first prototype. Individual replacement, explanations, supported text input, feedback semantics, and optional local personalization also remain requirements to implement and evaluate rather than outcomes already validated by discovery.
 
 ## Discovery scope
 
-Discovery interviews include adult streaming viewers who meet the participant criteria in the interview guide.
+The completed exploratory round focused on adult streaming viewers using the participant criteria in the interview guide. Where handoff metadata was incomplete, the synthesis preserved the limitation rather than inferring eligibility.
 
-The research should include variation in viewing situations, discovery sources, and companion patterns where practical.
+Future research should broaden recruitment diversity and include additional variation in viewing situations, discovery sources, companion patterns, accessibility needs, languages, regions, and providers where practical.
 
 The interviews can provide exploratory evidence and design direction, but they do not establish market size, statistical prevalence, product-market fit, or general validation.
 
 Raw notes remain private. Public synthesis may include only anonymized themes, contradictions, outliers, design implications, and methodological limitations. Qualitative observations must not be presented as population estimates.
+
+## Meaningful changes from the initial product brief
+
+| Element | Initial brief | Discovery-informed refinement | Evidence boundary |
+|---|---|---|---|
+| Target user | A broad adult streaming viewer described partly by service use and device comfort | A viewer defined by an immediate unresolved viewing decision and observable decision behavior | Exploratory direction, not a validated market segment |
+| Starting condition | The viewer does not know what to choose | The viewer may also be unable to state a precise preference until reacting to candidates | Supported qualitatively; prevalence remains unknown |
+| Primary situation and trigger | Implied desire to watch with no explicit operational trigger | Ready to watch now or choose the next series, but lacks enough clarity or confidence to commit | Chosen product focus, not a most-common claim |
+| Decision process | Find a few options that fit the current situation | Evaluate a small set using context-dependent signals that can differ by decision | Multiple-signal behavior is supported; the best information hierarchy remains untested |
+| Friction | Time spent browsing a large catalog | Repetition, prolonged scrolling, and switching sources for variety or verification | Supported qualitatively; frequency and severity remain unknown |
+| Shared viewing | Watching alone or with other people was a broad target attribute | Another viewer may affect commitment, while group accounts, voting, and matching remain outside the MVP | Limited support; expanded companion features remain unvalidated |
+| Product promises | Exactly three recommendations and a decision in under two minutes | Retained as founder requirements for prototype testing | Not validated by the exploratory round |
 
 ## Post-MVP ideas
 
@@ -299,6 +356,7 @@ PickTonight must distinguish what the data shows from what the product infers.
 | Area | Related issue |
 |---|---|
 | Discovery interviews and synthesis | #3 |
+| Target persona and job to be done | #4 |
 | Privacy and analytics consent | #5 |
 | Low-fidelity product flow | #6 |
 | Hard filters and scoring | #16 |

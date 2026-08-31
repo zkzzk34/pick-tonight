@@ -2,7 +2,7 @@
 
 - **Status:** Working draft
 - **Owner:** ZK Zhao
-- **Date:** August 16, 2026
+- **Last updated:** August 31, 2026
 - **Working title:** PickTonight
 - **Detailed requirements:** [Product Requirements and Research Boundaries](./product-requirements.md)
 
@@ -10,13 +10,13 @@
 
 ## Origin
 
-PickTonight began after the founder noticed that his wife sometimes spent a long time deciding what to watch. That everyday observation motivated a broader product question: how can streaming viewers move from uncertainty to a confident choice quickly?
+PickTonight began with a general observation: someone can be ready to watch something and still spend substantial time deciding what to choose. That observation motivated a broader product question: how can streaming viewers move from uncertainty to a confident choice quickly?
 
-This is a starting observation, not a claim that every viewer has the same experience. Discovery interviews will investigate how different viewers make recent real decisions and where friction occurs.
+The completed exploratory discovery round examined recent real viewing decisions and identified useful behaviors, tensions, and design questions. Its findings guide the initial product direction but do not establish prevalence, market demand, or product validation.
 
 ## Problem
 
-People can spend too much of their available viewing time browsing large catalogs instead of watching something. Existing services provide many choices, but they do not always help someone make a quick decision based on the immediate situation, including mood, time, companions, preferences, and streaming access.
+A viewer can be ready to watch yet lack enough clarity or confidence to commit to a title. Repetitive results, prolonged scrolling, and switching between sources for variety or verification can consume time without producing a choice. Existing services provide many options, but they do not always make the immediate decision easier.
 
 ## Product promise
 
@@ -28,19 +28,28 @@ PickTonight helps someone choose what to watch in under two minutes by returning
 
 PickTonight should compete on decision quality, trust, and speed rather than trying to present the largest catalog.
 
-## Initial target user
+## Evidence-informed target user
 
-The initial user is an adult viewer who:
+PickTonight's initial target is an adult streaming viewer in an immediate decision situation who:
 
-- uses at least one legal streaming service;
-- sometimes has difficulty choosing a movie or television show;
-- watches alone, with a partner, with friends, or with family;
-- values a short relevant list more than a large catalog;
-- is comfortable using a mobile or desktop web application.
+- is ready to watch a movie or show now, or choose the next series to begin, but has not committed to a title;
+- may begin without a precise genre, mood, or title preference and refine the decision after seeing candidates;
+- evaluates fit through a context-dependent combination of signals such as poster, synopsis, cast, trailer, tone, runtime, ratings, reviews, and another viewer's interest;
+- may encounter repetitive scrolling or switch between sources for variety or verification;
+- wants enough relevant evidence to choose confidently without comparing a large catalog;
+- may decide alone or with another person, without requiring group accounts or group-preference matching.
+
+## Primary viewing situation and decision trigger
+
+The chosen primary situation is an immediate viewing decision: the viewer is ready to watch a movie or show now, or choose the next series to begin, but has not selected a title.
+
+The trigger is the gap between wanting to watch and having enough clarity or confidence to commit. That gap may exist before browsing begins or become more noticeable when results feel repetitive, too broad, or insufficient and the viewer starts comparing or verifying candidates elsewhere.
+
+This is PickTonight's chosen product focus, informed by exploratory observations. It is not a claim that this is the most common viewing situation across a broader population.
 
 ## Job to be done
 
-> When I want to watch something but do not know what to choose, help me quickly find a few options that fit my current situation so I can spend my time watching rather than browsing.
+> When I am ready to watch a movie or show but have not settled on a title or precise preference, help me quickly evaluate a few relevant options using the information that matters in this situation, so I can choose with confidence without prolonged scrolling or switching between sources.
 
 ## Proposed experience
 
@@ -117,16 +126,29 @@ Current-session preferences always take priority over historical taste. Raw free
 
 Personalization is optional, limited to the current browser and device, and includes a complete reset action.
 
-## Initial hypotheses
+## Evidence status and product hypotheses
 
-1. Immediate context such as mood, time, and provider access materially affects viewing decisions.
-2. Exactly three recommendations reduce decision friction without feeling overly restrictive.
-3. Clear explanations increase confidence in unfamiliar recommendations.
-4. Structured feedback produces more useful evidence than a generic dislike button.
-5. Individual replacement reduces the cost of correcting one unsuitable result.
-6. People who frequently watch with others may value shared decision support, but that feature requires evidence before implementation.
+The exploratory discovery round supports the following initial direction:
 
-These hypotheses remain separate from confirmed founder requirements.
+- uncertainty about the desired title, genre, or mood can be part of the starting condition;
+- viewers can combine several decision signals rather than follow one universal rule;
+- ratings do not have equal importance in every decision;
+- repetition, prolonged scrolling, and switching between sources can create friction;
+- emotional and situational fit can influence confidence;
+- another viewer's interest can affect a shared decision.
+
+The following remain product hypotheses that require prototype testing:
+
+1. Exactly three initial recommendations provide enough choice without feeling too restrictive.
+2. A viewer can consistently reach a confident decision within the two-minute product promise.
+3. Concise explanations increase confidence without adding excessive cognitive load.
+4. Supported free-form preference text can be interpreted accurately enough to be useful and correctable.
+5. Individual replacement satisfies the need for more options without recreating overload.
+6. Structured feedback produces more useful evidence than a generic dislike button.
+7. Available MVP data can support honest mood and tone mapping and a useful mobile information hierarchy.
+8. The observed behaviors extend beyond the limited exploratory recruitment pool.
+
+Exactly three recommendations and the under-two-minute goal remain confirmed founder requirements for the first prototype. Their inclusion does not mean discovery has validated them.
 
 ## MVP scope
 
@@ -178,15 +200,13 @@ Provider information is regional and is displayed only when supported. JustWatch
 
 Low vote counts for new titles are represented as limited confidence rather than automatic evidence of low quality.
 
-## Research plan
+## Research status and next validation
 
-Discovery interviews will include adult streaming viewers selected using the criteria in the interview guide, with variation in viewing situations and decision-making behavior where practical.
+The completed exploratory round focused on recent real behavior rather than asking participants to design or approve PickTonight. It included variation in viewing situations and decision-making behavior, but the limited recruitment pool was not statistically representative.
 
-Interviews focus on recent real behavior rather than asking participants to design or approve PickTonight.
+Raw notes remain private. The public synthesis contains only anonymized patterns, contradictions, outliers, design implications, and methodological limitations.
 
-Raw notes remain private. The public synthesis will contain only anonymized patterns, contradictions, outliers, design implications, and methodological limitations. The interviews will not be used to make prevalence claims.
-
-The interviews inform the design but do not constitute market validation.
+The next research step is to test the low-fidelity flow and then the working prototype, especially the shortest preference-to-choice path, editable interpretation, three-result constraint, information hierarchy, and individual replacement. Discovery informs the design but does not constitute market validation.
 
 ## Primary metric
 
