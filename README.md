@@ -29,6 +29,7 @@ Application development has not started yet. The product assumptions will first 
 * [Privacy, local data, and optional analytics](docs/privacy-and-local-data.md)
 * [Discovery interview synthesis](docs/discovery-interview-synthesis.md)
 * [Low-fidelity product flow](docs/low-fidelity-product-flow.md)
+* [TMDB server-only API proof](docs/tmdb-server-only-proof.md)
 * [Discovery interview guide](docs/discovery-interview-guide.md)
 * [Discovery interview notes template](docs/discovery-interview-notes-template.md)
 
