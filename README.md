@@ -10,17 +10,36 @@ The finished portfolio project will combine product discovery, user research, re
 
 ## Current status
 
-**Week 1 — Discovery and product definition**
+**Week 2 — Vertical slice**
 
 Current work includes:
 
-* defining the user problem and MVP boundaries;
-* preparing discovery interviews;
-* documenting the recommendation and analytics approach;
-* validating the entertainment-data integration;
-* creating the initial product workflow.
+* maintaining the discovery evidence, MVP boundaries, and product workflow;
+* establishing the React, TypeScript, and Vite application foundation;
+* proving that TMDB credentials can remain behind a server-only boundary;
+* preparing the first end-to-end recommendation path.
 
-Application development has not started yet. The product assumptions will first be tested through lightweight user research.
+The repository now includes a minimal responsive application shell. Recommendation behavior, the production API, analytics, and the remaining user experience will be added through separate backlog issues.
+
+## Local development
+
+PickTonight currently requires Node.js `20.19+` or `22.12+` on a supported release line. The initial application foundation was verified with Node.js `v24.16.0` and npm `11.13.0`.
+
+Install the dependencies and start the Vite development server:
+
+```bash
+npm install
+npm run dev
+```
+
+Use the local URL printed by Vite. The current frontend shell does not require a TMDB credential.
+
+Create and preview a production build with:
+
+```bash
+npm run build
+npm run preview
+```
 
 ## Documentation
 
