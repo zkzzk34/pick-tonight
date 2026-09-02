@@ -10,15 +10,15 @@ if (
   token === "replace_with_your_tmdb_api_read_access_token" ||
   token.startsWith("Bearer ")
 ) {
-  console.error("A raw TMDB_API_READ_TOKEN is required for the boundary check.");
+  console.error(
+    "A raw TMDB_API_READ_TOKEN is required for the boundary check.",
+  );
   process.exit(1);
 }
 
-const repositoryRoot = execFileSync(
-  "git",
-  ["rev-parse", "--show-toplevel"],
-  { encoding: "utf8" },
-).trim();
+const repositoryRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+  encoding: "utf8",
+}).trim();
 
 try {
   execFileSync("git", ["check-ignore", "-q", ".env"], {
@@ -44,7 +44,9 @@ const leakingWorkingPaths = workingPaths.filter((path) =>
 );
 
 if (leakingWorkingPaths.length > 0) {
-  console.error("Secret-boundary check failed: the token appears in project files:");
+  console.error(
+    "Secret-boundary check failed: the token appears in project files:",
+  );
   for (const path of leakingWorkingPaths) {
     console.error(`- ${path}`);
   }
@@ -53,7 +55,11 @@ if (leakingWorkingPaths.length > 0) {
 
 const gitObjects = execFileSync(
   "git",
-  ["cat-file", "--batch-all-objects", "--batch-check=%(objectname) %(objecttype)"],
+  [
+    "cat-file",
+    "--batch-all-objects",
+    "--batch-check=%(objectname) %(objecttype)",
+  ],
   { cwd: repositoryRoot, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 },
 )
   .trim()
@@ -75,7 +81,9 @@ for (const [objectId] of gitObjects) {
 }
 
 if (leakingObjectIds.length > 0) {
-  console.error("Secret-boundary check failed: the token appears in Git objects:");
+  console.error(
+    "Secret-boundary check failed: the token appears in Git objects:",
+  );
   for (const objectId of leakingObjectIds) {
     console.error(`- ${objectId}`);
   }
@@ -108,4 +116,6 @@ for (const path of browserPaths) {
 console.log("Secret-boundary checks passed:");
 console.log("- .env is ignored by Git");
 console.log("- the token is absent from project files and Git objects");
-console.log("- browser assets contain no credential or direct TMDB API request");
+console.log(
+  "- browser assets contain no credential or direct TMDB API request",
+);

@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PickTonight TMDB server-only proof</title>
     <script src="/proof.js" defer></script>
   </head>
@@ -21,7 +21,10 @@
       <h2>Browser verification</h2>
       <ol>
         <li>Open Developer Tools and select the Network panel.</li>
-        <li>Clear the panel, then select <strong>Request normalized movie</strong>.</li>
+        <li>
+          Clear the panel, then select
+          <strong>Request normalized movie</strong>.
+        </li>
         <li>Confirm the browser calls only <code>/api/tmdb-proof</code>.</li>
         <li>Confirm no browser request contains a credential header.</li>
       </ol>
@@ -29,8 +32,7 @@
 
     <footer>
       <p>
-        This product uses the TMDB API but is not endorsed or certified by
-        TMDB.
+        This product uses the TMDB API but is not endorsed or certified by TMDB.
       </p>
       <p>
         <a href="https://www.themoviedb.org/">Visit TMDB</a>. Watch-provider
