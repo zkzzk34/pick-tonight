@@ -1,0 +1,15 @@
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+.vite/
+playwright-report/
+test-results/
+
+# Preserve the reviewed product and research Markdown layouts
+docs/
+
+# Never inspect or format local credentials
+.env
+.env.*
+!.env.example

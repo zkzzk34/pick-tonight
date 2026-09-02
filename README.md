@@ -14,10 +14,10 @@ The finished portfolio project will combine product discovery, user research, re
 
 Current work includes:
 
-* maintaining the discovery evidence, MVP boundaries, and product workflow;
-* establishing the React, TypeScript, and Vite application foundation;
-* proving that TMDB credentials can remain behind a server-only boundary;
-* preparing the first end-to-end recommendation path.
+- maintaining the discovery evidence, MVP boundaries, and product workflow;
+- establishing the React, TypeScript, and Vite application foundation;
+- proving that TMDB credentials can remain behind a server-only boundary;
+- preparing the first end-to-end recommendation path.
 
 The repository now includes a minimal responsive application shell. Recommendation behavior, the production API, analytics, and the remaining user experience will be added through separate backlog issues.
 
@@ -34,6 +34,17 @@ npm run dev
 
 Use the local URL printed by Vite. The current frontend shell does not require a TMDB credential.
 
+Run the automated development checks with:
+
+```bash
+npm run lint
+npm run format:check
+npm test
+npm run build
+```
+
+`npm test` runs both the Vitest application tests and the existing mocked TMDB server-boundary tests. Use `npm run test:watch` while developing the React application, and use `npm run format` to apply the repository's formatting rules.
+
 Create and preview a production build with:
 
 ```bash
@@ -41,16 +52,22 @@ npm run build
 npm run preview
 ```
 
+### Environment variables
+
+Local environment files such as `.env` and `.env.local` are ignored by Git. The committed `.env.example` contains placeholders only and documents the server-only `TMDB_API_READ_TOKEN` name without containing a credential.
+
+Never give a server secret a `VITE_` prefix. Vite exposes variables with that prefix to browser code during bundling. The React application shell does not read the TMDB token directly.
+
 ## Documentation
 
-* [Product brief](docs/product-brief.md)
-* [Product requirements and research boundaries](docs/product-requirements.md)
-* [Privacy, local data, and optional analytics](docs/privacy-and-local-data.md)
-* [Discovery interview synthesis](docs/discovery-interview-synthesis.md)
-* [Low-fidelity product flow](docs/low-fidelity-product-flow.md)
-* [TMDB server-only API proof](docs/tmdb-server-only-proof.md)
-* [Discovery interview guide](docs/discovery-interview-guide.md)
-* [Discovery interview notes template](docs/discovery-interview-notes-template.md)
+- [Product brief](docs/product-brief.md)
+- [Product requirements and research boundaries](docs/product-requirements.md)
+- [Privacy, local data, and optional analytics](docs/privacy-and-local-data.md)
+- [Discovery interview synthesis](docs/discovery-interview-synthesis.md)
+- [Low-fidelity product flow](docs/low-fidelity-product-flow.md)
+- [TMDB server-only API proof](docs/tmdb-server-only-proof.md)
+- [Discovery interview guide](docs/discovery-interview-guide.md)
+- [Discovery interview notes template](docs/discovery-interview-notes-template.md)
 
 Additional research, recommendation, analytics, privacy, and product-review documents will be added as the project develops.
 

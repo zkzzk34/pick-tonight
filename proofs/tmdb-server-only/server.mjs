@@ -4,10 +4,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-import {
-  fetchPopularMovie,
-  TmdbProofError,
-} from "./client.mjs";
+import { fetchPopularMovie, TmdbProofError } from "./client.mjs";
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 4_173;
@@ -94,12 +91,7 @@ export function createProofServer({ token, fetchImpl, timeoutMs } = {}) {
     }
 
     if (requestUrl.pathname === "/proof.js") {
-      send(
-        response,
-        200,
-        "text/javascript; charset=utf-8",
-        browserJavaScript,
-      );
+      send(response, 200, "text/javascript; charset=utf-8", browserJavaScript);
       return;
     }
 

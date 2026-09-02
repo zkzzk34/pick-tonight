@@ -1,17 +1,19 @@
 const productPromises = [
   {
-    label: 'Under two minutes',
-    detail: 'Designed to move from uncertainty to a confident choice quickly.',
+    label: "Under two minutes",
+    detail: "Designed to move from uncertainty to a confident choice quickly.",
   },
   {
-    label: 'Three focused options',
-    detail: 'A constrained result set when enough eligible titles are available.',
+    label: "Three focused options",
+    detail:
+      "A constrained result set when enough eligible titles are available.",
   },
   {
-    label: 'No account required',
-    detail: 'The core recommendation experience stays available without signing in.',
+    label: "No account required",
+    detail:
+      "The core recommendation experience stays available without signing in.",
   },
-] as const
+] as const;
 
 function App() {
   return (
@@ -29,7 +31,10 @@ function App() {
           viewing context into exactly three explainable recommendations.
         </p>
 
-        <ul className="product-promises" aria-label="PickTonight product promises">
+        <ul
+          className="product-promises"
+          aria-label="PickTonight product promises"
+        >
           {productPromises.map((promise) => (
             <li className="promise-card" key={promise.label}>
               <strong>{promise.label}</strong>
@@ -45,7 +50,7 @@ function App() {
         <span>Non-commercial prototype</span>
       </footer>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -99,7 +99,8 @@ test("fetchPopularMovie returns a friendly authentication error", async () => {
   await assert.rejects(
     fetchPopularMovie({
       token: TEST_TOKEN,
-      fetchImpl: async () => jsonResponse({ status_message: "Invalid key" }, 401),
+      fetchImpl: async () =>
+        jsonResponse({ status_message: "Invalid key" }, 401),
     }),
     (error) =>
       error instanceof TmdbProofError &&
@@ -143,8 +144,7 @@ test("fetchPopularMovie distinguishes an empty result set", async () => {
       token: TEST_TOKEN,
       fetchImpl: async () => jsonResponse({ results: [] }),
     }),
-    (error) =>
-      error instanceof TmdbProofError && error.code === "NO_RESULTS",
+    (error) => error instanceof TmdbProofError && error.code === "NO_RESULTS",
   );
 });
 

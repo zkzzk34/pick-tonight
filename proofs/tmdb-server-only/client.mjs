@@ -15,9 +15,7 @@ export class TmdbProofError extends Error {
 }
 
 function textOrNull(value) {
-  return typeof value === "string" && value.trim() !== ""
-    ? value.trim()
-    : null;
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
 function finiteNumberOrNull(value) {
@@ -30,10 +28,9 @@ function integerOrNull(value) {
 
 function validateToken(token) {
   if (typeof token !== "string") {
-    throw new TmdbProofError(
-      "TMDB access is not configured on the server.",
-      { code: "CONFIGURATION_ERROR" },
-    );
+    throw new TmdbProofError("TMDB access is not configured on the server.", {
+      code: "CONFIGURATION_ERROR",
+    });
   }
 
   const normalizedToken = token.trim();
@@ -44,10 +41,9 @@ function validateToken(token) {
     normalizedToken.startsWith("Bearer ") ||
     /\s/.test(normalizedToken)
   ) {
-    throw new TmdbProofError(
-      "TMDB access is not configured on the server.",
-      { code: "CONFIGURATION_ERROR" },
-    );
+    throw new TmdbProofError("TMDB access is not configured on the server.", {
+      code: "CONFIGURATION_ERROR",
+    });
   }
 
   return normalizedToken;
@@ -174,10 +170,9 @@ export async function fetchPopularMovie({
     }
 
     if (controller.signal.aborted) {
-      throw new TmdbProofError(
-        "TMDB took too long to respond. Try again.",
-        { code: "UPSTREAM_TIMEOUT" },
-      );
+      throw new TmdbProofError("TMDB took too long to respond. Try again.", {
+        code: "UPSTREAM_TIMEOUT",
+      });
     }
 
     throw new TmdbProofError(
