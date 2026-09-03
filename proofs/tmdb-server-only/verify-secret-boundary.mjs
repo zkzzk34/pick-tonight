@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 
@@ -39,9 +39,13 @@ const workingPaths = execFileSync(
   .split("\0")
   .filter(Boolean);
 
-const leakingWorkingPaths = workingPaths.filter((path) =>
-  readFileSync(resolve(repositoryRoot, path)).includes(tokenBytes),
-);
+const leakingWorkingPaths = workingPaths.filter((path) => {
+  const absolutePath = resolve(repositoryRoot, path);
+
+  return (
+    existsSync(absolutePath) && readFileSync(absolutePath).includes(tokenBytes)
+  );
+});
 
 if (leakingWorkingPaths.length > 0) {
   console.error(
