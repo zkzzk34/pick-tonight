@@ -10,12 +10,13 @@ async function closeServer(server: Server): Promise<void> {
   });
 }
 
-test("the API foundation returns a fixed response without reflecting request details", async (t) => {
-  const requestSecret = "test-request-secret-that-must-not-be-reflected";
+async function startTestApiServer(): Promise<{
+  origin: string;
+  server: Server;
+}> {
   const server = await startLocalApiServer({ port: 0 });
-  t.after(() => closeServer(server));
-
   const address = server.address();
+
   assert.notEqual(address, null);
   assert.equal(typeof address, "object");
 
@@ -23,8 +24,77 @@ test("the API foundation returns a fixed response without reflecting request det
     throw new Error("The test server did not report a TCP address.");
   }
 
+  return {
+    origin: `http://127.0.0.1:${address.port}`,
+    server,
+  };
+}
+
+function assertJsonResponseHeaders(response: Response): void {
+  assert.equal(
+    response.headers.get("content-type"),
+    "application/json; charset=utf-8",
+  );
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+}
+
+test("GET /api/health returns a fixed operational response", async (t) => {
+  const requestSecret = "health-query-secret-that-must-not-be-reflected";
+  const { origin, server } = await startTestApiServer();
+  t.after(() => closeServer(server));
+
+  const response = await fetch(`${origin}/api/health?debug=${requestSecret}`, {
+    headers: {
+      "X-Test-Secret": requestSecret,
+    },
+  });
+  const responseText = await response.text();
+
+  assert.equal(response.status, 200);
+  assertJsonResponseHeaders(response);
+  assert.deepEqual(JSON.parse(responseText), {
+    data: {
+      status: "ok",
+    },
+  });
+  assert.equal(responseText.includes(requestSecret), false);
+});
+
+test("unsupported health methods return one safe error contract", async (t) => {
+  const requestSecret = "method-secret-that-must-not-be-reflected";
+  const { origin, server } = await startTestApiServer();
+  t.after(() => closeServer(server));
+
+  const response = await fetch(`${origin}/api/health`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain",
+      "X-Test-Secret": requestSecret,
+    },
+    body: requestSecret,
+  });
+  const responseText = await response.text();
+
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get("allow"), "GET");
+  assertJsonResponseHeaders(response);
+  assert.deepEqual(JSON.parse(responseText), {
+    error: {
+      code: "METHOD_NOT_ALLOWED",
+      message: "The requested method is not supported.",
+    },
+  });
+  assert.equal(responseText.includes(requestSecret), false);
+});
+
+test("unknown API routes return one safe error contract", async (t) => {
+  const requestSecret = "route-secret-that-must-not-be-reflected";
+  const { origin, server } = await startTestApiServer();
+  t.after(() => closeServer(server));
+
   const response = await fetch(
-    `http://127.0.0.1:${address.port}/api?debug=${requestSecret}`,
+    `${origin}/api/${requestSecret}?debug=${requestSecret}`,
     {
       headers: {
         "X-Test-Secret": requestSecret,
@@ -33,15 +103,12 @@ test("the API foundation returns a fixed response without reflecting request det
   );
   const responseText = await response.text();
 
-  assert.equal(response.status, 501);
-  assert.equal(
-    response.headers.get("content-type"),
-    "application/json; charset=utf-8",
-  );
-  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.status, 404);
+  assertJsonResponseHeaders(response);
   assert.deepEqual(JSON.parse(responseText), {
     error: {
-      message: "API routes are not available yet.",
+      code: "ROUTE_NOT_FOUND",
+      message: "The requested API route was not found.",
     },
   });
   assert.equal(responseText.includes(requestSecret), false);

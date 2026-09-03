@@ -6,7 +6,7 @@ The Node API layer is PickTonight's application boundary between browser code an
 
 Local API scripts require Node.js `24.12+` and use its stable built-in TypeScript type stripping. The server code therefore stays within erasable TypeScript syntax, uses explicit `.ts` import extensions, and remains type-checked by the repository's Node TypeScript project without adding a runtime framework or TypeScript launcher.
 
-This foundation does not choose a deployment vendor or implement product endpoints. The health route and standard error contract, runtime request schemas, media normalization, TMDB discovery, and pilot deployment remain in their own backlog issues.
+This foundation does not choose a deployment vendor or implement product endpoints. Runtime request schemas, media normalization, TMDB discovery, and pilot deployment remain in their own backlog issues.
 
 ## Module boundaries
 
@@ -42,7 +42,28 @@ npm run dev
 
 Open the URL printed by Vite. Its development proxy forwards paths beginning with `/api` to `http://127.0.0.1:4174`, so browser code can use same-origin relative paths without CORS configuration or an upstream hostname.
 
-The foundation currently answers API requests with a fixed `501` JSON placeholder. This deliberately leaves the health route, standardized errors, request validation, and TMDB-backed routes for their dedicated issues.
+Verify the local API directly or through Vite with `GET /api/health`. A healthy process returns:
+
+```json
+{
+  "data": {
+    "status": "ok"
+  }
+}
+```
+
+Unknown paths return `404` with the `ROUTE_NOT_FOUND` code. Methods other than `GET` on `/api/health` return `405`, include `Allow: GET`, and use the `METHOD_NOT_ALLOWED` code. Error responses always use the same envelope:
+
+```json
+{
+  "error": {
+    "code": "ROUTE_NOT_FOUND",
+    "message": "The requested API route was not found."
+  }
+}
+```
+
+The handler sends fixed user-safe messages and never copies request URLs, headers, bodies, caught exceptions, credentials, or upstream response bodies into a client response. Request validation and TMDB-backed routes remain in their dedicated issues.
 
 Use this command when file watching is unnecessary:
 
@@ -56,9 +77,9 @@ Stop either development process with `Ctrl+C`.
 
 Local `.env` files remain ignored by Git. `src/server/environment.ts` is the only application module that reads `TMDB_API_READ_TOKEN`, validates that it is a raw non-placeholder value, and returns a user-safe configuration error without reflecting the supplied value.
 
-Do not import server modules from browser code, add a `VITE_` prefix to the token, log the token or request headers, or return caught exception details to a client. The placeholder handler returns only a fixed response and never reflects request URLs, headers, or bodies.
+Do not import server modules from browser code, add a `VITE_` prefix to the token, log the token or request headers, or return caught exception details to a client. The API handler returns only fixed health or error responses and never reflects request URLs, headers, or bodies.
 
-The current placeholder route does not call TMDB, so the local API can start without a token. A valid ignored `.env` value will be required when TMDB-backed application routes are implemented.
+The current health route does not call TMDB, so the local API can start without a token. A valid ignored `.env` value will be required when TMDB-backed application routes are implemented.
 
 ## Verification
 
@@ -71,4 +92,4 @@ npm test
 npm run build
 ```
 
-The API tests verify raw token validation and confirm that the placeholder response cannot reflect request details. The existing TMDB proof tests continue to verify the authenticated upstream request, normalization allowlist, timeout behavior, and sanitized failures.
+The API tests verify the health response, standardized `404` and `405` errors, non-reflection of request details, and raw token validation. The existing TMDB proof tests continue to verify the authenticated upstream request, normalization allowlist, timeout behavior, and sanitized failures.

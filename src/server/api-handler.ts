@@ -1,19 +1,41 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-const NOT_IMPLEMENTED_BODY = `${JSON.stringify({
-  error: {
-    message: "API routes are not available yet.",
+import { HEALTH_API_PATH } from "../shared/api-paths.ts";
+import {
+  API_ERRORS,
+  writeApiError,
+  writeJsonResponse,
+} from "./api-response.ts";
+
+const HEALTH_RESPONSE = {
+  data: {
+    status: "ok",
   },
-})}\n`;
+} as const;
+
+function readPathname(requestTarget: string | undefined): string {
+  try {
+    return new URL(requestTarget ?? "/", "http://localhost").pathname;
+  } catch {
+    return "";
+  }
+}
 
 export function apiHandler(
-  _request: IncomingMessage,
+  request: IncomingMessage,
   response: ServerResponse,
 ): void {
-  response.writeHead(501, {
-    "Cache-Control": "no-store",
-    "Content-Type": "application/json; charset=utf-8",
-    "X-Content-Type-Options": "nosniff",
-  });
-  response.end(NOT_IMPLEMENTED_BODY);
+  if (readPathname(request.url) !== HEALTH_API_PATH) {
+    writeApiError(response, API_ERRORS.ROUTE_NOT_FOUND);
+    return;
+  }
+
+  if (request.method !== "GET") {
+    writeApiError(response, API_ERRORS.METHOD_NOT_ALLOWED, {
+      Allow: "GET",
+    });
+    return;
+  }
+
+  writeJsonResponse(response, 200, HEALTH_RESPONSE);
 }
