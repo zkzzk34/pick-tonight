@@ -8,7 +8,9 @@ import tseslint from "typescript-eslint";
 
 const javascriptFiles = ["**/*.{js,mjs,cjs}"];
 const typescriptFiles = ["**/*.{ts,tsx}"];
-const applicationFiles = ["src/**/*.{ts,tsx}"];
+const browserFiles = ["src/browser/**/*.{ts,tsx}", "src/main.tsx"];
+const serverFiles = ["src/server/**/*.ts", "vite.config.ts"];
+const sharedFiles = ["src/shared/**/*.ts"];
 
 export default defineConfig([
   globalIgnores(
@@ -48,14 +50,14 @@ export default defineConfig([
   },
   {
     name: "pick-tonight/node-typescript",
-    files: ["vite.config.ts"],
+    files: serverFiles,
     languageOptions: {
       globals: globals.node,
     },
   },
   {
     name: "pick-tonight/react",
-    files: applicationFiles,
+    files: browserFiles,
     extends: [reactHooks.configs.flat.recommended],
     languageOptions: {
       globals: globals.browser,
@@ -63,8 +65,60 @@ export default defineConfig([
   },
   {
     name: "pick-tonight/react-refresh",
-    files: applicationFiles,
+    files: browserFiles,
     extends: [reactRefresh.configs.vite()],
+  },
+  {
+    name: "pick-tonight/browser-boundary",
+    files: browserFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/server/**"],
+              message: "Browser modules must not import server-only code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: "pick-tonight/server-boundary",
+    files: serverFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/browser/**"],
+              message: "Server modules must not import browser code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: "pick-tonight/shared-boundary",
+    files: sharedFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/browser/**", "**/server/**"],
+              message:
+                "Shared modules must remain independent of browser and server code.",
+            },
+          ],
+        },
+      ],
+    },
   },
   eslintConfigPrettier,
 ]);

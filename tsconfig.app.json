@@ -18,5 +18,11 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": [
+    "src/browser",
+    "src/main.tsx",
+    "src/shared",
+    "src/styles",
+    "src/test"
+  ]
 }
