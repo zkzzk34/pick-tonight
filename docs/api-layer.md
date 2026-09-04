@@ -6,7 +6,7 @@ The Node API layer is PickTonight's application boundary between browser code an
 
 Local API scripts require Node.js `24.12+` and use its stable built-in TypeScript type stripping. The server code therefore stays within erasable TypeScript syntax, uses explicit `.ts` import extensions, and remains type-checked by the repository's Node TypeScript project without adding a runtime framework or TypeScript launcher.
 
-This foundation now includes shared recommendation request and response schemas plus a server-side request-body parser. It does not choose a deployment vendor or expose a recommendation product endpoint. Media normalization, TMDB discovery, endpoint wiring, and pilot deployment remain in their own backlog issues.
+This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, a server-side request-body parser, and server-only TMDB result normalization. It does not choose a deployment vendor or expose a recommendation product endpoint. TMDB discovery, endpoint wiring, and pilot deployment remain in their own backlog issues.
 
 ## Module boundaries
 
@@ -40,7 +40,31 @@ Recommendation requests are strict objects at every level. A broad `{}` request 
 
 The contract keeps hard restrictions separate from soft ranking preferences. Free-form text, freshness, companion fit, rating confidence, and other not-yet-defined values are not accepted early; their owning issues must first define reviewed structured vocabulary and behavior.
 
-`createRecommendationResponseSchema(itemSchema)` supplies the shared response envelope while allowing the normalized media-item schema to be added by its owning issue. The envelope permits zero through three items. The later recommendation issue owns the rule for returning exactly three eligible results when possible and reporting an honestly limited result set otherwise.
+`createRecommendationResponseSchema(itemSchema)` remains the reusable shared response-envelope factory. `recommendationResponseSchema` composes that envelope with `mediaSummarySchema` and permits zero through three normalized items. The later recommendation issue owns the rule for returning exactly three eligible results when possible and reporting an honestly limited result set otherwise.
+
+### Normalized media summaries
+
+`src/shared/media-contracts.ts` defines the strict `mediaSummarySchema` and infers its `MediaSummary` TypeScript type. Movie and television results use one stable shape with `source: "tmdb"` and a `mediaType` of `movie` or `tv`.
+
+TMDB fields that differ by media type are mapped as follows:
+
+| Normalized field | Movie field       | Television field |
+| ---------------- | ----------------- | ---------------- |
+| `title`          | `title`           | `name`           |
+| `originalTitle`  | `original_title`  | `original_name`  |
+| `releaseDate`    | `release_date`    | `first_air_date` |
+
+The common allowlist also contains `id`, `overview`, `originalLanguage`, `genreIds`, `posterPath`, `backdropPath`, `popularity`, `voteAverage`, `voteCount`, and `adult`.
+
+`src/server/tmdb-normalization.ts` accepts raw results as `unknown`. It requires a positive integer ID and a nonblank localized title or name. Unusable results throw `TmdbNormalizationError` with a fixed message that does not reflect raw upstream data.
+
+Missing, blank, malformed, or out-of-range optional scalar values become `null`. Missing genre arrays become `[]`, and malformed genre entries are removed. Dates must use `YYYY-MM-DD`; vote averages must be between zero and ten; vote counts and popularity must be nonnegative.
+
+The normalizers construct only allowlisted properties. Raw snake-case fields, origin-country arrays, video flags, and unexpected upstream properties do not cross the boundary. Poster and backdrop values remain relative TMDB paths.
+
+Raw TMDB response shapes and normalization logic remain under `src/server`; browser components receive only `MediaSummary`. These modules perform no network requests, discovery, filtering, candidate deduplication, ranking, route wiring, or public API error translation.
+
+Representative movie and television fixtures verify field mapping, safe missing-value behavior, raw-field rejection, and the zero-through-three response bound.
 
 ### Runtime request parsing
 

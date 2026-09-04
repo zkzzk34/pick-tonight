@@ -17,6 +17,7 @@ Current work includes:
 - maintaining the discovery evidence, MVP boundaries, and product workflow;
 - establishing the React, TypeScript, and Vite application foundation;
 - maintaining a browser/shared/server boundary with shared recommendation contracts and runtime validation;
+- normalizing TMDB movie and television results into one strict shared media summary;
 - proving that TMDB credentials remain available only to server-side code;
 - preparing the first end-to-end recommendation path.
 

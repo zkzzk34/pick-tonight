@@ -1,5 +1,7 @@
 import * as z from "zod";
 
+import { mediaSummarySchema } from "./media-contracts.ts";
+
 export const MEDIA_TYPES = ["movie", "tv", "either"] as const;
 
 export const SUPPORTED_MOODS = [
@@ -108,6 +110,13 @@ export function createRecommendationResponseSchema<
   });
 }
 
+export const recommendationResponseSchema =
+  createRecommendationResponseSchema(mediaSummarySchema);
+
 export type RecommendationResponse<TItemSchema extends z.ZodType> = z.infer<
   ReturnType<typeof createRecommendationResponseSchema<TItemSchema>>
+>;
+
+export type NormalizedRecommendationResponse = z.infer<
+  typeof recommendationResponseSchema
 >;
