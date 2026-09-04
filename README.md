@@ -16,11 +16,11 @@ Current work includes:
 
 - maintaining the discovery evidence, MVP boundaries, and product workflow;
 - establishing the React, TypeScript, and Vite application foundation;
-- maintaining a browser/shared/server boundary for the local API foundation;
+- maintaining a browser/shared/server boundary with shared recommendation contracts and runtime validation;
 - proving that TMDB credentials remain available only to server-side code;
 - preparing the first end-to-end recommendation path.
 
-The repository now includes a minimal responsive application shell and a platform-neutral Node API handler with a lightweight health route and standardized user-safe errors. Recommendation behavior, deployment, analytics, and the remaining user experience will be added through separate backlog issues.
+The repository now includes a minimal responsive application shell, a platform-neutral Node API handler with a lightweight health route and standardized user-safe errors, and strict shared recommendation contracts with server-side request parsing. Recommendation endpoint wiring, selection behavior, deployment, analytics, and the remaining user experience will be added through separate backlog issues.
 
 ## Local development
 
@@ -39,7 +39,7 @@ npm run dev
 
 Use the local URL printed by Vite. Browser requests beginning with `/api` are proxied to the Node server at `http://127.0.0.1:4174`; the browser never receives the TMDB credential or the upstream TMDB request. `GET /api/health` returns the operational status, while unknown routes and unsupported methods return standardized user-safe JSON errors.
 
-Run `npm run start:api` instead when API file watching is not needed. See the [API-layer documentation](docs/api-layer.md) for its structure, security boundary, and serverless handoff.
+Run `npm run start:api` instead when API file watching is not needed. See the [API-layer documentation](docs/api-layer.md) for its structure, shared contracts, runtime validation, security boundary, and serverless handoff.
 
 Run the automated development checks with:
 
@@ -50,7 +50,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs the Vitest browser tests, Node API health-and-error tests, and existing mocked TMDB proof tests. Use `npm run test:watch` while developing the React application, and use `npm run format` to apply the repository's formatting rules.
+`npm test` runs the Vitest browser tests, Node API health-and-error tests, shared recommendation-contract and request-validation tests, and existing mocked TMDB proof tests. Use `npm run test:watch` while developing the React application, and use `npm run format` to apply the repository's formatting rules.
 
 Create and preview a production build with:
 
