@@ -6,7 +6,7 @@ The Node API layer is PickTonight's application boundary between browser code an
 
 Local API scripts require Node.js `24.12+` and use its stable built-in TypeScript type stripping. The server code therefore stays within erasable TypeScript syntax, uses explicit `.ts` import extensions, and remains type-checked by the repository's Node TypeScript project without adding a runtime framework or TypeScript launcher.
 
-This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, a server-side request-body parser, and server-only TMDB result normalization. It does not choose a deployment vendor or expose a recommendation product endpoint. TMDB discovery, endpoint wiring, and pilot deployment remain in their own backlog issues.
+This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, and a server-only TMDB candidate-discovery pipeline. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools but does not expose a recommendation product endpoint. Mood mapping, scoring, final selection, explanations, endpoint wiring, and pilot deployment remain separate backlog work.
 
 ## Module boundaries
 
@@ -62,9 +62,34 @@ Missing, blank, malformed, or out-of-range optional scalar values become `null`.
 
 The normalizers construct only allowlisted properties. Raw snake-case fields, origin-country arrays, video flags, and unexpected upstream properties do not cross the boundary. Poster and backdrop values remain relative TMDB paths.
 
-Raw TMDB response shapes and normalization logic remain under `src/server`; browser components receive only `MediaSummary`. These modules perform no network requests, discovery, filtering, candidate deduplication, ranking, route wiring, or public API error translation.
+Raw TMDB response shapes and normalization logic remain under `src/server`; browser components receive only `MediaSummary`. The normalization modules themselves perform no network requests, filtering, candidate deduplication, ranking, route wiring, or public API error translation; separate discovery modules own candidate retrieval and aggregation.
 
 Representative movie and television fixtures verify field mapping, safe missing-value behavior, raw-field rejection, and the zero-through-three response bound.
+
+### Server-only TMDB discovery pipeline
+
+The discovery pipeline remains entirely under `src/server`. It accepts a validated `RecommendationRequest`; browser code neither constructs TMDB URLs nor receives the API Read Access Token.
+
+| Module | Responsibility |
+| --- | --- |
+| `tmdb-discovery-requests.ts` | Converts movie, television, or either-media requests into TMDB source plans and supported query parameters. |
+| `tmdb-discovery-client.ts` | Sends authenticated server requests, applies a five-second timeout, normalizes usable results, and maps failures to fixed safe errors. |
+| `tmdb-discovery-candidates.ts` | Filters and deduplicates normalized candidates, preserves source attribution, and tracks which restrictions were verified. |
+| `tmdb-discovery.ts` | Executes every applicable plan, combines successful batches, and reports partial failures without reflecting unsafe details. |
+
+Movie requests plan discovery, weekly trending, and now-playing sources. Television requests plan discovery, weekly trending, and on-the-air sources. An `either` request, or a request without a media-type restriction, plans all six sources to build a broad pool before later ranking and selection.
+
+Discover plans always request `include_adult=false`. They map excluded genres, maximum runtime, watch region, and providers when supplied; multiple provider IDs use TMDB pipe-separated OR semantics. Movie discovery and now-playing plans map `watchRegion` to `region`, while provider filtering uses `watch_region`. Preferred genres, original language, and origin country shape only discovery queries, so supplemental sources continue to provide broader candidates.
+
+Every successful source response must contain a result array. Usable movie and television items pass through the existing normalizers, unusable individual items are skipped, and legitimate empty arrays remain successful. Raw TMDB result objects are never returned from the discovery layer.
+
+Candidate aggregation enforces the requested media type, rejects adult and excluded-genre matches, deduplicates by media type plus TMDB ID, and retains every contributing source. Because trending and current-title sources cannot verify runtime or provider restrictions, supplemental-only candidates are excluded when either restriction applies unless the same identity also passed a correspondingly constrained discovery query.
+
+The coordinator preserves successful batches during partial source failures and records only fixed `{ source, code }` metadata. If every planned source fails, it throws the primary safe error. Configuration, authentication, rate-limit, timeout, upstream, invalid-response, and network failures use fixed messages that do not reflect credentials, upstream bodies, or caught exception text.
+
+Automated discovery tests use injected clients and mocked TMDB responses; they do not call the live TMDB API.
+
+Mood mapping, deterministic scoring, final recommendation selection, explanations, HTTP product-route wiring, recommendation cards, browser UI, analytics, and personalization remain deferred.
 
 ### Runtime request parsing
 
@@ -94,7 +119,7 @@ Invalid bodies use the fixed public envelope:
 
 Only mapped codes, known schema paths, and safe numeric array indices are returned. Submitted values, unknown key names, raw Zod messages, caught exceptions, and request bodies are not reflected. At most 20 validation issues are returned for one request.
 
-The parser is not registered as an HTTP route in this issue. The later TMDB discovery issue owns recommendation endpoint wiring and must call this parser before using a request body.
+The parser is not registered as an HTTP route. Later product-route wiring must call it before passing a validated request to the internal TMDB discovery coordinator.
 
 ## Run locally
 
@@ -155,7 +180,7 @@ Local `.env` files remain ignored by Git. `src/server/environment.ts` is the onl
 
 Do not import server modules from browser code, add a `VITE_` prefix to the token, log the token or request headers, or return caught exception details to a client. The API handler returns only fixed health or error responses and never reflects request URLs, headers, or bodies.
 
-The current health route does not call TMDB, so the local API can start without a token. A valid ignored `.env` value will be required when TMDB-backed application routes are implemented.
+The current health route does not call TMDB, so the local API can start without a token. During local use, server-side discovery requires a valid token loaded from the ignored `.env` file unless a token is injected by a test; HTTP product-route wiring remains deferred.
 
 ## Verification
 
@@ -166,6 +191,7 @@ npm run format:check
 npm run lint
 npm test
 npm run build
+node --env-file=.env proofs/tmdb-server-only/verify-secret-boundary.mjs
 ```
 
-The API tests verify the health response, standardized `404` and `405` errors, strict shared schemas, valid and invalid request parsing, bounded safe issue mapping, non-reflection of request details, and raw token validation. The existing TMDB proof tests continue to verify the authenticated upstream request, normalization allowlist, timeout behavior, and sanitized failures.
+The API tests verify health and standardized errors, strict schemas, request parsing, bounded safe issue mapping, and non-reflection. Discovery and TMDB proof tests use mocked responses and injected clients to verify request planning, Bearer-authenticated server requests, normalization, filters, source attribution, deduplication, partial failures, timeouts, and safe errors without live TMDB calls. The secret-boundary proof scans for the configured token without printing it and verifies that it remains outside project files, Git objects, browser assets, browser requests, and responses.

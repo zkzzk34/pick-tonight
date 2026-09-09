@@ -18,10 +18,11 @@ Current work includes:
 - establishing the React, TypeScript, and Vite application foundation;
 - maintaining a browser/shared/server boundary with shared recommendation contracts and runtime validation;
 - normalizing TMDB movie and television results into one strict shared media summary;
+- retrieving, filtering, and combining movie and television candidates through a server-only TMDB discovery pipeline;
 - proving that TMDB credentials remain available only to server-side code;
 - preparing the first end-to-end recommendation path.
 
-The repository now includes a minimal responsive application shell, a platform-neutral Node API handler with a lightweight health route and standardized user-safe errors, and strict shared recommendation contracts with server-side request parsing. Recommendation endpoint wiring, selection behavior, deployment, analytics, and the remaining user experience will be added through separate backlog issues.
+The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing, normalization, and a server-only TMDB candidate-discovery pipeline. The pipeline supports movie, television, and either-media requests; combines preference-based discovery, weekly trending, and now-playing/on-the-air sources; filters and deduplicates normalized candidates with source attribution; and preserves partial success using safe errors. Mood mapping, scoring, final selection, explanations, HTTP route wiring, recommendation cards, analytics, personalization, and deployment remain separate backlog work.
 
 ## Local development
 
@@ -51,7 +52,7 @@ npm test
 npm run build
 ```
 
-`npm test` runs the Vitest browser tests, Node API health-and-error tests, shared recommendation-contract and request-validation tests, and existing mocked TMDB proof tests. Use `npm run test:watch` while developing the React application, and use `npm run format` to apply the repository's formatting rules.
+`npm test` runs browser, API, contract, request-validation, discovery, and TMDB boundary tests. Automated TMDB tests use injected clients and mocked responses; they do not call the live TMDB API. Use `npm run test:watch` while developing the React application, and use `npm run format` to apply the repository's formatting rules.
 
 Create and preview a production build with:
 
