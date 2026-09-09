@@ -14,6 +14,8 @@ export const SUPPORTED_MOODS = [
   "surprised",
 ] as const;
 
+export type SupportedMood = (typeof SUPPORTED_MOODS)[number];
+
 export const REQUEST_VALIDATION_ISSUE_CODES = [
   "MISSING_BODY",
   "MALFORMED_JSON",
