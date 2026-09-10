@@ -6,7 +6,7 @@ The Node API layer is PickTonight's application boundary between browser code an
 
 Local API scripts require Node.js `24.12+` and use its stable built-in TypeScript type stripping. The server code therefore stays within erasable TypeScript syntax, uses explicit `.ts` import extensions, and remains type-checked by the repository's Node TypeScript project without adding a runtime framework or TypeScript launcher.
 
-This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, and a server-only TMDB candidate-discovery pipeline. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools but does not expose a recommendation product endpoint. Mood mapping, scoring, final selection, explanations, endpoint wiring, and pilot deployment remain separate backlog work.
+This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, a server-only TMDB candidate-discovery pipeline, versioned mood mapping, and deterministic recommendation filtering, scoring, and selection. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools; the recommendation engine rechecks hard restrictions before scoring and returns up to three results with structured evidence. No recommendation product endpoint is exposed yet.
 
 ## Module boundaries
 
@@ -76,6 +76,8 @@ The discovery pipeline remains entirely under `src/server`. It accepts a validat
 | `tmdb-discovery-client.ts` | Sends authenticated server requests, applies a five-second timeout, normalizes usable results, and maps failures to fixed safe errors. |
 | `tmdb-discovery-candidates.ts` | Filters and deduplicates normalized candidates, preserves source attribution, and tracks which restrictions were verified. |
 | `tmdb-discovery.ts` | Executes every applicable plan, combines successful batches, and reports partial failures without reflecting unsafe details. |
+| `mood-mapping.ts` | Defines versioned mood signals without performing network requests or hard filtering. |
+| `recommendation-engine.ts` | Applies hard filters before scoring, excludes active-session identities, and deterministically selects up to three results with structured evidence. |
 
 Movie requests plan discovery, weekly trending, and now-playing sources. Television requests plan discovery, weekly trending, and on-the-air sources. An `either` request, or a request without a media-type restriction, plans all six sources to build a broad pool before later ranking and selection.
 
@@ -89,7 +91,7 @@ The coordinator preserves successful batches during partial source failures and 
 
 Automated discovery tests use injected clients and mocked TMDB responses; they do not call the live TMDB API.
 
-Mood mapping, deterministic scoring, final recommendation selection, explanations, HTTP product-route wiring, recommendation cards, browser UI, analytics, and personalization remain deferred.
+Mood mapping, engine-level hard filtering, deterministic scoring, and final recommendation selection now exist as isolated server modules. Additional focused engine tests, user-facing explanations, HTTP product-route wiring, recommendation cards, browser UI, analytics, and personalization remain deferred.
 
 ### Runtime request parsing
 
