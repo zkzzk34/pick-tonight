@@ -105,6 +105,14 @@ test("deduplicates by media type and TMDB ID while retaining every source", () =
       { key: "tv:101", sources: ["discover-tv"] },
     ],
   );
+  assert.deepEqual(
+    candidates.map(({ hardRestrictionEvidence }) => hardRestrictionEvidence),
+    [
+      { maximumRuntimeMinutes: null, providerRestriction: null },
+      { maximumRuntimeMinutes: null, providerRestriction: null },
+      { maximumRuntimeMinutes: null, providerRestriction: null },
+    ],
+  );
 });
 
 test("excludes adult and forbidden-genre candidates across duplicate sources", () => {
@@ -176,11 +184,22 @@ test("does not let supplemental sources bypass runtime and provider restrictions
   );
 
   assert.deepEqual(
-    candidates.map(({ media, sources }) => ({ id: media.id, sources })),
+    candidates.map(({ media, sources, hardRestrictionEvidence }) => ({
+      id: media.id,
+      sources,
+      hardRestrictionEvidence,
+    })),
     [
       {
         id: 301,
         sources: ["discover-movie", "trending-movie-week"],
+        hardRestrictionEvidence: {
+          maximumRuntimeMinutes: 120,
+          providerRestriction: {
+            watchRegion: "US",
+            requiredProviderIds: [8],
+          },
+        },
       },
     ],
   );

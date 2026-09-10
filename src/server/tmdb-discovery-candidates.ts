@@ -20,9 +20,20 @@ export interface TmdbDiscoveryBatch {
   readonly appliedProviderRestriction: boolean;
 }
 
+export interface TmdbProviderRestrictionEvidence {
+  readonly watchRegion: string;
+  readonly requiredProviderIds: readonly number[];
+}
+
+export interface TmdbHardRestrictionEvidence {
+  readonly maximumRuntimeMinutes: number | null;
+  readonly providerRestriction: TmdbProviderRestrictionEvidence | null;
+}
+
 export interface TmdbDiscoveryCandidate {
   readonly media: MediaSummary;
   readonly sources: readonly TmdbDiscoverySource[];
+  readonly hardRestrictionEvidence: TmdbHardRestrictionEvidence;
 }
 
 interface CandidateAccumulator {
@@ -44,10 +55,11 @@ export function createTmdbDiscoveryCandidatePool(
   const excludedGenreIds = new Set(
     request.hardRestrictions?.excludedGenreIds ?? [],
   );
-  const requiresMaximumRuntime =
-    request.hardRestrictions?.maximumRuntimeMinutes !== undefined;
-  const requiresProvider =
-    request.hardRestrictions?.requiredProviderIds !== undefined;
+  const maximumRuntimeMinutes = request.hardRestrictions?.maximumRuntimeMinutes;
+  const requiredProviderIds = request.hardRestrictions?.requiredProviderIds;
+  const watchRegion = request.watchRegion;
+  const requiresMaximumRuntime = maximumRuntimeMinutes !== undefined;
+  const requiresProvider = requiredProviderIds !== undefined;
   const rejectedKeys = new Set<string>();
   const candidatesByKey = new Map<string, CandidateAccumulator>();
 
@@ -113,5 +125,31 @@ export function createTmdbDiscoveryCandidatePool(
           candidate.appliedMaximumRuntimeRestriction) &&
         (!requiresProvider || candidate.appliedProviderRestriction),
     )
-    .map(({ media, sources }) => ({ media, sources }));
+    .map(
+      ({
+        media,
+        sources,
+        appliedMaximumRuntimeRestriction,
+        appliedProviderRestriction,
+      }) => ({
+        media,
+        sources,
+        hardRestrictionEvidence: {
+          maximumRuntimeMinutes:
+            appliedMaximumRuntimeRestriction &&
+            maximumRuntimeMinutes !== undefined
+              ? maximumRuntimeMinutes
+              : null,
+          providerRestriction:
+            appliedProviderRestriction &&
+            requiredProviderIds !== undefined &&
+            watchRegion !== undefined
+              ? {
+                  watchRegion,
+                  requiredProviderIds: [...requiredProviderIds],
+                }
+              : null,
+        },
+      }),
+    );
 }
