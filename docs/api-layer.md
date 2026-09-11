@@ -91,7 +91,29 @@ The coordinator preserves successful batches during partial source failures and 
 
 Automated discovery tests use injected clients and mocked TMDB responses; they do not call the live TMDB API.
 
-Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, focused engine tests, and the browser recommendation-card presentation now exist as isolated modules. The cards accept display-ready values and perform no networking. Structured fit-explanation generation, HTTP product-route wiring, server-side display enrichment, durable action semantics, analytics, and personalization remain deferred.
+Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, focused engine tests, the browser recommendation-card presentation, and the browser request-state controller now exist as isolated modules. The cards accept display-ready values, while the request controller accepts an injected requester; neither performs networking. Structured fit-explanation generation, HTTP product-route wiring, server-side display enrichment, durable action semantics, analytics, and personalization remain deferred.
+
+### Browser request-state seam
+
+`src/browser/recommendation-request-state.ts` defines the browser result and
+view-state unions, fixed safe failure copy, detached request snapshots, and the
+injected requester contract. `src/browser/recommendation-request-panel.tsx`
+coordinates guarded submission, accessible lifecycle presentation, and
+same-preference retry.
+
+These modules may consume the shared `RecommendationRequest` type and
+browser-ready `RecommendationCardSet`, but they do not import server modules.
+The panel renders cards only for a complete three-item result, presents zero
+eligible recommendations as `empty`, and keeps one- or two-result presentation
+outside the current browser contract.
+
+The application currently injects a requester that resolves the fixed local
+sample only. It does not call the local API, TMDB, or another live
+recommendation service. A later transport adapter and product route must own
+HTTP status handling and map reviewed outcomes into `validation`,
+`authentication`, `timeout`, or `upstream` without reflecting unsafe details.
+See the
+[recommendation request-state contract](./recommendation-request-states.md).
 
 ### Runtime request parsing
 

@@ -8,13 +8,27 @@ describe("App recommendation preview", () => {
     render(<App />);
 
     expect(
-      screen.getByText(/They are not live recommendations/),
+      screen.getByText(
+        /does not call TMDB or another live recommendation service/,
+      ),
     ).toBeInTheDocument();
 
-    const results = screen.getByRole("region", {
+    const requestRegion = screen.getByRole("region", {
+      name: "Recommendation request",
+    });
+    expect(
+      within(requestRegion).getByRole("button", {
+        name: "Request recommendations",
+      }),
+    ).toBeEnabled();
+
+    const results = within(requestRegion).getByRole("region", {
       name: "3 picks for tonight",
     });
     const initialCards = within(results).getAllByRole("article");
+    const actionStatus = screen.getByRole("status", {
+      name: "Preview action status",
+    });
 
     expect(initialCards).toHaveLength(3);
 
@@ -23,7 +37,7 @@ describe("App recommendation preview", () => {
         name: "Save: Preview movie A",
       }),
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(actionStatus).toHaveTextContent(
       "save selected for Preview movie A. Preview actions are not saved.",
     );
 
@@ -41,7 +55,7 @@ describe("App recommendation preview", () => {
     ).toEqual(["Preview movie A", "Preview movie D", "Preview movie C"]);
     expect(updatedCards[0]).toBe(initialCards[0]);
     expect(updatedCards[2]).toBe(initialCards[2]);
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(actionStatus).toHaveTextContent(
       "Preview television B was replaced with Preview movie D. The other recommendations stayed in place.",
     );
   });

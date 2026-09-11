@@ -20,9 +20,10 @@ Current work includes:
 - normalizing TMDB movie and television results into one strict shared media summary;
 - retrieving, filtering, and combining movie and television candidates through a server-only TMDB discovery pipeline;
 - proving that TMDB credentials remain available only to server-side code;
-- presenting an accessible three-card browser preview without widening the server boundary.
+- presenting an accessible three-card browser preview without widening the server boundary;
+- managing explicit browser loading, empty, safe failure, duplicate-submission, and same-preference retry states without adding live networking.
 
-The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, versioned mood mapping, deterministic filtering and selection, focused engine tests, and an accessible recommendation-card presentation. The browser shows a clearly labeled non-live three-card preview and performs no direct TMDB request. HTTP product-route wiring, server-side display enrichment, deterministic fit-explanation generation, durable action semantics, analytics, personalization, and deployment remain separate backlog work. See the [recommendation-card contract](./docs/recommendation-cards.md).
+The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, versioned mood mapping, deterministic filtering and selection, focused engine tests, an accessible recommendation-card presentation, and an injected browser request-state controller. The browser shows a clearly labeled non-live three-card preview, prevents concurrent duplicate requests, announces loading and empty states, maps supported failure categories to fixed user-safe copy, and retries a detached snapshot of the last submitted preferences. Its request control resolves the fixed local sample and performs no direct TMDB request. HTTP product-route wiring, server-side display enrichment, deterministic fit-explanation generation, durable action semantics, analytics, personalization, and deployment remain separate backlog work. See the [recommendation v1 contract](./docs/recommendation-v1.md), [recommendation-card contract](./docs/recommendation-cards.md), and [recommendation request-state contract](./docs/recommendation-request-states.md).
 
 ## Local development
 
@@ -78,6 +79,9 @@ Only modules under `src/server` may read `TMDB_API_READ_TOKEN`. Browser modules 
 - [Low-fidelity product flow](docs/low-fidelity-product-flow.md)
 - [TMDB server-only API proof](docs/tmdb-server-only-proof.md)
 - [Node API layer](docs/api-layer.md)
+- [Recommendation v1 heuristics and boundaries](docs/recommendation-v1.md)
+- [Recommendation card presentation](docs/recommendation-cards.md)
+- [Recommendation request states](docs/recommendation-request-states.md)
 - [Discovery interview guide](docs/discovery-interview-guide.md)
 - [Discovery interview notes template](docs/discovery-interview-notes-template.md)
 
