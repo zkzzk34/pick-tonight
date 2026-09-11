@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { MediaSummary } from "../shared/media-contracts.ts";
+import type { RecommendationRequest } from "../shared/recommendation-contracts.ts";
 import {
   RECOMMENDATION_LIMIT,
   TEMPORAL_COHESION_MAX_YEAR_GAP,
@@ -54,12 +55,38 @@ function candidate(
   };
 }
 
-function selectedKeys(candidates: readonly TmdbDiscoveryCandidate[]): string[] {
-  return selectRecommendations(candidates, {}).recommendations.map(
+function selectedKeys(
+  candidates: readonly TmdbDiscoveryCandidate[],
+  request: RecommendationRequest = {},
+): string[] {
+  return selectRecommendations(candidates, request).recommendations.map(
     ({ candidate: selected }) =>
       `${selected.media.mediaType}:${selected.media.id}`,
   );
 }
+
+test("returns an honest limited result for zero eligible candidates", () => {
+  const result = selectRecommendations([], {});
+
+  assert.deepEqual(result, {
+    status: "limited",
+    requestedCount: RECOMMENDATION_LIMIT,
+    eligibleCount: 0,
+    recommendations: [],
+  });
+});
+
+test("returns the sole eligible candidate in an honest limited result", () => {
+  const result = selectRecommendations([candidate(movie(1))], {});
+
+  assert.equal(result.status, "limited");
+  assert.equal(result.requestedCount, RECOMMENDATION_LIMIT);
+  assert.equal(result.eligibleCount, 1);
+  assert.deepEqual(
+    result.recommendations.map(({ candidate: selected }) => selected.media.id),
+    [1],
+  );
+});
 
 test("does not score release year, popularity, or discovery source", () => {
   const classic = candidate(
@@ -91,6 +118,29 @@ test("does not score release year, popularity, or discovery source", () => {
   });
   assert.deepEqual(selectedKeys([current, classic]), ["movie:1", "movie:2"]);
   assert.deepEqual(selectedKeys([classic, current]), ["movie:1", "movie:2"]);
+});
+
+test("uses media type then TMDB ID as stable final tie breakers", () => {
+  const tiedCandidates = [
+    candidate(movie(2, { mediaType: "tv", title: "Television 2" }), [
+      "discover-tv",
+    ]),
+    candidate(movie(20)),
+    candidate(movie(1, { mediaType: "tv", title: "Television 1" }), [
+      "discover-tv",
+    ]),
+    candidate(movie(10)),
+  ];
+  const request: RecommendationRequest = {
+    hardRestrictions: { mediaType: "either" },
+  };
+  const expectedKeys = ["movie:10", "movie:20", "tv:1"];
+
+  assert.deepEqual(selectedKeys(tiedCandidates, request), expectedKeys);
+  assert.deepEqual(
+    selectedKeys([...tiedCandidates].reverse(), request),
+    expectedKeys,
+  );
 });
 
 test("excludes active-session titles and reports complete or limited results", () => {

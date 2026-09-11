@@ -144,7 +144,7 @@ No public request field or historical signal is added by this heuristic. TMDB ne
 
 ## Verification and references
 
-The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, deterministic ties, missing metadata, session exclusions, temporal cohesion, surprised variety, and complete or limited selection.
+The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, deterministic ties including the final media-type and TMDB-ID fallbacks, missing metadata, session exclusions, temporal cohesion, surprised variety, complete and limited selection across zero, one, two, and at least three eligible candidates, and enforcement of the three-result maximum.
 
 TMDB reference material:
 
