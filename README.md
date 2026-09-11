@@ -20,9 +20,9 @@ Current work includes:
 - normalizing TMDB movie and television results into one strict shared media summary;
 - retrieving, filtering, and combining movie and television candidates through a server-only TMDB discovery pipeline;
 - proving that TMDB credentials remain available only to server-side code;
-- preparing the first end-to-end recommendation path.
+- presenting an accessible three-card browser preview without widening the server boundary.
 
-The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing, normalization, and a server-only TMDB candidate-discovery pipeline. The pipeline supports movie, television, and either-media requests; combines preference-based discovery, weekly trending, and now-playing/on-the-air sources; filters and deduplicates normalized candidates with source attribution; and preserves partial success using safe errors. Mood mapping, scoring, final selection, explanations, HTTP route wiring, recommendation cards, analytics, personalization, and deployment remain separate backlog work.
+The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, versioned mood mapping, deterministic filtering and selection, focused engine tests, and an accessible recommendation-card presentation. The browser shows a clearly labeled non-live three-card preview and performs no direct TMDB request. HTTP product-route wiring, server-side display enrichment, deterministic fit-explanation generation, durable action semantics, analytics, personalization, and deployment remain separate backlog work. See the [recommendation-card contract](./docs/recommendation-cards.md).
 
 ## Local development
 

@@ -115,10 +115,14 @@ Each result retains its score breakdown, position, temporal evidence, and cross-
 | `src/server/recommendation-engine.ts` | Rechecks hard restrictions, scores only eligible candidates, selects up to three, and returns structured evidence. |
 | `src/server/recommendation-engine.test.ts` | Covers hard filtering, score calculations, rating uncertainty, and mood evidence. |
 | `src/server/recommendation-engine-selection.test.ts` | Covers deterministic ties, session exclusions, temporal cohesion, variety, and limited results. |
+| `src/browser/recommendation-card-model.ts` | Defines the display-ready card contract, rating-confidence copy, safe URL and runtime formatting, and immutable three-card replacement. |
+| `src/browser/recommendation-cards.tsx` | Renders the semantic three-card deck, honest unavailable states, distinct action seams, and replacement-focus behavior. |
 
 The mapping module performs no network request, candidate filtering, scoring, final selection, or explanation rendering. It is not imported by browser components or `tmdb-discovery-requests.ts`, and Issue #15 does not convert mood signals into TMDB query parameters.
 
 The recommendation engine performs no TMDB request, request planning, browser work, or explanation rendering.
+
+The browser card modules perform no TMDB request and do not import the recommendation engine. They accept display-ready evidence from their caller; poster URL construction, provider retrieval, trailer enrichment, and fit-explanation generation remain server-side integration work.
 
 `getMoodMapping` accepts an unknown runtime value and returns either the configured mapping or `null`. This behavior gives later server-side recommendation logic an explicit unsupported-input outcome without inventing a fallback mood.
 
@@ -132,12 +136,12 @@ Potential future evidence includes structured prototype feedback, observed repla
 
 ## Deferred work
 
-Issue #16 stops at server-side hard filtering, scoring, deterministic selection, and structured evidence. The following remain deferred:
+Issues #15 through #17 established server-side mapping, hard filtering, scoring, deterministic selection, structured evidence, and focused coverage. Issue #18 adds browser presentation without widening the engine or networking responsibilities. The following remain deferred:
 
-- additional focused recommendation-engine coverage tracked by Issue #17;
-- recommendation cards and browser UI owned by Issue #18;
-- user-facing fit-explanation rendering;
+- server-side display enrichment, including poster URL construction, provider retrieval, and trailer lookup;
+- user-facing fit-explanation generation from retained evidence;
 - HTTP product-route wiring unless a separate issue explicitly owns it;
+- durable action, replacement, session, and watchlist semantics;
 - analytics and browser personalization, including any historical-taste adjustment.
 
 No public request field or historical signal is added by this heuristic. TMDB networking and request planning remain separate from the recommendation engine.
