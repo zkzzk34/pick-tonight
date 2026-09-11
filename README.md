@@ -22,6 +22,7 @@ Current work includes:
 - proving that TMDB credentials remain available only to server-side code;
 - presenting an accessible three-card browser preview without widening the server boundary;
 - managing explicit browser loading, empty, safe failure, duplicate-submission, and same-preference retry states without adding live networking.
+- maintaining accessible in-application Credits for TMDB data and images and JustWatch watch-provider availability.
 
 The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, versioned mood mapping, deterministic filtering and selection, focused engine tests, an accessible recommendation-card presentation, and an injected browser request-state controller. The browser shows a clearly labeled non-live three-card preview, prevents concurrent duplicate requests, announces loading and empty states, maps supported failure categories to fixed user-safe copy, and retries a detached snapshot of the last submitted preferences. Its request control resolves the fixed local sample and performs no direct TMDB request. HTTP product-route wiring, server-side display enrichment, deterministic fit-explanation generation, durable action semantics, analytics, personalization, and deployment remain separate backlog work. See the [recommendation v1 contract](./docs/recommendation-v1.md), [recommendation-card contract](./docs/recommendation-cards.md), and [recommendation request-state contract](./docs/recommendation-request-states.md).
 
@@ -69,6 +70,37 @@ Local environment files such as `.env` and `.env.local` are ignored by Git. The 
 Never give a server secret a `VITE_` prefix. Vite exposes variables with that prefix to browser code during bundling. The React application shell does not read the TMDB token directly.
 
 Only modules under `src/server` may read `TMDB_API_READ_TOKEN`. Browser modules live under `src/browser`, while `src/shared` contains environment-neutral code that either side may import. ESLint enforces those import directions, and the browser TypeScript project excludes `src/server`.
+
+## Data, images, and attribution
+
+PickTonight identifies the external sources behind entertainment metadata, artwork, branding, and regional watch-provider availability. The application's footer links to an accessible Credits section containing the required TMDB notice and source links.
+
+| Material                             | Source and current boundary                                                                                                                                                                                                                                          |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Movie and television metadata        | [TMDB](https://www.themoviedb.org/) is the source used by the server-only discovery and normalization layers. Raw upstream responses and credentials do not cross into browser code.                                                                                 |
+| Posters and backdrops                | Image paths originate from the [TMDB API](https://developer.themoviedb.org/docs/image-basics). The current browser preview uses local placeholder data and does not construct or display live TMDB artwork. Later display enrichment must preserve TMDB attribution. |
+| Regional watch-provider availability | The TMDB watch-provider endpoints identify [JustWatch](https://www.justwatch.com/) as the underlying source. Every populated PickTonight provider display places a branded JustWatch link beside the availability data.                                              |
+| TMDB brand mark                      | `public/tmdb-logo.svg` is an unmodified approved blue-square TMDB logo displayed at its original 512 × 369 aspect ratio and at lower prominence than the PickTonight identity.                                                                                       |
+
+> This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+### TMDB logo provenance
+
+The local TMDB asset is the unmodified 2,577-byte SVG retrieved from the [Wikimedia Commons mirror record](https://commons.wikimedia.org/wiki/File:Tmdb.new.logo.svg). That record identifies Travis Bell as the author and the [official TMDB blue-square asset](https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg) as its source. Wikimedia lists the file under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
+The committed file's verification values are:
+
+- dimensions: 512 × 369;
+- size: 2,577 bytes;
+- SHA-1: `d6f7f0323283bf92471217d16e517181ff203cbf`.
+
+The logo is not recolored, cropped, stretched, flipped, rotated, or used to imply that TMDB endorses PickTonight. CSS only reduces its displayed width and retains automatic proportional height.
+
+### JustWatch attribution boundary
+
+TMDB documents that its regional watch-provider availability is powered by JustWatch and requires JustWatch source attribution. A recommendation card renders the branded JustWatch link only when usable regional provider data is present. The application-level Credits section provides the durable source explanation.
+
+PickTonight does not call the JustWatch API directly. The current browser preview also performs no live TMDB or JustWatch request and contains no live provider availability.
 
 ## Documentation
 

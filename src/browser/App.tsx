@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { RecommendationRequest } from "../shared/recommendation-contracts";
+import { Attribution } from "./attribution";
 import { replaceRecommendationAt } from "./recommendation-card-model";
 import {
   INITIAL_PREVIEW_RECOMMENDATIONS,
@@ -134,12 +135,16 @@ function App() {
             {statusMessage}
           </p>
         </section>
+
+        <Attribution />
       </main>
 
       <footer className="site-footer">
         <span>Working title</span>
         <span aria-hidden="true">·</span>
         <span>Non-commercial prototype</span>
+        <span aria-hidden="true">·</span>
+        <a href="#credits">Credits</a>
       </footer>
     </div>
   );

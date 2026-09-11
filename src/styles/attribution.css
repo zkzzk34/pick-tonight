@@ -1,0 +1,126 @@
+.attribution {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 2.5rem);
+  padding: clamp(3rem, 8vw, 5.5rem) 0;
+  border-top: 1px solid rgba(235, 226, 255, 0.14);
+  scroll-margin-top: 1.5rem;
+}
+
+.attribution__introduction {
+  max-width: 43rem;
+}
+
+.attribution__introduction .eyebrow {
+  margin-bottom: 0.8rem;
+}
+
+.attribution__introduction h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.attribution__introduction > p:last-child {
+  margin: 1rem 0 0;
+  color: #aaa2ba;
+  line-height: 1.65;
+}
+
+.attribution__sources {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.attribution__source {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+  border: 1px solid rgba(235, 226, 255, 0.14);
+  border-radius: 1rem;
+  background: rgba(30, 25, 45, 0.64);
+}
+
+.attribution__tmdb-link {
+  display: inline-flex;
+  width: 6rem;
+  max-width: 34%;
+  border-radius: 0.6rem;
+}
+
+.attribution__tmdb-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.attribution__justwatch-link {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgba(255, 202, 112, 0.38);
+  border-radius: 999px;
+  color: #ffd88f;
+  background: rgba(255, 184, 77, 0.08);
+  font-weight: 750;
+  text-underline-offset: 0.2em;
+}
+
+.attribution__source-copy {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.attribution__source-copy h3,
+.attribution__source-copy p {
+  margin: 0;
+}
+
+.attribution__source-copy h3 {
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.attribution__source-copy p {
+  color: #bcb4ca;
+  line-height: 1.65;
+}
+
+.attribution__notice {
+  font-weight: 600;
+}
+
+.site-footer a {
+  color: #c5b5ff;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.2em;
+}
+
+@media (hover: hover) {
+  .site-footer a:hover,
+  .attribution__justwatch-link:hover,
+  .recommendation-card__facts dd small a:hover {
+    color: #ffda9a;
+  }
+}
+
+@media (max-width: 44rem) {
+  .attribution__sources {
+    grid-template-columns: 1fr;
+  }
+
+  .attribution__source {
+    padding: 1.1rem;
+  }
+
+  .attribution__tmdb-link {
+    width: 5.5rem;
+  }
+}

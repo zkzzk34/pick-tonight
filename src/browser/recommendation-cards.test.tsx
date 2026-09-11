@@ -118,9 +118,13 @@ describe("RecommendationCards", () => {
     ).toBeInTheDocument();
     expect(within(titleA).getByText("Released this year")).toBeInTheDocument();
     expect(within(titleA).getByText("Example Stream · US")).toBeInTheDocument();
-    expect(
-      within(titleA).getByText("Availability data: JustWatch"),
-    ).toBeInTheDocument();
+    const justWatchLink = within(titleA).getByRole("link", {
+      name: "JustWatch",
+    });
+    expect(justWatchLink).toHaveAttribute("href", "https://www.justwatch.com/");
+    expect(justWatchLink.parentElement).toHaveTextContent(
+      "Availability data: JustWatch",
+    );
     expect(
       within(titleA).getByRole("link", {
         name: "Watch trailer for Title A",

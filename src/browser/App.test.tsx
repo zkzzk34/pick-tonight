@@ -24,4 +24,17 @@ describe("App", () => {
       within(promises).getByText("No account required"),
     ).toBeInTheDocument();
   });
+
+  it("links the footer to the Credits section", () => {
+    render(<App />);
+
+    expect(screen.getByRole("link", { name: "Credits" })).toHaveAttribute(
+      "href",
+      "#credits",
+    );
+    expect(screen.getByRole("region", { name: "Credits" })).toHaveAttribute(
+      "id",
+      "credits",
+    );
+  });
 });

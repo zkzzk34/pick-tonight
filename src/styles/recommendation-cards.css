@@ -202,6 +202,12 @@ main,
   color: #9f96ad;
 }
 
+.recommendation-card__facts dd small a {
+  color: #c5b5ff;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
 .recommendation-card__fit {
   padding: 0.9rem;
   border-left: 3px solid #9c7cff;
