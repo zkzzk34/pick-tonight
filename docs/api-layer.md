@@ -91,7 +91,7 @@ The coordinator preserves successful batches during partial source failures and 
 
 Automated discovery tests use injected clients and mocked TMDB responses; they do not call the live TMDB API.
 
-Mood mapping, engine-level hard filtering, deterministic scoring, and final recommendation selection now exist as isolated server modules. Additional focused engine tests, user-facing explanations, HTTP product-route wiring, recommendation cards, browser UI, analytics, and personalization remain deferred.
+Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, and focused engine tests now exist as isolated server modules. User-facing explanations, HTTP product-route wiring, recommendation cards, browser UI, analytics, and personalization remain deferred.
 
 ### Runtime request parsing
 
