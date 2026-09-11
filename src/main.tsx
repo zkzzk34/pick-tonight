@@ -5,6 +5,7 @@ import App from "./browser/App";
 import "./styles/global.css";
 import "./styles/recommendation-cards.css";
 import "./styles/recommendation-request.css";
+import "./styles/attribution.css";
 
 const rootElement = document.getElementById("root");
 

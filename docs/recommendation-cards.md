@@ -34,8 +34,10 @@ that URL remains part of later server-side enrichment.
 
 Provider data is shown only when it includes a watch region and at least one
 nonblank provider name. Its source is fixed to `justwatch`, and the card renders
-the required JustWatch source label. Provider retrieval, category handling,
-links, and fuller attribution remain outside this component.
+a branded JustWatch link beside the availability data. The application-level
+Credits section provides the fuller source explanation. Provider retrieval,
+title-specific outbound URLs, and category handling remain outside this
+component.
 
 ## Rating uncertainty
 
@@ -106,6 +108,7 @@ Automated browser tests verify:
 
 - exactly three ordered cards;
 - complete supported evidence and honest missing-data states;
+- a branded JustWatch link beside populated provider availability;
 - poster-load failure behavior;
 - rating-confidence treatment;
 - distinct actions and disclosure state;

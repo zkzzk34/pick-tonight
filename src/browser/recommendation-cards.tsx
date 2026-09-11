@@ -191,7 +191,10 @@ function RecommendationCard({
                   <span>
                     {providerNames.join(", ")} · {providerRegion}
                   </span>
-                  <small>Availability data: JustWatch</small>
+                  <small>
+                    Availability data:{" "}
+                    <a href="https://www.justwatch.com/">JustWatch</a>
+                  </small>
                 </>
               ) : (
                 "Provider availability unavailable."
