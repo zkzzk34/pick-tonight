@@ -117,12 +117,21 @@ Each result retains its score breakdown, position, temporal evidence, and cross-
 | `src/server/recommendation-engine-selection.test.ts` | Covers deterministic ties, session exclusions, temporal cohesion, variety, and limited results. |
 | `src/browser/recommendation-card-model.ts` | Defines the display-ready card contract, rating-confidence copy, safe URL and runtime formatting, and immutable three-card replacement. |
 | `src/browser/recommendation-cards.tsx` | Renders the semantic three-card deck, honest unavailable states, distinct action seams, and replacement-focus behavior. |
+| `src/browser/recommendation-request-state.ts` | Defines browser lifecycle and result types, fixed safe failure copy, detached request snapshots, and the injected requester contract. |
+| `src/browser/recommendation-request-panel.tsx` | Coordinates guarded submission, live status and error presentation, same-preference retry, and complete-set rendering. |
 
 The mapping module performs no network request, candidate filtering, scoring, final selection, or explanation rendering. It is not imported by browser components or `tmdb-discovery-requests.ts`, and Issue #15 does not convert mood signals into TMDB query parameters.
 
 The recommendation engine performs no TMDB request, request planning, browser work, or explanation rendering.
 
 The browser card modules perform no TMDB request and do not import the recommendation engine. They accept display-ready evidence from their caller; poster URL construction, provider retrieval, trailer enrichment, and fit-explanation generation remain server-side integration work.
+
+The browser request-state modules import shared request types and browser card
+types, not the server recommendation engine. They render cards only while the
+browser view state is complete and accept an injected requester rather than
+creating a transport dependency. The current application requester replays fixed
+local sample data; HTTP route wiring and limited one- or two-result presentation
+remain deferred.
 
 `getMoodMapping` accepts an unknown runtime value and returns either the configured mapping or `null`. This behavior gives later server-side recommendation logic an explicit unsupported-input outcome without inventing a fallback mood.
 
@@ -136,7 +145,7 @@ Potential future evidence includes structured prototype feedback, observed repla
 
 ## Deferred work
 
-Issues #15 through #17 established server-side mapping, hard filtering, scoring, deterministic selection, structured evidence, and focused coverage. Issue #18 adds browser presentation without widening the engine or networking responsibilities. The following remain deferred:
+Issues #15 through #17 established server-side mapping, hard filtering, scoring, deterministic selection, structured evidence, and focused coverage. Issue #18 adds browser presentation without widening the engine or networking responsibilities. Issue #19 adds the browser loading, empty, safe failure, duplicate-submission, and same-preference retry lifecycle through an injected requester without adding live transport. The following remain deferred:
 
 - server-side display enrichment, including poster URL construction, provider retrieval, and trailer lookup;
 - user-facing fit-explanation generation from retained evidence;
@@ -149,6 +158,11 @@ No public request field or historical signal is added by this heuristic. TMDB ne
 ## Verification and references
 
 The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, deterministic ties including the final media-type and TMDB-ID fallbacks, missing metadata, session exclusions, temporal cohesion, surprised variety, complete and limited selection across zero, one, two, and at least three eligible candidates, and enforcement of the three-result maximum.
+
+Browser request-state tests use injected requesters and fixed local data to
+cover loading, duplicate protection, empty results, safe failure categories,
+unsafe-error non-reflection, and detached retry snapshots. They perform no live
+TMDB or HTTP request.
 
 TMDB reference material:
 

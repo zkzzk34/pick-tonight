@@ -1,14 +1,14 @@
 import { useState } from "react";
 
-import {
-  replaceRecommendationAt,
-  type RecommendationCardSet,
-} from "./recommendation-card-model";
+import type { RecommendationRequest } from "../shared/recommendation-contracts";
+import { replaceRecommendationAt } from "./recommendation-card-model";
 import {
   INITIAL_PREVIEW_RECOMMENDATIONS,
   PREVIEW_REPLACEMENT,
 } from "./recommendation-card-preview";
 import { RecommendationCards } from "./recommendation-cards";
+import { RecommendationRequestPanel } from "./recommendation-request-panel";
+import type { RecommendationRequester } from "./recommendation-request-state";
 
 const productPromises = [
   {
@@ -27,11 +27,27 @@ const productPromises = [
   },
 ] as const;
 
+const PREVIEW_SUBMITTED_PREFERENCES = {
+  hardRestrictions: {
+    maximumRuntimeMinutes: 120,
+  },
+  softPreferences: {
+    mood: "laughing",
+  },
+  watchRegion: "US",
+} satisfies RecommendationRequest;
+
 function App() {
-  const [recommendations, setRecommendations] = useState<RecommendationCardSet>(
-    INITIAL_PREVIEW_RECOMMENDATIONS,
-  );
   const [statusMessage, setStatusMessage] = useState("");
+
+  const requestPreviewRecommendations: RecommendationRequester = () => {
+    setStatusMessage("");
+
+    return Promise.resolve({
+      status: "complete",
+      recommendations: INITIAL_PREVIEW_RECOMMENDATIONS,
+    });
+  };
 
   return (
     <div className="app-shell">
@@ -73,30 +89,48 @@ function App() {
             <h2 id="preview-heading">Card presentation preview</h2>
             <p>
               These clearly labeled placeholder titles and values demonstrate
-              the interface only. They are not live recommendations. Missing
-              provider, trailer, freshness, and fit evidence remains marked
-              unavailable.
+              the interface only. The request control below replays the same
+              local sample; it does not call TMDB or another live recommendation
+              service. Missing provider, trailer, freshness, and fit evidence
+              remains marked unavailable.
             </p>
           </div>
 
-          <RecommendationCards
-            recommendations={recommendations}
-            onAction={(action, recommendation) => {
-              setStatusMessage(
-                `${action.replaceAll("-", " ")} selected for ${recommendation.title}. Preview actions are not saved.`,
-              );
-            }}
-            onReplace={(recommendation, index) => {
-              setRecommendations((current) =>
-                replaceRecommendationAt(current, index, PREVIEW_REPLACEMENT),
-              );
-              setStatusMessage(
-                `${recommendation.title} was replaced with ${PREVIEW_REPLACEMENT.title}. The other recommendations stayed in place.`,
-              );
-            }}
-          />
+          <RecommendationRequestPanel
+            initialRecommendations={INITIAL_PREVIEW_RECOMMENDATIONS}
+            requestRecommendations={requestPreviewRecommendations}
+            submittedPreferences={PREVIEW_SUBMITTED_PREFERENCES}
+          >
+            {(recommendations, updateRecommendations) => (
+              <RecommendationCards
+                recommendations={recommendations}
+                onAction={(action, recommendation) => {
+                  setStatusMessage(
+                    `${action.replaceAll("-", " ")} selected for ${recommendation.title}. Preview actions are not saved.`,
+                  );
+                }}
+                onReplace={(recommendation, index) => {
+                  updateRecommendations((current) =>
+                    replaceRecommendationAt(
+                      current,
+                      index,
+                      PREVIEW_REPLACEMENT,
+                    ),
+                  );
+                  setStatusMessage(
+                    `${recommendation.title} was replaced with ${PREVIEW_REPLACEMENT.title}. The other recommendations stayed in place.`,
+                  );
+                }}
+              />
+            )}
+          </RecommendationRequestPanel>
 
-          <p className="action-status" role="status" aria-live="polite">
+          <p
+            aria-label="Preview action status"
+            aria-live="polite"
+            className="action-status"
+            role="status"
+          >
             {statusMessage}
           </p>
         </section>

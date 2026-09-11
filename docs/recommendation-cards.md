@@ -77,6 +77,20 @@ objects in place. When a media key changes, focus moves to the newly rendered
 article and the prototype caller announces the change through a polite status
 region.
 
+## Request-state integration
+
+`RecommendationCards` remains unaware of the request lifecycle.
+`RecommendationRequestPanel` renders the deck only while its view state is
+`complete`; loading, empty, and error states remain outside the card renderer.
+The panel passes the current complete set and a guarded updater to its child,
+which lets the preview preserve the existing immutable single-card replacement
+behavior.
+
+The application injects a local requester that replays the fixed sample. Neither
+the request panel nor the cards perform networking. See the
+[recommendation request-state contract](./recommendation-request-states.md) for
+the lifecycle, retry, failure-copy, and accessibility boundaries.
+
 ## Accessibility and responsive behavior
 
 The deck uses a named section, an ordered list, individually named articles,
