@@ -10,7 +10,7 @@ The finished portfolio project will combine product discovery, user research, re
 
 ## Current status
 
-**Week 2 — Vertical slice**
+**Week 3 — Complete MVP and instrumentation**
 
 Current work includes:
 
@@ -20,12 +20,13 @@ Current work includes:
 - normalizing TMDB movie and television results into one strict shared media summary;
 - retrieving, filtering, and combining movie and television candidates through a server-only TMDB discovery pipeline;
 - retrieving, normalizing, and caching TMDB image configuration, genres, watch-provider regions, and movie/television provider catalogs in server-only process memory;
+- retrieving and normalizing per-title movie and television details, configured image URLs, official videos, and regional provider availability through a server-only enrichment client;
 - proving that TMDB credentials remain available only to server-side code;
 - presenting an accessible three-card browser preview without widening the server boundary;
-- managing explicit browser loading, empty, safe failure, duplicate-submission, and same-preference retry states without adding live networking.
+- managing explicit browser loading, empty, safe failure, duplicate-submission, and same-preference retry states without adding live networking;
 - maintaining accessible in-application Credits for TMDB data and images and JustWatch watch-provider availability.
 
-The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, a normalized process-local TMDB reference-data cache, versioned mood mapping, deterministic filtering and selection, focused engine tests, an accessible recommendation-card presentation, and an injected browser request-state controller. The browser shows a clearly labeled non-live three-card preview, prevents concurrent duplicate requests, announces loading and empty states, maps supported failure categories to fixed user-safe copy, and retries a detached snapshot of the last submitted preferences. Its request control resolves the fixed local sample and performs no direct TMDB request. HTTP product-route wiring, server-side display enrichment, deterministic fit-explanation generation, durable action semantics, analytics, personalization, and deployment remain separate backlog work. See the [recommendation v1 contract](./docs/recommendation-v1.md), [recommendation-card contract](./docs/recommendation-cards.md), and [recommendation request-state contract](./docs/recommendation-request-states.md).
+The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, a normalized process-local TMDB reference-data cache, per-title server enrichment, versioned mood mapping, deterministic filtering and selection, focused engine tests, an accessible recommendation-card presentation, and an injected browser request-state controller. The browser shows a clearly labeled non-live three-card preview, prevents concurrent duplicate requests, announces loading and empty states, maps supported failure categories to fixed user-safe copy, and retries a detached snapshot of the last submitted preferences. Its request control resolves the fixed local sample and performs no direct TMDB request. HTTP product-route wiring, browser consumption of title enrichment, deterministic fit-explanation generation, durable action semantics, analytics, personalization, and deployment remain separate backlog work. See the [recommendation v1 contract](./docs/recommendation-v1.md), [recommendation-card contract](./docs/recommendation-cards.md), and [recommendation request-state contract](./docs/recommendation-request-states.md).
 
 ## Local development
 
@@ -76,12 +77,12 @@ Only modules under `src/server` may read `TMDB_API_READ_TOKEN`. Browser modules 
 
 PickTonight identifies the external sources behind entertainment metadata, artwork, branding, and regional watch-provider availability. The application's footer links to an accessible Credits section containing the required TMDB notice and source links.
 
-| Material                             | Source and current boundary                                                                                                                                                                                                                                          |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Movie and television metadata        | [TMDB](https://www.themoviedb.org/) is the source used by the server-only discovery, normalization, and reference-data cache layers. Raw upstream responses and credentials do not cross into browser code.                                                          |
-| Posters and backdrops                | Image paths originate from the [TMDB API](https://developer.themoviedb.org/docs/image-basics). The current browser preview uses local placeholder data and does not construct or display live TMDB artwork. Later display enrichment must preserve TMDB attribution. |
-| Regional watch-provider availability | The TMDB watch-provider endpoints identify [JustWatch](https://www.justwatch.com/) as the underlying source. Every populated PickTonight provider display places a branded JustWatch link beside the availability data.                                              |
-| TMDB brand mark                      | `public/tmdb-logo.svg` is an unmodified approved blue-square TMDB logo displayed at its original 512 × 369 aspect ratio and at lower prominence than the PickTonight identity.                                                                                       |
+| Material                             | Source and current boundary                                                                                                                                                                                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Movie and television metadata        | [TMDB](https://www.themoviedb.org/) is the source used by the server-only discovery, normalization, reference-data cache, and title-enrichment layers. Raw upstream responses and credentials do not cross into browser code.                                                   |
+| Posters and backdrops                | Image paths originate from the [TMDB API](https://developer.themoviedb.org/docs/image-basics). The server enrichment layer constructs configured HTTPS image URLs; the current browser preview still uses local placeholders and does not display live TMDB artwork.            |
+| Regional watch-provider availability | The TMDB watch-provider endpoints identify [JustWatch](https://www.justwatch.com/) as the underlying source. Server enrichment preserves the regional categories and TMDB watch URL; every populated browser display keeps the branded JustWatch link beside that availability. |
+| TMDB brand mark                      | `public/tmdb-logo.svg` is an unmodified approved blue-square TMDB logo displayed at its original 512 × 369 aspect ratio and at lower prominence than the PickTonight identity.                                                                                                  |
 
 > This product uses the TMDB API but is not endorsed or certified by TMDB.
 

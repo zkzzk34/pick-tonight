@@ -6,7 +6,7 @@ The Node API layer is PickTonight's application boundary between browser code an
 
 Local API scripts require Node.js `24.12+` and use its stable built-in TypeScript type stripping. The server code therefore stays within erasable TypeScript syntax, uses explicit `.ts` import extensions, and remains type-checked by the repository's Node TypeScript project without adding a runtime framework or TypeScript launcher.
 
-This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, a server-only TMDB candidate-discovery pipeline, a process-local cache for normalized TMDB reference data, versioned mood mapping, and deterministic recommendation filtering, scoring, and selection. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools; the recommendation engine rechecks hard restrictions before scoring and returns up to three results with structured evidence. No recommendation product endpoint is exposed yet.
+This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, a server-only TMDB candidate-discovery pipeline, a process-local cache for normalized TMDB reference data, per-title TMDB enrichment, versioned mood mapping, and deterministic recommendation filtering, scoring, and selection. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools; the title client retrieves display-ready enrichment for one validated identity; and the recommendation engine rechecks hard restrictions before scoring and returns up to three results with structured evidence. No recommendation product endpoint is exposed yet.
 
 ## Module boundaries
 
@@ -76,6 +76,9 @@ The discovery pipeline remains entirely under `src/server`. It accepts a validat
 | `tmdb-discovery-client.ts` | Owns authenticated TMDB JSON transport, the five-second default timeout, fixed safe failure mapping, and discovery-result normalization. |
 | `tmdb-reference-normalization.ts` | Validates and allowlists image configuration, genres, provider regions, and provider catalogs without exposing raw upstream payloads. |
 | `tmdb-reference-cache.ts` | Retrieves normalized reference data through dependency-complete keys and a process-local expiring cache. |
+| `tmdb-title-requests.ts` | Validates one movie or television identity and plans its detail, image, video, and optional watch-provider requests. |
+| `tmdb-title-normalization.ts` | Converts the title responses and image configuration into one allowlisted movie/television enrichment contract. |
+| `tmdb-title-client.ts` | Sequences detail-first retrieval, concurrent auxiliary work, fixed safe errors, and title normalization. |
 | `tmdb-discovery-candidates.ts` | Filters and deduplicates normalized candidates, preserves source attribution, and tracks which restrictions were verified. |
 | `tmdb-discovery.ts` | Executes every applicable plan, combines successful batches, and reports partial failures without reflecting unsafe details. |
 | `mood-mapping.ts` | Defines versioned mood signals without performing network requests or hard filtering. |
@@ -123,7 +126,7 @@ Language and region values are canonicalized before URL and cache-key constructi
 
 The 24-hour duration is a PickTonight application policy, not a TTL promised by TMDB. Consequently, a warm process can serve reference values that are up to 24 hours behind TMDB. There is no persistent or distributed cache, cross-instance request coalescing, manual invalidation API, background refresh, or stale fallback. Those tradeoffs keep the MVP deterministic and avoid introducing infrastructure before observed traffic requires it.
 
-This issue does not retrieve title details, construct display image URLs, retrieve videos, or normalize per-title regional availability. Those display-enrichment responsibilities remain with Issue #22. Caching the provider catalog also does not change the TMDB and JustWatch attribution requirements documented in the README.
+The reference cache does not itself retrieve title details, construct display image URLs, retrieve videos, or normalize per-title regional availability. The title-enrichment client described below consumes the reusable image-configuration entry but does not cache title responses. Caching the provider catalog also does not change the TMDB and JustWatch attribution requirements documented in the README.
 
 Automated cache tests use an injected JSON client and clock. They cover all six endpoints, canonical dependency keys, hits, exact expiration, refresh, same-key concurrency, invalid payloads, and upstream failures without making live TMDB requests.
 
@@ -138,7 +141,44 @@ The implementation was checked against the current official references:
 - [TMDB language and country-code conventions](https://developer.themoviedb.org/docs/languages)
 - [TMDB rate-limit guidance](https://developer.themoviedb.org/docs/rate-limiting)
 
-Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, focused engine tests, the browser recommendation-card presentation, and the browser request-state controller now exist as isolated modules. The cards accept display-ready values, while the request controller accepts an injected requester; neither performs networking. Structured fit-explanation generation, HTTP product-route wiring, server-side display enrichment, durable action semantics, analytics, and personalization remain deferred.
+### Server-only TMDB title enrichment
+
+`fetchTmdbTitleDetails` retrieves display enrichment for exactly one validated movie or television identity. The request planner requires `movie` or `tv` plus a positive safe-integer TMDB ID. It defaults the response language to `en-US`, canonicalizes a two-letter language with an optional country segment, and canonicalizes an optional watch region to an uppercase two-letter code before constructing any request.
+
+| Resource | Movie request | Television request | Request behavior |
+| --- | --- | --- | --- |
+| Details | `GET /movie/{id}` | `GET /tv/{id}` | Sends the canonical response language. |
+| Images | `GET /movie/{id}/images` | `GET /tv/{id}/images` | Sends the language and includes language-neutral images. |
+| Videos | `GET /movie/{id}/videos` | `GET /tv/{id}/videos` | Sends the canonical response language. |
+| Watch providers | `GET /movie/{id}/watch/providers` | `GET /tv/{id}/watch/providers` | Retrieved only when a watch region was supplied; the requested country is selected from the response. |
+
+The client deliberately uses separate endpoint calls. It awaits details first, so a missing title returns the fixed `NOT_FOUND` error without requesting auxiliary data. After a successful detail response arrives, it retrieves reusable image configuration, images, videos, and—when applicable—watch providers concurrently. The enrichment policy is strict: any requested auxiliary transport or required-envelope failure rejects the operation instead of silently returning a partly trusted title. Legitimate missing optional values inside valid responses remain explicit as `null` or empty lists.
+
+`TmdbTitleDetails` is a server-only allowlist shared by movies and television. It contains the normalized identity and metadata fields, named genres, a discriminated movie or episode runtime, nullable complete poster and backdrop URLs, rating values, one selected official video URL, and optional regional provider availability. Movie `title`, `original_title`, `release_date`, and `runtime` fields map to the same internal names as television `name`, `original_name`, `first_air_date`, and the first valid `episode_run_time` value.
+
+Image construction uses the cached TMDB secure base URL, an allowed size for the relevant image family, and a safe relative file path. It prefers a usable path from title details, then the first usable image-endpoint fallback. PickTonight chooses the largest configured numeric size and uses `original` only when no numeric size is available. Missing paths remain `null`; unsafe paths or unusable required configuration cannot become URLs.
+
+Video selection considers only entries marked official. The deterministic type order is Trailer, Teaser, Clip, then Featurette; within each type, YouTube is preferred to Vimeo, and upstream order breaks any remaining tie. If no supported official video exists, `trailerUrl` is `null`.
+
+Provider availability is requested only for an explicit watch region. The normalizer selects that exact country and maps TMDB `flatrate`, `free`, `ads`, `rent`, and `buy` groups to `streaming`, `free`, `advertising`, `rental`, and `purchase`. It keeps unique positive provider IDs, names, configured logo URLs, `source: "justwatch"`, the canonical region, and only a valid HTTPS TMDB watch URL. With no requested region, no matching country entry, or no usable provider group, `providerAvailability` is `null`; PickTonight does not infer that a title is unavailable.
+
+Every retrieved details, images, videos, and watch-provider envelope must identify the requested TMDB title. Raw objects, unexpected fields, upstream bodies, credentials, and caught exception text are never included in the normalized result or error. The shared transport retains Bearer authentication, its five-second default timeout, and fixed configuration, authentication, not-found, rate-limit, timeout, upstream, invalid-response, and network errors.
+
+Per-title responses are intentionally request-driven and uncached. Only the relatively stable image configuration uses the Issue #21 process-local cache. Tests inject the JSON client and image-configuration source, cover representative movie and television responses plus missing and malformed data, and never call live TMDB.
+
+The implementation was checked against the current official references:
+
+- [TMDB movie details](https://developer.themoviedb.org/reference/movie-details)
+- [TMDB television details](https://developer.themoviedb.org/reference/tv-series-details)
+- [TMDB movie images](https://developer.themoviedb.org/reference/movie-images)
+- [TMDB television images](https://developer.themoviedb.org/reference/tv-series-images)
+- [TMDB movie videos](https://developer.themoviedb.org/reference/movie-videos)
+- [TMDB television videos](https://developer.themoviedb.org/reference/tv-series-videos)
+- [TMDB image URL basics](https://developer.themoviedb.org/docs/image-basics)
+- [TMDB movie watch providers](https://developer.themoviedb.org/reference/movie-watch-providers)
+- [TMDB television watch providers](https://developer.themoviedb.org/reference/tv-series-watch-providers)
+
+Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, focused engine tests, the browser recommendation-card presentation, the browser request-state controller, and server-side title enrichment now exist as isolated modules. The cards accept display-ready values, while the request controller accepts an injected requester; neither performs networking. Structured fit-explanation generation, HTTP product-route wiring, browser consumption of title enrichment, durable action semantics, analytics, and personalization remain deferred.
 
 ### Browser request-state seam
 
@@ -251,7 +291,7 @@ Local `.env` files remain ignored by Git. `src/server/environment.ts` is the onl
 
 Do not import server modules from browser code, add a `VITE_` prefix to the token, log the token or request headers, or return caught exception details to a client. The API handler returns only fixed health or error responses and never reflects request URLs, headers, or bodies.
 
-The current health route does not call TMDB, so the local API can start without a token. During local use, server-side discovery requires a valid token loaded from the ignored `.env` file unless a token is injected by a test; HTTP product-route wiring remains deferred.
+The current health route does not call TMDB, so the local API can start without a token. During local use, server-side discovery and title enrichment require a valid token loaded from the ignored `.env` file unless a token is injected by a test; HTTP product-route wiring remains deferred.
 
 ## Verification
 
@@ -265,4 +305,4 @@ npm run build
 node --env-file=.env proofs/tmdb-server-only/verify-secret-boundary.mjs
 ```
 
-The API tests verify health and standardized errors, strict schemas, request parsing, bounded safe issue mapping, and non-reflection. Discovery and TMDB proof tests use mocked responses and injected clients to verify request planning, Bearer-authenticated server requests, normalization, filters, source attribution, deduplication, partial failures, timeouts, and safe errors without live TMDB calls. The secret-boundary proof scans for the configured token without printing it and verifies that it remains outside project files, Git objects, browser assets, browser requests, and responses.
+The API tests verify health and standardized errors, strict schemas, request parsing, bounded safe issue mapping, and non-reflection. Discovery, title-enrichment, and TMDB proof tests use mocked responses and injected clients to verify request planning, Bearer-authenticated server requests, normalization, filters, source attribution, deduplication, partial failures, title identity, configured image URLs, official-video selection, regional provider groups, timeouts, and safe errors without live TMDB calls. The secret-boundary proof scans for the configured token without printing it and verifies that it remains outside project files, Git objects, browser assets, browser requests, and responses.

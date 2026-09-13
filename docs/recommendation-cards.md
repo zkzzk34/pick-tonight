@@ -30,14 +30,15 @@ negative claim.
 Poster and trailer display URLs must be absolute HTTPS URLs. Raw TMDB
 `posterPath` values are not accepted as browser-ready URLs. TMDB documents that
 a usable image URL requires a base URL, file size, and file path; assembling
-that URL remains part of later server-side enrichment.
+that URL now belongs to the server-only title-enrichment layer. Mapping the
+enriched result into this browser contract remains a later integration.
 
 Provider data is shown only when it includes a watch region and at least one
 nonblank provider name. Its source is fixed to `justwatch`, and the card renders
 a branded JustWatch link beside the availability data. The application-level
 Credits section provides the fuller source explanation. Provider retrieval,
 title-specific outbound URLs, and category handling remain outside this
-component.
+component and are now handled by the isolated server enrichment layer.
 
 ## Rating uncertainty
 
@@ -121,8 +122,8 @@ Automated browser tests verify:
 The application preview uses explicitly labeled sample titles and values. It
 does not claim that they are live recommendations.
 
-HTTP recommendation routing, title-detail enrichment, TMDB image URL assembly,
-provider retrieval, trailer normalization, deterministic explanation
-generation, durable action semantics, watchlist persistence, analytics, and
-personalization remain owned by their later issues. No TMDB credential or
-direct TMDB request is added to browser code.
+HTTP recommendation routing, mapping server-side title enrichment into
+browser-ready card data, deterministic explanation generation, durable action
+semantics, watchlist persistence, analytics, and personalization remain owned
+by their later issues. No TMDB credential or direct TMDB request is added to
+browser code.

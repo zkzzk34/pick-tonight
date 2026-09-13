@@ -18,6 +18,7 @@ export const DEFAULT_TMDB_DISCOVERY_TIMEOUT_MS = 5_000;
 export const TMDB_DISCOVERY_ERROR_CODES = [
   "CONFIGURATION_ERROR",
   "AUTHENTICATION_ERROR",
+  "NOT_FOUND",
   "RATE_LIMIT_ERROR",
   "UPSTREAM_TIMEOUT",
   "UPSTREAM_ERROR",
@@ -31,6 +32,7 @@ export type TmdbDiscoveryErrorCode =
 const ERROR_MESSAGES = {
   CONFIGURATION_ERROR: "TMDB access is not configured on the server.",
   AUTHENTICATION_ERROR: "TMDB authentication failed.",
+  NOT_FOUND: "The requested TMDB resource was not found.",
   RATE_LIMIT_ERROR: "TMDB is receiving too many requests. Try again shortly.",
   UPSTREAM_TIMEOUT: "TMDB took too long to respond. Try again.",
   UPSTREAM_ERROR: "TMDB is temporarily unavailable. Try again shortly.",
@@ -135,6 +137,10 @@ function errorForResponse(response: Response): TmdbDiscoveryError | null {
 
   if (response.status === 429) {
     return new TmdbDiscoveryError("RATE_LIMIT_ERROR", response.status);
+  }
+
+  if (response.status === 404) {
+    return new TmdbDiscoveryError("NOT_FOUND", response.status);
   }
 
   if (response.status === 504) {
