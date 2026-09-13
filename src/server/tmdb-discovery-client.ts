@@ -79,10 +79,13 @@ function resolveToken(token: string | undefined): string {
   }
 }
 
-function createRequestUrl(plan: TmdbDiscoveryRequestPlan): URL {
-  const requestUrl = new URL(`${TMDB_API_BASE_URL}${plan.pathname}`);
+function createRequestUrl(
+  pathname: string,
+  searchParameters: Readonly<Record<string, string>>,
+): URL {
+  const requestUrl = new URL(`${TMDB_API_BASE_URL}${pathname}`);
 
-  for (const [name, value] of Object.entries(plan.searchParameters)) {
+  for (const [name, value] of Object.entries(searchParameters)) {
     requestUrl.searchParams.set(name, value);
   }
 
@@ -145,14 +148,15 @@ function errorForResponse(response: Response): TmdbDiscoveryError | null {
   return null;
 }
 
-export async function fetchTmdbDiscoveryBatch(
-  plan: TmdbDiscoveryRequestPlan,
+export async function fetchTmdbJson(
+  pathname: string,
+  searchParameters: Readonly<Record<string, string>>,
   {
     token: suppliedToken,
     fetchImpl = globalThis.fetch,
     timeoutMs = DEFAULT_TMDB_DISCOVERY_TIMEOUT_MS,
   }: TmdbDiscoveryClientOptions = {},
-): Promise<TmdbDiscoveryBatch> {
+): Promise<unknown> {
   const token = resolveToken(suppliedToken);
 
   if (
@@ -163,7 +167,7 @@ export async function fetchTmdbDiscoveryBatch(
     throw new TmdbDiscoveryError("CONFIGURATION_ERROR");
   }
 
-  const requestUrl = createRequestUrl(plan);
+  const requestUrl = createRequestUrl(pathname, searchParameters);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -197,10 +201,8 @@ export async function fetchTmdbDiscoveryBatch(
       throw responseError;
     }
 
-    let payload: unknown;
-
     try {
-      payload = await response.json();
+      return await response.json();
     } catch {
       if (controller.signal.aborted) {
         throw new TmdbDiscoveryError("UPSTREAM_TIMEOUT");
@@ -208,15 +210,26 @@ export async function fetchTmdbDiscoveryBatch(
 
       throw new TmdbDiscoveryError("INVALID_RESPONSE", response.status);
     }
-
-    return {
-      source: plan.source,
-      mediaType: plan.mediaType,
-      candidates: normalizeCandidates(payload, plan.mediaType),
-      appliedMaximumRuntimeRestriction: plan.appliedMaximumRuntimeRestriction,
-      appliedProviderRestriction: plan.appliedProviderRestriction,
-    };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function fetchTmdbDiscoveryBatch(
+  plan: TmdbDiscoveryRequestPlan,
+  options: TmdbDiscoveryClientOptions = {},
+): Promise<TmdbDiscoveryBatch> {
+  const payload = await fetchTmdbJson(
+    plan.pathname,
+    plan.searchParameters,
+    options,
+  );
+
+  return {
+    source: plan.source,
+    mediaType: plan.mediaType,
+    candidates: normalizeCandidates(payload, plan.mediaType),
+    appliedMaximumRuntimeRestriction: plan.appliedMaximumRuntimeRestriction,
+    appliedProviderRestriction: plan.appliedProviderRestriction,
+  };
 }
