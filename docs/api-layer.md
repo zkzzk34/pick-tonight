@@ -6,7 +6,7 @@ The Node API layer is PickTonight's application boundary between browser code an
 
 Local API scripts require Node.js `24.12+` and use its stable built-in TypeScript type stripping. The server code therefore stays within erasable TypeScript syntax, uses explicit `.ts` import extensions, and remains type-checked by the repository's Node TypeScript project without adding a runtime framework or TypeScript launcher.
 
-This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, a server-only TMDB candidate-discovery pipeline, versioned mood mapping, and deterministic recommendation filtering, scoring, and selection. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools; the recommendation engine rechecks hard restrictions before scoring and returns up to three results with structured evidence. No recommendation product endpoint is exposed yet.
+This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, a server-only TMDB candidate-discovery pipeline, a process-local cache for normalized TMDB reference data, versioned mood mapping, and deterministic recommendation filtering, scoring, and selection. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools; the recommendation engine rechecks hard restrictions before scoring and returns up to three results with structured evidence. No recommendation product endpoint is exposed yet.
 
 ## Module boundaries
 
@@ -73,7 +73,9 @@ The discovery pipeline remains entirely under `src/server`. It accepts a validat
 | Module | Responsibility |
 | --- | --- |
 | `tmdb-discovery-requests.ts` | Converts movie, television, or either-media requests into TMDB source plans and supported query parameters. |
-| `tmdb-discovery-client.ts` | Sends authenticated server requests, applies a five-second timeout, normalizes usable results, and maps failures to fixed safe errors. |
+| `tmdb-discovery-client.ts` | Owns authenticated TMDB JSON transport, the five-second default timeout, fixed safe failure mapping, and discovery-result normalization. |
+| `tmdb-reference-normalization.ts` | Validates and allowlists image configuration, genres, provider regions, and provider catalogs without exposing raw upstream payloads. |
+| `tmdb-reference-cache.ts` | Retrieves normalized reference data through dependency-complete keys and a process-local expiring cache. |
 | `tmdb-discovery-candidates.ts` | Filters and deduplicates normalized candidates, preserves source attribution, and tracks which restrictions were verified. |
 | `tmdb-discovery.ts` | Executes every applicable plan, combines successful batches, and reports partial failures without reflecting unsafe details. |
 | `mood-mapping.ts` | Defines versioned mood signals without performing network requests or hard filtering. |
@@ -90,6 +92,51 @@ Candidate aggregation enforces the requested media type, rejects adult and exclu
 The coordinator preserves successful batches during partial source failures and records only fixed `{ source, code }` metadata. If every planned source fails, it throws the primary safe error. Configuration, authentication, rate-limit, timeout, upstream, invalid-response, and network failures use fixed messages that do not reflect credentials, upstream bodies, or caught exception text.
 
 Automated discovery tests use injected clients and mocked TMDB responses; they do not call the live TMDB API.
+
+### TMDB reference-data cache
+
+`src/server/tmdb-reference-cache.ts` retrieves relatively stable TMDB reference data through the shared server-only `fetchTmdbJson` transport. It stores only values produced by `src/server/tmdb-reference-normalization.ts`; raw upstream objects, credentials, and upstream error text are never cached or returned across the browser boundary.
+
+The exported `defaultTmdbReferenceDataCache` is the process-wide cache intended for production consumers. A recommendation request must reuse that singleton or another appropriately long-lived `TmdbReferenceDataCache` instance. Constructing a new cache for each request would discard all entries and defeat the policy.
+
+| Reference data | TMDB request | Normalized cache value | Cache key |
+| --- | --- | --- | --- |
+| Image configuration | `GET /configuration` with no query parameters | Validated base URLs and backdrop, logo, poster, profile, and still size allowlists | `configuration` |
+| Movie genres | `GET /genre/movie/list?language={language}` | Unique `{ id, name }` entries | `genres:movie:{language}` |
+| Television genres | `GET /genre/tv/list?language={language}` | Unique `{ id, name }` entries | `genres:tv:{language}` |
+| Watch-provider regions | `GET /watch/providers/regions?language={language}` | Unique region codes with English and optional native names | `provider-regions:{language}` |
+| Movie providers | `GET /watch/providers/movie?language={language}[&watch_region={region}]` | Unique provider identity, relative logo path, and valid display priorities | `providers:movie:{language}:{region-or-*}` |
+| Television providers | `GET /watch/providers/tv?language={language}[&watch_region={region}]` | Unique provider identity, relative logo path, and valid display priorities | `providers:tv:{language}:{region-or-*}` |
+
+Language and region values are canonicalized before URL and cache-key construction. Languages use a two-letter lowercase language code with an optional uppercase two-letter country segment, so inputs such as `EN-us` and `en-US` share one key. Genre lists default to `en`; provider regions and provider lists default to `en-US`, matching the documented endpoint defaults. Watch regions are uppercase two-letter values and are sent as `watch_region`. The cache validates code shape rather than maintaining a second list of codes supported by TMDB; TMDB remains authoritative for whether a syntactically valid value is available.
+
+#### PickTonight cache policy
+
+| Policy area | Selected behavior |
+| --- | --- |
+| Expiration | Each successfully normalized value expires `86,400,000` milliseconds—24 hours—after refresh completion. A value is a hit only while the current clock value is strictly earlier than its expiration time. |
+| Storage scope | Entries live only in the memory of one Node process. Warm serverless instances may reuse them; cold starts and separate instances begin with independent empty caches. |
+| Refresh | Refresh is request-driven. There is no background refresh or proactive invalidation. The first request after expiration retrieves and normalizes a replacement. |
+| Upstream or normalization failure | No stale-on-error fallback is used. Expired values are removed, failed or invalid responses are not cached, and the fixed safe error is returned. A later caller can retry. |
+| Concurrency | Concurrent refreshes for the same complete key share one in-flight promise. Different languages, regions, media types, or reference-data families refresh independently. |
+| Error and timeout behavior | The shared transport retains the existing five-second default timeout and fixed configuration, authentication, rate-limit, timeout, upstream, invalid-response, and network errors. |
+
+The 24-hour duration is a PickTonight application policy, not a TTL promised by TMDB. Consequently, a warm process can serve reference values that are up to 24 hours behind TMDB. There is no persistent or distributed cache, cross-instance request coalescing, manual invalidation API, background refresh, or stale fallback. Those tradeoffs keep the MVP deterministic and avoid introducing infrastructure before observed traffic requires it.
+
+This issue does not retrieve title details, construct display image URLs, retrieve videos, or normalize per-title regional availability. Those display-enrichment responsibilities remain with Issue #22. Caching the provider catalog also does not change the TMDB and JustWatch attribution requirements documented in the README.
+
+Automated cache tests use an injected JSON client and clock. They cover all six endpoints, canonical dependency keys, hits, exact expiration, refresh, same-key concurrency, invalid payloads, and upstream failures without making live TMDB requests.
+
+The implementation was checked against the current official references:
+
+- [TMDB configuration details](https://developer.themoviedb.org/reference/configuration-details)
+- [TMDB movie genre list](https://developer.themoviedb.org/reference/genre-movie-list)
+- [TMDB television genre list](https://developer.themoviedb.org/reference/genre-tv-list)
+- [TMDB available watch-provider regions](https://developer.themoviedb.org/reference/watch-providers-available-regions)
+- [TMDB movie provider list](https://developer.themoviedb.org/reference/watch-providers-movie-list)
+- [TMDB television provider list](https://developer.themoviedb.org/reference/watch-provider-tv-list)
+- [TMDB language and country-code conventions](https://developer.themoviedb.org/docs/languages)
+- [TMDB rate-limit guidance](https://developer.themoviedb.org/docs/rate-limiting)
 
 Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, focused engine tests, the browser recommendation-card presentation, and the browser request-state controller now exist as isolated modules. The cards accept display-ready values, while the request controller accepts an injected requester; neither performs networking. Structured fit-explanation generation, HTTP product-route wiring, server-side display enrichment, durable action semantics, analytics, and personalization remain deferred.
 
