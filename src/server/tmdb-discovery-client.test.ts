@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   fetchTmdbDiscoveryBatch,
+  fetchTmdbJson,
   TmdbDiscoveryError,
   type TmdbDiscoveryErrorCode,
 } from "./tmdb-discovery-client.ts";
@@ -180,6 +181,21 @@ test("maps TMDB rate limiting to a fixed safe error", async () => {
       fetchImpl: async () => jsonResponse({ status_message: TEST_TOKEN }, 429),
     }),
     (error) => isSafeDiscoveryError(error, "RATE_LIMIT_ERROR", 429),
+  );
+});
+
+test("maps a missing TMDB resource to a fixed not-found error", async () => {
+  await assert.rejects(
+    fetchTmdbJson(
+      "/movie/999999999",
+      { language: "en-US" },
+      {
+        token: TEST_TOKEN,
+        fetchImpl: async () =>
+          jsonResponse({ status_message: TEST_TOKEN }, 404),
+      },
+    ),
+    (error) => isSafeDiscoveryError(error, "NOT_FOUND", 404),
   );
 });
 
