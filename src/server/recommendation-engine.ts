@@ -6,10 +6,11 @@ import type {
 import { getMoodMapping } from "./mood-mapping.ts";
 import type { TmdbDiscoveryCandidate } from "./tmdb-discovery-candidates.ts";
 
-export const RECOMMENDATION_HEURISTIC_VERSION = "recommendation-v2" as const;
+export const RECOMMENDATION_HEURISTIC_VERSION = "recommendation-v3" as const;
 export const RECOMMENDATION_LIMIT = 3;
 export const TEMPORAL_COHESION_SCORE_WINDOW = 5;
 export const TEMPORAL_COHESION_MAX_YEAR_GAP = 50;
+export const GENRE_DIVERSITY_MINIMUM_NEW_GENRES = 1;
 
 export const RECOMMENDATION_WEIGHTS = {
   preferredGenrePerMatch: 30,
@@ -422,6 +423,12 @@ export interface TemporalCohesionEvidence {
   readonly affectedSelection: boolean;
 }
 
+export interface GenreDiversityEvidence {
+  readonly applied: boolean;
+  readonly newGenreIds: readonly number[];
+  readonly affectedSelection: boolean;
+}
+
 export interface CrossGenreVarietyEvidence {
   readonly applied: boolean;
   readonly newGenreIds: readonly number[];
@@ -431,6 +438,7 @@ export interface CrossGenreVarietyEvidence {
 export interface RecommendationSelectionEvidence {
   readonly position: number;
   readonly temporalCohesion: TemporalCohesionEvidence;
+  readonly genreDiversity: GenreDiversityEvidence;
   readonly crossGenreVariety: CrossGenreVarietyEvidence;
 }
 
@@ -543,6 +551,37 @@ function newlyCoveredGenreIds(
   ].sort((first, second) => first - second);
 }
 
+function genreDiversityCandidates(
+  candidates: readonly RankedRecommendationCandidate[],
+  selected: readonly RankedRecommendationCandidate[],
+): RankedRecommendationCandidate[] {
+  const ordered = [...candidates].sort(compareRankedCandidates);
+
+  if (selected.length === 0 || ordered.length === 0) {
+    return ordered;
+  }
+
+  const baseCandidate = ordered[0];
+
+  if (
+    baseCandidate === undefined ||
+    newlyCoveredGenreIds(baseCandidate, selected).length >=
+      GENRE_DIVERSITY_MINIMUM_NEW_GENRES
+  ) {
+    return ordered;
+  }
+
+  const candidatesAddingGenreCoverage = ordered.filter(
+    (candidate) =>
+      newlyCoveredGenreIds(candidate, selected).length >=
+      GENRE_DIVERSITY_MINIMUM_NEW_GENRES,
+  );
+
+  return candidatesAddingGenreCoverage.length > 0
+    ? candidatesAddingGenreCoverage
+    : ordered;
+}
+
 function chooseWithVariety(
   candidates: readonly RankedRecommendationCandidate[],
   selected: readonly RankedRecommendationCandidate[],
@@ -567,6 +606,16 @@ function chooseWithVariety(
   }
 
   return choice;
+}
+
+function chooseWithDiversity(
+  candidates: readonly RankedRecommendationCandidate[],
+  selected: readonly RankedRecommendationCandidate[],
+  applyVariety: boolean,
+): RankedRecommendationCandidate | null {
+  const diversityCandidates = genreDiversityCandidates(candidates, selected);
+
+  return chooseWithVariety(diversityCandidates, selected, applyVariety);
 }
 
 function temporalClassification(
@@ -672,14 +721,14 @@ export function selectRecommendations(
         : currentPreferenceCandidates;
     const applyVariety =
       request.softPreferences?.mood === "surprised" && selected.length > 0;
-    const choiceWithoutTemporalCohesion = chooseWithVariety(
+    const choiceWithoutTemporalCohesion = chooseWithDiversity(
       currentPreferenceCandidates,
       selected,
       applyVariety,
     );
     const choiceWithoutVariety =
       [...temporalCandidates].sort(compareRankedCandidates)[0] ?? null;
-    const choice = chooseWithVariety(
+    const choice = chooseWithDiversity(
       temporalCandidates,
       selected,
       applyVariety,
@@ -698,7 +747,8 @@ export function selectRecommendations(
       effectiveAnchorReleaseYear,
       candidateReleaseYear,
     );
-    const newGenreIds = applyVariety
+    const diversityApplied = selected.length > 0;
+    const newGenreIds = diversityApplied
       ? newlyCoveredGenreIds(choice, selected)
       : [];
 
@@ -717,9 +767,17 @@ export function selectRecommendations(
             candidateKey(choiceWithoutTemporalCohesion) !==
               candidateKey(choice),
         },
+        genreDiversity: {
+          applied: diversityApplied,
+          newGenreIds,
+          affectedSelection:
+            diversityApplied &&
+            choiceWithoutVariety !== null &&
+            candidateKey(choiceWithoutVariety) !== candidateKey(choice),
+        },
         crossGenreVariety: {
           applied: applyVariety,
-          newGenreIds,
+          newGenreIds: applyVariety ? newGenreIds : [],
           affectedSelection:
             applyVariety &&
             choiceWithoutVariety !== null &&
