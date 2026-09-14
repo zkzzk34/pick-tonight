@@ -1,12 +1,12 @@
-# Recommendation heuristic v1
+# Recommendation heuristic v2
 
 ## Status and purpose
 
-`recommendation-v1` is PickTonight's initial, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, and selection.
+`recommendation-v2` is PickTonight's current, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, and selection.
 
 The configuration is an explicit product hypothesis, not a validated emotional-classification model. TMDB genres describe catalog categories; they do not guarantee tone, intensity, humor, romance, fear, or an ending. PickTonight must not present these mappings as promises about how a title will make someone feel.
 
-The typed sources are `src/server/mood-mapping.ts` and `src/server/recommendation-engine.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings, scoring evidence, and selection results share the `recommendation-v1` version identifier.
+The typed sources are `src/server/mood-mapping.ts` and `src/server/recommendation-engine.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings remain versioned as `recommendation-v1` because Issue #23 does not change mood semantics. Scoring evidence and selection results use the `recommendation-v2` heuristic identifier.
 
 ## Initial mapping assumptions
 
@@ -40,7 +40,7 @@ These safeguards follow from that evidence:
 
 Hard restrictions and active-session exclusions are applied before any candidate receives a soft score. The engine independently checks eligibility even though candidate aggregation already removes many ineligible results.
 
-The v1 engine enforces:
+The recommendation engine enforces:
 
 - an exact requested movie or television type, while `either` accepts both;
 - rejection of candidates explicitly marked as adult;
@@ -59,40 +59,84 @@ No additional mandatory preference exists in the current request contract. Addin
 
 Only eligible candidates are scored. Every contribution is retained in the structured `RecommendationScoreBreakdown`.
 
-| Signal | Deterministic v1 contribution |
+| Signal | Deterministic contribution |
 | --- | ---: |
 | Explicit preferred genre | `+30` per unique match, capped at `60` |
 | Mood genre | `+18` for the first unique match, then `+4` per additional match, capped at `26` |
 | Requested content language | `+12` for an exact match |
 | Rating | `round(voteAverage x 2 x confidenceFactor)`, capped at `20` |
-| Release year | `0`; retained only as selection context |
+| Release year | `0`; retained as selection context; release date separately informs rating age |
 | Popularity and discovery source | `0`; deliberately ignored |
 
 The `surprised` mood's `cross-genre-variety` signal adds zero points. It is a bounded set-selection instruction, so it cannot inflate relevance or override hard restrictions.
 
-Rating value and confidence remain separate evidence:
+### Age-aware rating confidence
 
-| Vote count | Confidence tier | Factor |
-| ---: | --- | ---: |
-| Missing or `0` | `none` | `0` |
-| `1-24` | `low` | `0.25` |
-| `25-99` | `medium` | `0.5` |
-| `100-499` | `established` | `0.75` |
-| `500+` | `high` | `1` |
+The rating-confidence configuration defines a **180-calendar-day recent-title
+window** through `RATING_CONFIDENCE_CONFIG.recentTitleWindowDays`.
 
-A small vote count reduces how much positive rating evidence contributes; it never creates a negative quality penalty. A missing rating value contributes zero even when a vote count is present.
+For movies, age is based on the normalized release date. For television, the
+same `MediaSummary.releaseDate` field carries the normalized first-air date.
+The engine compares that date with the scoring `asOfDate`.
 
-Release date creates neither a recency reward nor an age penalty. A valid date contributes its year as zero-point context for temporal cohesion during selection. Missing dates remain neutral. Older titles, including titles from the 1980s and 1990s, therefore compete on fit rather than age.
+Age state is recorded as:
+
+- `recent` when a valid release or first-air date is 0 through 180 calendar
+  days old, inclusive;
+- `established` when a valid date is more than 180 calendar days old;
+- `unknown` when the date is missing, unusable, or later than the scoring date.
+
+The optional scoring `asOfDate` exists so age-sensitive behavior can be tested
+deterministically. When no value is supplied, the server uses the current UTC
+calendar date.
+
+The 180-day window and vote thresholds are explicit product assumptions. They
+are **not a statistical confidence interval** and must not be presented as a
+claim that one title is objectively better than another.
+
+Rating value, vote count, confidence state, and quality contribution remain
+separate evidence. `meaningfulEvidence` is true only when TMDB supplies a
+rating average and the vote count is greater than zero.
+
+| Rating evidence | Vote count | Age state | Confidence state | Factor |
+| --- | ---: | --- | --- | ---: |
+| Missing rating, missing vote count, or zero votes | any | any | `limited` | `0` |
+| Meaningful evidence | `1-24` | any | `limited` | `0.25` |
+| Meaningful evidence | `25-99` | any | `medium` | `0.5` |
+| Meaningful evidence | `100-499` | `recent` | `strong` | `1` |
+| Meaningful evidence | `100-499` | `established` or `unknown` | `medium` | `0.75` |
+| Meaningful evidence | `500+` | any | `strong` | `1` |
+
+A low vote count is never an automatic rejection rule. An otherwise eligible
+recent title with sparse votes remains eligible; its evidence is treated as
+limited or medium rather than automatically poor. Confidence changes only how
+much positive rating evidence contributes to recommendation scoring.
+
+When meaningful rating evidence is unavailable, rating contribution is zero.
+The raw rating average is also excluded from the rating-value ranking
+tie-break, so the engine does not turn an unsupported number into an implicit
+quality claim.
+
+The confidence adjustment does not rewrite or replace TMDB's displayed rating
+average or vote count. `voteAverage` and `voteCount` remain the normalized
+upstream values. `ageState`, `meaningfulEvidence`, `confidenceState`,
+`confidenceFactor`, and rating `points` are internal recommendation evidence
+for later explanation logic.
+
+Release year still contributes zero direct points. Age changes only the
+interpretation of rating confidence. Older titles, including titles from the
+1980s and 1990s, remain eligible and continue to compete on present-session
+fit.
 
 `originCountry` shapes supported TMDB discovery requests but is not scored because normalized `MediaSummary` objects contain no origin-country field. The engine makes no unsupported per-title origin claim.
 
-Popularity values and supplemental-source labels do not affect scores. V1 has no historical-taste input or adjustment, and it does not invent one.
+Popularity values and supplemental-source labels do not affect scores. The current heuristic has no historical-taste input or adjustment, and it does not invent one.
 
 ## Deterministic ranking and selection
 
 Shown and removed session identities are excluded by media type and TMDB ID before scoring. Duplicate eligible identities collapse to one candidate.
 
-Base ranking uses total score, combined current-request preference points, preferred-genre points, mood points, content-language points, rating confidence, rating value, movie before television, and finally ascending TMDB ID. V1 has no historical input or adjustment.
+Base ranking uses total score, combined current-request preference points, preferred-genre points, mood points, content-language points, rating-confidence factor, meaningful rating value, movie before television, and finally ascending TMDB ID. A raw rating value without meaningful vote evidence is not used as a quality tie-break. The current heuristic has no historical input or adjustment.
 
 For each slot, the engine considers candidates within five points of the score leader, keeps the strongest combined current-request preference evidence, applies temporal cohesion, applies `surprised` variety when requested, and then uses the base ranking to resolve any remaining tie.
 
@@ -157,7 +201,7 @@ No public request field or historical signal is added by this heuristic. TMDB ne
 
 ## Verification and references
 
-The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, deterministic ties including the final media-type and TMDB-ID fallbacks, missing metadata, session exclusions, temporal cohesion, surprised variety, complete and limited selection across zero, one, two, and at least three eligible candidates, and enforcement of the three-result maximum.
+The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, zero- and low-vote evidence, recent and established confidence behavior, deterministic ties including the final media-type and TMDB-ID fallbacks, missing metadata, session exclusions, temporal cohesion, surprised variety, complete and limited selection across zero, one, two, and at least three eligible candidates, and enforcement of the three-result maximum.
 
 Browser request-state tests use injected requesters and fixed local data to
 cover loading, duplicate protection, empty results, safe failure categories,
