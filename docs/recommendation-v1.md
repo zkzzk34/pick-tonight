@@ -1,12 +1,12 @@
-# Recommendation heuristic v2
+# Recommendation heuristic v3
 
 ## Status and purpose
 
-`recommendation-v2` is PickTonight's current, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, and selection.
+`recommendation-v3` is PickTonight's current, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, and selection.
 
 The configuration is an explicit product hypothesis, not a validated emotional-classification model. TMDB genres describe catalog categories; they do not guarantee tone, intensity, humor, romance, fear, or an ending. PickTonight must not present these mappings as promises about how a title will make someone feel.
 
-The typed sources are `src/server/mood-mapping.ts` and `src/server/recommendation-engine.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings remain versioned as `recommendation-v1` because Issue #23 does not change mood semantics. Scoring evidence and selection results use the `recommendation-v2` heuristic identifier.
+The typed sources are `src/server/mood-mapping.ts` and `src/server/recommendation-engine.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings remain versioned as `recommendation-v1` because the Issue #24 diversity pass does not change mood-signal semantics. Scoring and selection evidence use the `recommendation-v3` heuristic identifier.
 
 ## Initial mapping assumptions
 
@@ -138,15 +138,48 @@ Shown and removed session identities are excluded by media type and TMDB ID befo
 
 Base ranking uses total score, combined current-request preference points, preferred-genre points, mood points, content-language points, rating-confidence factor, meaningful rating value, movie before television, and finally ascending TMDB ID. A raw rating value without meaningful vote evidence is not used as a quality tie-break. The current heuristic has no historical input or adjustment.
 
-For each slot, the engine considers candidates within five points of the score leader, keeps the strongest combined current-request preference evidence, applies temporal cohesion, applies `surprised` variety when requested, and then uses the base ranking to resolve any remaining tie.
+For each slot, the engine considers candidates within five points of the score leader, keeps the strongest combined current-request preference evidence, applies temporal cohesion, applies deterministic genre diversity, applies the stronger `surprised` variety rule when requested, and then uses the base ranking to resolve any remaining tie.
 
 The first selected title supplies the release-year anchor. A later title more than 50 years away is deferred only while a comparably fitting non-extreme or unknown-date title remains. Release year never changes score, and older titles remain eligible.
 
-For `surprised`, variety favors the candidate covering the most genres not already represented by earlier selections. It cannot override hard restrictions, the near-fit window, current-request evidence, or temporal cohesion.
+### General genre diversity
+
+The first selected recommendation always preserves the strongest base-ranked
+fit after eligibility, scoring, and the existing deterministic tie-breaks.
+
+For later slots, genre diversity runs only after the existing near-fit,
+current-request preference, and temporal-cohesion narrowing. The threshold is
+`GENRE_DIVERSITY_MINIMUM_NEW_GENRES = 1`.
+
+The general rule is deliberately conservative:
+
+- if the base-ranked candidate adds at least one genre not represented by
+  earlier selections, the base ranking is preserved;
+- if the base-ranked candidate adds zero new genres and another candidate in
+  the already narrowed pool adds at least one new genre, the first such
+  candidate in base-ranking order is selected;
+- if the narrowed pool is homogeneous and no candidate adds new genre
+  coverage, the base ranking is preserved;
+- diversity never restores a candidate removed by a hard restriction, session
+  exclusion, near-fit rule, current-request preference rule, or temporal
+  cohesion.
+
+This first diversity version uses only normalized TMDB genre IDs already
+present on `MediaSummary`. The recommendation candidate boundary contains no
+structured collection, franchise, sequel/prequel, or similar-title
+relationship evidence. PickTonight therefore does not infer that two titles
+are closely related from title text, discovery source, or other unsupported
+signals.
+
+`GenreDiversityEvidence` records whether the rule applied, which genre IDs the
+selected title newly covers, and whether diversity changed the base-ranked
+choice for that slot.
+
+For `surprised`, the existing stronger variety rule then favors the candidate covering the most genres not already represented by earlier selections. It cannot override hard restrictions, the near-fit window, current-request evidence, temporal cohesion, or the general diversity candidate boundary.
 
 The engine returns exactly three recommendations when at least three eligible identities exist. Otherwise it returns every eligible title with an honest `limited` status.
 
-Each result retains its score breakdown, position, temporal evidence, and cross-genre evidence for later explanation code.
+Each result retains its score breakdown, position, temporal evidence, general genre-diversity evidence, and surprised cross-genre evidence for later explanation code.
 
 ## Module and responsibility boundaries
 
@@ -158,7 +191,7 @@ Each result retains its score breakdown, position, temporal evidence, and cross-
 | `src/server/tmdb-discovery-candidates.ts` | Preserves source attribution and exact request-bound runtime and provider evidence used by engine-level hard filtering. |
 | `src/server/recommendation-engine.ts` | Rechecks hard restrictions, scores only eligible candidates, selects up to three, and returns structured evidence. |
 | `src/server/recommendation-engine.test.ts` | Covers hard filtering, score calculations, rating uncertainty, and mood evidence. |
-| `src/server/recommendation-engine-selection.test.ts` | Covers deterministic ties, session exclusions, temporal cohesion, variety, and limited results. |
+| `src/server/recommendation-engine-selection.test.ts` | Covers deterministic ties, session exclusions, temporal cohesion, homogeneous and varied diversity pools, stronger-fit preservation, surprised variety, and limited results. |
 | `src/browser/recommendation-card-model.ts` | Defines the display-ready card contract, rating-confidence copy, safe URL and runtime formatting, and immutable three-card replacement. |
 | `src/browser/recommendation-cards.tsx` | Renders the semantic three-card deck, honest unavailable states, distinct action seams, and replacement-focus behavior. |
 | `src/browser/recommendation-request-state.ts` | Defines browser lifecycle and result types, fixed safe failure copy, detached request snapshots, and the injected requester contract. |
@@ -201,7 +234,7 @@ No public request field or historical signal is added by this heuristic. TMDB ne
 
 ## Verification and references
 
-The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, zero- and low-vote evidence, recent and established confidence behavior, deterministic ties including the final media-type and TMDB-ID fallbacks, missing metadata, session exclusions, temporal cohesion, surprised variety, complete and limited selection across zero, one, two, and at least three eligible candidates, and enforcement of the three-result maximum.
+The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, zero- and low-vote evidence, recent and established confidence behavior, deterministic ties including the final media-type and TMDB-ID fallbacks, missing metadata, session exclusions, temporal cohesion, homogeneous and varied genre-diversity pools, stronger-fit preservation, surprised variety, complete and limited selection across zero, one, two, and at least three eligible candidates, and enforcement of the three-result maximum.
 
 Browser request-state tests use injected requesters and fixed local data to
 cover loading, duplicate protection, empty results, safe failure categories,

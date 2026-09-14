@@ -175,7 +175,7 @@ test("produces the documented fixed scoring breakdown and caps genres", () => {
   });
 
   assert.deepEqual(score, {
-    version: "recommendation-v2",
+    version: "recommendation-v3",
     preferredGenres: {
       requestedGenreIds: [35, 28, 12],
       matchedGenreIds: [35, 28, 12],

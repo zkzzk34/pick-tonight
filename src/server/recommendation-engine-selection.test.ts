@@ -5,6 +5,7 @@ import type { MediaSummary } from "../shared/media-contracts.ts";
 import type { RecommendationRequest } from "../shared/recommendation-contracts.ts";
 import {
   RATING_CONFIDENCE_CONFIG,
+  GENRE_DIVERSITY_MINIMUM_NEW_GENRES,
   RECOMMENDATION_LIMIT,
   TEMPORAL_COHESION_MAX_YEAR_GAP,
   TEMPORAL_COHESION_SCORE_WINDOW,
@@ -653,6 +654,120 @@ test("uses stronger current-session evidence when total scores tie", () => {
       request,
     ).recommendations.map(({ candidate: selected }) => selected.media.id),
     [2, 1],
+  );
+});
+
+test("diversifies a varied pool only when the base choice repeats covered genres", () => {
+  const result = selectRecommendations(
+    [
+      candidate(movie(1, { genreIds: [18] })),
+      candidate(movie(2, { genreIds: [18] })),
+      candidate(movie(3, { genreIds: [35] })),
+      candidate(movie(4, { genreIds: [18] })),
+    ],
+    {},
+  );
+
+  assert.equal(GENRE_DIVERSITY_MINIMUM_NEW_GENRES, 1);
+  assert.equal(result.status, "complete");
+  assert.equal(result.eligibleCount, 4);
+  assert.deepEqual(
+    result.recommendations.map(({ candidate: selected }) => selected.media.id),
+    [1, 3, 2],
+  );
+  assert.deepEqual(
+    result.recommendations.map(
+      ({ selectionEvidence }) => selectionEvidence.genreDiversity,
+    ),
+    [
+      {
+        applied: false,
+        newGenreIds: [],
+        affectedSelection: false,
+      },
+      {
+        applied: true,
+        newGenreIds: [35],
+        affectedSelection: true,
+      },
+      {
+        applied: true,
+        newGenreIds: [],
+        affectedSelection: false,
+      },
+    ],
+  );
+});
+
+test("preserves base ranking for a homogeneous candidate pool", () => {
+  const result = selectRecommendations(
+    [
+      candidate(movie(10, { genreIds: [18] })),
+      candidate(movie(11, { genreIds: [18] })),
+      candidate(movie(12, { genreIds: [18] })),
+      candidate(movie(13, { genreIds: [18] })),
+    ],
+    {},
+  );
+
+  assert.equal(result.status, "complete");
+  assert.equal(result.eligibleCount, 4);
+  assert.deepEqual(
+    result.recommendations.map(({ candidate: selected }) => selected.media.id),
+    [10, 11, 12],
+  );
+  assert.deepEqual(
+    result.recommendations.map(
+      ({ selectionEvidence }) => selectionEvidence.genreDiversity,
+    ),
+    [
+      {
+        applied: false,
+        newGenreIds: [],
+        affectedSelection: false,
+      },
+      {
+        applied: true,
+        newGenreIds: [],
+        affectedSelection: false,
+      },
+      {
+        applied: true,
+        newGenreIds: [],
+        affectedSelection: false,
+      },
+    ],
+  );
+});
+
+test("does not trade away stronger current preference fit for genre diversity", () => {
+  const result = selectRecommendations(
+    [
+      candidate(movie(20, { genreIds: [35] })),
+      candidate(movie(21, { genreIds: [35] })),
+      candidate(movie(22, { genreIds: [18] })),
+    ],
+    {
+      softPreferences: {
+        preferredGenreIds: [35],
+      },
+    },
+  );
+
+  assert.deepEqual(
+    result.recommendations.map(({ candidate: selected }) => selected.media.id),
+    [20, 21, 22],
+  );
+  assert.equal(result.recommendations[0]?.score.total, 30);
+  assert.equal(result.recommendations[1]?.score.total, 30);
+  assert.equal(result.recommendations[2]?.score.total, 0);
+  assert.deepEqual(
+    result.recommendations[1]?.selectionEvidence.genreDiversity,
+    {
+      applied: true,
+      newGenreIds: [],
+      affectedSelection: false,
+    },
   );
 });
 
