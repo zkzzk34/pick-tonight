@@ -3,10 +3,10 @@ import type {
   RecommendationRequest,
   SupportedMood,
 } from "../shared/recommendation-contracts.ts";
-import { getMoodMapping, MOOD_MAPPING_VERSION } from "./mood-mapping.ts";
+import { getMoodMapping } from "./mood-mapping.ts";
 import type { TmdbDiscoveryCandidate } from "./tmdb-discovery-candidates.ts";
 
-export const RECOMMENDATION_HEURISTIC_VERSION = MOOD_MAPPING_VERSION;
+export const RECOMMENDATION_HEURISTIC_VERSION = "recommendation-v2" as const;
 export const RECOMMENDATION_LIMIT = 3;
 export const TEMPORAL_COHESION_SCORE_WINDOW = 5;
 export const TEMPORAL_COHESION_MAX_YEAR_GAP = 50;
@@ -21,8 +21,15 @@ export const RECOMMENDATION_WEIGHTS = {
   ratingMaximum: 20,
 } as const;
 
-export type RatingConfidenceTier =
-  "none" | "low" | "medium" | "established" | "high";
+export const RATING_CONFIDENCE_CONFIG = {
+  recentTitleWindowDays: 180,
+  limitedVoteCountMaximum: 24,
+  lowerMediumVoteCountMaximum: 99,
+  establishedStrongVoteCount: 500,
+} as const;
+
+export type RatingConfidenceState = "limited" | "medium" | "strong";
+export type RatingAgeState = "recent" | "established" | "unknown";
 
 export interface PreferredGenreScoreEvidence {
   readonly requestedGenreIds: readonly number[];
@@ -47,7 +54,9 @@ export interface ContentLanguageScoreEvidence {
 export interface RatingScoreEvidence {
   readonly voteAverage: number | null;
   readonly voteCount: number | null;
-  readonly confidenceTier: RatingConfidenceTier;
+  readonly ageState: RatingAgeState;
+  readonly meaningfulEvidence: boolean;
+  readonly confidenceState: RatingConfidenceState;
   readonly confidenceFactor: number;
   readonly points: number;
 }
@@ -234,32 +243,112 @@ function contentLanguageEvidence(
   };
 }
 
-function ratingConfidence(
-  voteCount: number | null,
-): Pick<RatingScoreEvidence, "confidenceTier" | "confidenceFactor"> {
-  if (voteCount === null || voteCount === 0) {
-    return { confidenceTier: "none", confidenceFactor: 0 };
-  }
+const MILLISECONDS_PER_DAY = 86_400_000;
 
-  if (voteCount <= 24) {
-    return { confidenceTier: "low", confidenceFactor: 0.25 };
-  }
-
-  if (voteCount <= 99) {
-    return { confidenceTier: "medium", confidenceFactor: 0.5 };
-  }
-
-  if (voteCount <= 499) {
-    return { confidenceTier: "established", confidenceFactor: 0.75 };
-  }
-
-  return { confidenceTier: "high", confidenceFactor: 1 };
+export interface RecommendationScoringOptions {
+  readonly asOfDate?: string;
 }
 
-function ratingEvidence(media: MediaSummary): RatingScoreEvidence {
-  const confidence = ratingConfidence(media.voteCount);
+function isoDateEpochDay(value: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const timestamp = Date.parse(`${value}T00:00:00.000Z`);
+
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+
+  const normalized = new Date(timestamp).toISOString().slice(0, 10);
+
+  return normalized === value
+    ? Math.floor(timestamp / MILLISECONDS_PER_DAY)
+    : null;
+}
+
+function resolveAsOfDate(asOfDate: string | undefined): string {
+  const resolved = asOfDate ?? new Date().toISOString().slice(0, 10);
+
+  if (isoDateEpochDay(resolved) === null) {
+    throw new RangeError("asOfDate must be a valid ISO calendar date");
+  }
+
+  return resolved;
+}
+
+function ratingAgeState(
+  releaseDate: string | null,
+  asOfDate: string,
+): RatingAgeState {
+  if (releaseDate === null) {
+    return "unknown";
+  }
+
+  const releaseDay = isoDateEpochDay(releaseDate);
+  const asOfDay = isoDateEpochDay(asOfDate);
+
+  if (releaseDay === null || asOfDay === null) {
+    return "unknown";
+  }
+
+  const daysSinceRelease = asOfDay - releaseDay;
+
+  if (daysSinceRelease < 0) {
+    return "unknown";
+  }
+
+  return daysSinceRelease <= RATING_CONFIDENCE_CONFIG.recentTitleWindowDays
+    ? "recent"
+    : "established";
+}
+
+function ratingConfidence(
+  voteCount: number | null,
+  ageState: RatingAgeState,
+  meaningfulEvidence: boolean,
+): Pick<RatingScoreEvidence, "confidenceState" | "confidenceFactor"> {
+  if (!meaningfulEvidence || voteCount === null || voteCount === 0) {
+    return { confidenceState: "limited", confidenceFactor: 0 };
+  }
+
+  if (voteCount <= RATING_CONFIDENCE_CONFIG.limitedVoteCountMaximum) {
+    return { confidenceState: "limited", confidenceFactor: 0.25 };
+  }
+
+  if (voteCount <= RATING_CONFIDENCE_CONFIG.lowerMediumVoteCountMaximum) {
+    return { confidenceState: "medium", confidenceFactor: 0.5 };
+  }
+
+  if (ageState === "recent") {
+    return { confidenceState: "strong", confidenceFactor: 1 };
+  }
+
+  if (voteCount < RATING_CONFIDENCE_CONFIG.establishedStrongVoteCount) {
+    return { confidenceState: "medium", confidenceFactor: 0.75 };
+  }
+
+  return { confidenceState: "strong", confidenceFactor: 1 };
+}
+
+function ratingEvidence(
+  media: MediaSummary,
+  asOfDate: string,
+): RatingScoreEvidence {
+  const ageState = ratingAgeState(media.releaseDate, asOfDate);
+  const meaningfulEvidence =
+    media.voteAverage !== null &&
+    media.voteCount !== null &&
+    media.voteCount > 0;
+
+  const confidence = ratingConfidence(
+    media.voteCount,
+    ageState,
+    meaningfulEvidence,
+  );
+
   const points =
-    media.voteAverage === null
+    !meaningfulEvidence || media.voteAverage === null
       ? 0
       : Math.min(
           Math.round(media.voteAverage * 2 * confidence.confidenceFactor),
@@ -269,6 +358,8 @@ function ratingEvidence(media: MediaSummary): RatingScoreEvidence {
   return {
     voteAverage: media.voteAverage,
     voteCount: media.voteCount,
+    ageState,
+    meaningfulEvidence,
     ...confidence,
     points,
   };
@@ -288,11 +379,13 @@ function releaseYear(releaseDate: string | null): number | null {
 export function scoreRecommendationCandidate(
   candidate: TmdbDiscoveryCandidate,
   request: RecommendationRequest,
+  scoringOptions: RecommendationScoringOptions = {},
 ): RecommendationScoreBreakdown {
   const preferredGenres = preferredGenreEvidence(candidate.media, request);
   const mood = moodEvidence(candidate.media, request);
   const contentLanguage = contentLanguageEvidence(candidate.media, request);
-  const rating = ratingEvidence(candidate.media);
+  const asOfDate = resolveAsOfDate(scoringOptions.asOfDate);
+  const rating = ratingEvidence(candidate.media, asOfDate);
 
   return {
     version: RECOMMENDATION_HEURISTIC_VERSION,
@@ -412,9 +505,13 @@ function compareRankedCandidates(
     return confidenceDifference;
   }
 
-  const ratingDifference =
-    (second.score.rating.voteAverage ?? -1) -
-    (first.score.rating.voteAverage ?? -1);
+  const firstRatingValue = first.score.rating.meaningfulEvidence
+    ? (first.score.rating.voteAverage ?? -1)
+    : -1;
+  const secondRatingValue = second.score.rating.meaningfulEvidence
+    ? (second.score.rating.voteAverage ?? -1)
+    : -1;
+  const ratingDifference = secondRatingValue - firstRatingValue;
 
   if (ratingDifference !== 0) {
     return ratingDifference;
@@ -500,6 +597,7 @@ export function selectRecommendations(
   candidates: readonly TmdbDiscoveryCandidate[],
   request: RecommendationRequest,
   sessionExclusions: RecommendationSessionExclusions = {},
+  scoringOptions: RecommendationScoringOptions = {},
 ): RecommendationEngineResult {
   const excludedSessionKeys = new Set(
     [
@@ -528,7 +626,7 @@ export function selectRecommendations(
     ...eligibleByKey.values(),
   ].map((candidate) => ({
     candidate,
-    score: scoreRecommendationCandidate(candidate, request),
+    score: scoreRecommendationCandidate(candidate, request, scoringOptions),
   }));
   const eligibleCount = remaining.length;
   const selected: RankedRecommendationCandidate[] = [];

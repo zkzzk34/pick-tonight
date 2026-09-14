@@ -4,6 +4,7 @@ import test from "node:test";
 import type { MediaSummary } from "../shared/media-contracts.ts";
 import type { RecommendationRequest } from "../shared/recommendation-contracts.ts";
 import {
+  RATING_CONFIDENCE_CONFIG,
   RECOMMENDATION_LIMIT,
   TEMPORAL_COHESION_MAX_YEAR_GAP,
   TEMPORAL_COHESION_SCORE_WINDOW,
@@ -179,72 +180,254 @@ test("excludes active-session titles and reports complete or limited results", (
 });
 
 test("separates rating value from confidence and keeps sparse votes uncertain", () => {
+  const asOfDate = "2026-09-14";
+
   const expectations = [
     {
       voteCount: null,
-      confidenceTier: "none",
+      confidenceState: "limited",
       confidenceFactor: 0,
+      meaningfulEvidence: false,
       points: 0,
     },
     {
       voteCount: 0,
-      confidenceTier: "none",
+      confidenceState: "limited",
       confidenceFactor: 0,
+      meaningfulEvidence: false,
       points: 0,
     },
     {
       voteCount: 1,
-      confidenceTier: "low",
+      confidenceState: "limited",
       confidenceFactor: 0.25,
+      meaningfulEvidence: true,
       points: 4,
     },
     {
       voteCount: 25,
-      confidenceTier: "medium",
+      confidenceState: "medium",
       confidenceFactor: 0.5,
+      meaningfulEvidence: true,
       points: 8,
     },
     {
       voteCount: 100,
-      confidenceTier: "established",
+      confidenceState: "medium",
       confidenceFactor: 0.75,
+      meaningfulEvidence: true,
       points: 12,
     },
     {
       voteCount: 500,
-      confidenceTier: "high",
+      confidenceState: "strong",
       confidenceFactor: 1,
+      meaningfulEvidence: true,
       points: 16,
     },
   ] as const;
 
   for (const [index, expectedRating] of expectations.entries()) {
     const { voteCount, ...expectedConfidence } = expectedRating;
+
     const score = scoreRecommendationCandidate(
-      candidate(movie(100 + index, { voteAverage: 8, voteCount })),
+      candidate(
+        movie(100 + index, {
+          releaseDate: "2025-01-01",
+          voteAverage: 8,
+          voteCount,
+        }),
+      ),
       {},
+      { asOfDate },
     );
 
     assert.deepEqual(score.rating, {
       voteAverage: 8,
       voteCount,
+      ageState: "established",
       ...expectedConfidence,
     });
-    assert.ok(score.rating.points >= 0);
   }
 
   const missingValue = scoreRecommendationCandidate(
-    candidate(movie(200, { voteAverage: null, voteCount: 500 })),
+    candidate(
+      movie(200, {
+        releaseDate: "2025-01-01",
+        voteAverage: null,
+        voteCount: 500,
+      }),
+    ),
     {},
+    { asOfDate },
   );
 
   assert.deepEqual(missingValue.rating, {
     voteAverage: null,
     voteCount: 500,
-    confidenceTier: "high",
-    confidenceFactor: 1,
+    ageState: "established",
+    meaningfulEvidence: false,
+    confidenceState: "limited",
+    confidenceFactor: 0,
     points: 0,
   });
+});
+
+test("uses age-aware confidence without rejecting sparse recent titles", () => {
+  const asOfDate = "2026-09-14";
+
+  assert.equal(RATING_CONFIDENCE_CONFIG.recentTitleWindowDays, 180);
+
+  const recent = scoreRecommendationCandidate(
+    candidate(
+      movie(210, {
+        releaseDate: "2026-08-01",
+        voteAverage: 8,
+        voteCount: 100,
+      }),
+    ),
+    {},
+    { asOfDate },
+  );
+
+  const established = scoreRecommendationCandidate(
+    candidate(
+      movie(211, {
+        releaseDate: "2025-01-01",
+        voteAverage: 8,
+        voteCount: 100,
+      }),
+    ),
+    {},
+    { asOfDate },
+  );
+
+  const recentBoundary = scoreRecommendationCandidate(
+    candidate(
+      movie(212, {
+        releaseDate: "2026-03-18",
+        voteAverage: 8,
+        voteCount: 100,
+      }),
+    ),
+    {},
+    { asOfDate },
+  );
+
+  const establishedBoundary = scoreRecommendationCandidate(
+    candidate(
+      movie(213, {
+        releaseDate: "2026-03-17",
+        voteAverage: 8,
+        voteCount: 100,
+      }),
+    ),
+    {},
+    { asOfDate },
+  );
+
+  const sparseRecentCandidate = candidate(
+    movie(214, {
+      releaseDate: "2026-09-01",
+      voteAverage: 8,
+      voteCount: 1,
+    }),
+  );
+
+  const sparseRecent = scoreRecommendationCandidate(
+    sparseRecentCandidate,
+    {},
+    { asOfDate },
+  );
+
+  const zeroVoteRecent = scoreRecommendationCandidate(
+    candidate(
+      movie(215, {
+        releaseDate: "2026-09-01",
+        voteAverage: 8,
+        voteCount: 0,
+      }),
+    ),
+    {},
+    { asOfDate },
+  );
+
+  const unknownAge = scoreRecommendationCandidate(
+    candidate(
+      movie(216, {
+        releaseDate: null,
+        voteAverage: 8,
+        voteCount: 100,
+      }),
+    ),
+    {},
+    { asOfDate },
+  );
+
+  assert.deepEqual(recent.rating, {
+    voteAverage: 8,
+    voteCount: 100,
+    ageState: "recent",
+    meaningfulEvidence: true,
+    confidenceState: "strong",
+    confidenceFactor: 1,
+    points: 16,
+  });
+
+  assert.deepEqual(established.rating, {
+    voteAverage: 8,
+    voteCount: 100,
+    ageState: "established",
+    meaningfulEvidence: true,
+    confidenceState: "medium",
+    confidenceFactor: 0.75,
+    points: 12,
+  });
+
+  assert.equal(recentBoundary.rating.ageState, "recent");
+  assert.equal(recentBoundary.rating.confidenceState, "strong");
+
+  assert.equal(establishedBoundary.rating.ageState, "established");
+  assert.equal(establishedBoundary.rating.confidenceState, "medium");
+
+  assert.deepEqual(sparseRecent.rating, {
+    voteAverage: 8,
+    voteCount: 1,
+    ageState: "recent",
+    meaningfulEvidence: true,
+    confidenceState: "limited",
+    confidenceFactor: 0.25,
+    points: 4,
+  });
+
+  assert.deepEqual(zeroVoteRecent.rating, {
+    voteAverage: 8,
+    voteCount: 0,
+    ageState: "recent",
+    meaningfulEvidence: false,
+    confidenceState: "limited",
+    confidenceFactor: 0,
+    points: 0,
+  });
+
+  assert.equal(unknownAge.rating.ageState, "unknown");
+  assert.equal(unknownAge.rating.confidenceState, "medium");
+  assert.equal(unknownAge.rating.confidenceFactor, 0.75);
+
+  const selection = selectRecommendations(
+    [sparseRecentCandidate],
+    {},
+    {},
+    { asOfDate },
+  );
+
+  assert.equal(selection.status, "limited");
+  assert.equal(selection.eligibleCount, 1);
+  assert.equal(selection.recommendations[0]?.candidate.media.id, 214);
+  assert.equal(
+    selection.recommendations[0]?.score.rating.confidenceState,
+    "limited",
+  );
 });
 
 test("filters hard failures before selecting from the ranked pool", () => {

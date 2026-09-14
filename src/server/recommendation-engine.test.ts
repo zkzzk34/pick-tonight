@@ -175,7 +175,7 @@ test("produces the documented fixed scoring breakdown and caps genres", () => {
   });
 
   assert.deepEqual(score, {
-    version: "recommendation-v1",
+    version: "recommendation-v2",
     preferredGenres: {
       requestedGenreIds: [35, 28, 12],
       matchedGenreIds: [35, 28, 12],
@@ -196,7 +196,9 @@ test("produces the documented fixed scoring breakdown and caps genres", () => {
     rating: {
       voteAverage: 8.6,
       voteCount: 600,
-      confidenceTier: "high",
+      ageState: "established",
+      meaningfulEvidence: true,
+      confidenceState: "strong",
       confidenceFactor: 1,
       points: 17,
     },
