@@ -20,6 +20,8 @@ export interface RecommendationCardsProps {
     recommendation: RecommendationCardData,
     index: number,
   ) => void;
+  readonly replacementUnavailableIndexes?: readonly number[];
+  readonly onEditRequiredRestrictions?: () => void;
 }
 
 const directActions = [
@@ -271,15 +273,28 @@ export function RecommendationCards({
   recommendations,
   onAction,
   onReplace,
+  replacementUnavailableIndexes = [],
+  onEditRequiredRestrictions,
 }: RecommendationCardsProps) {
   const headingId = useId();
   const cardRefs = useRef<Array<HTMLElement | null>>([]);
-  const previousMediaKeys = useRef(
-    recommendations.map(({ mediaKey }) => mediaKey),
+  const unavailableIndexes = new Set(replacementUnavailableIndexes);
+  const initialSlotKeys = recommendations.map(({ mediaKey }, index) =>
+    unavailableIndexes.has(index)
+      ? `replacement-unavailable:${index}`
+      : mediaKey,
   );
+  const previousMediaKeys = useRef(initialSlotKeys);
 
   useEffect(() => {
-    const currentMediaKeys = recommendations.map(({ mediaKey }) => mediaKey);
+    const effectUnavailableIndexes = new Set(replacementUnavailableIndexes);
+
+    const currentMediaKeys = recommendations.map(({ mediaKey }, index) =>
+      effectUnavailableIndexes.has(index)
+        ? `replacement-unavailable:${index}`
+        : mediaKey,
+    );
+
     const changedIndex = currentMediaKeys.findIndex(
       (mediaKey, index) => mediaKey !== previousMediaKeys.current[index],
     );
@@ -289,25 +304,61 @@ export function RecommendationCards({
     if (changedIndex !== -1) {
       cardRefs.current[changedIndex]?.focus();
     }
-  }, [recommendations]);
+  }, [recommendations, replacementUnavailableIndexes]);
 
   return (
     <section aria-labelledby={headingId} className="recommendation-results">
       <h2 id={headingId}>{RECOMMENDATION_CARD_COUNT} picks for tonight</h2>
       <ol aria-label="Recommendations" className="recommendation-results__list">
-        {recommendations.map((recommendation, index) => (
-          <li key={recommendation.mediaKey}>
-            <RecommendationCard
-              cardRef={(node) => {
-                cardRefs.current[index] = node;
-              }}
-              onAction={onAction}
-              onReplace={onReplace}
-              position={index + 1}
-              recommendation={recommendation}
-            />
-          </li>
-        ))}
+        {recommendations.map((recommendation, index) => {
+          if (unavailableIndexes.has(index)) {
+            return (
+              <li key={`replacement-unavailable-${index}`}>
+                <div
+                  aria-label={`No eligible replacement for pick ${index + 1}`}
+                  className="recommendation-card recommendation-card--replacement-empty"
+                  ref={(node) => {
+                    cardRefs.current[index] = node;
+                  }}
+                  role="status"
+                  tabIndex={-1}
+                >
+                  <p className="recommendation-card__position">
+                    Pick {index + 1}
+                  </p>
+                  <h3>No eligible replacement</h3>
+                  <p>
+                    PickTonight could not find another unseen title under the
+                    current required restrictions.
+                  </p>
+                  <p>
+                    Previously shown titles will not be repeated, and required
+                    restrictions will not be silently loosened.
+                  </p>
+                  {onEditRequiredRestrictions === undefined ? null : (
+                    <button onClick={onEditRequiredRestrictions} type="button">
+                      Edit required restrictions
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          }
+
+          return (
+            <li key={recommendation.mediaKey}>
+              <RecommendationCard
+                cardRef={(node) => {
+                  cardRefs.current[index] = node;
+                }}
+                onAction={onAction}
+                onReplace={onReplace}
+                position={index + 1}
+                recommendation={recommendation}
+              />
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

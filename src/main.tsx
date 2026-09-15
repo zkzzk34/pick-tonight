@@ -6,6 +6,7 @@ import "./styles/global.css";
 import "./styles/analytics-consent.css";
 import "./styles/preference-entry.css";
 import "./styles/title-detail.css";
+import "./styles/feedback-replacement.css";
 import "./styles/recommendation-cards.css";
 import "./styles/recommendation-request.css";
 import "./styles/attribution.css";
