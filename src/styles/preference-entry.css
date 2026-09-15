@@ -1,0 +1,372 @@
+.preference-flow {
+  display: grid;
+  gap: clamp(2rem, 6vw, 4rem);
+}
+
+.preference-flow__introduction {
+  max-width: 48rem;
+}
+
+.preference-flow__introduction h2,
+.preference-results h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.preference-flow__introduction > p:last-child,
+.preference-results .preview-introduction > p:last-child {
+  max-width: 48rem;
+  margin: 1rem 0 0;
+  color: #bcb4ca;
+  line-height: 1.65;
+}
+
+.preference-entry,
+.preference-review {
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  border: 1px solid rgba(235, 226, 255, 0.16);
+  border-radius: 1.1rem;
+  background: rgba(23, 19, 36, 0.72);
+  box-shadow: 0 1.25rem 3.5rem rgba(0, 0, 0, 0.16);
+}
+
+.preference-entry__text {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.preference-entry__text label,
+.preference-fields label {
+  color: #ffffff;
+  font-weight: 750;
+}
+
+.preference-entry__text label span {
+  color: #9f97ae;
+  font-weight: 500;
+}
+
+.preference-entry__text textarea,
+.preference-fields input,
+.preference-fields select {
+  width: 100%;
+  border: 1px solid rgba(235, 226, 255, 0.25);
+  border-radius: 0.8rem;
+  color: #f8f5ff;
+  background: rgba(12, 10, 19, 0.74);
+}
+
+.preference-entry__text textarea {
+  min-height: 7.5rem;
+  padding: 0.9rem 1rem;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.preference-entry__text small,
+.preference-group__help,
+.preference-group__notice,
+.selectivity small,
+.preference-review__row small {
+  color: #9991a8;
+  line-height: 1.55;
+}
+
+.preference-group {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.preference-group legend {
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+  font-weight: 750;
+}
+
+.preference-group__help,
+.preference-group__notice {
+  max-width: 46rem;
+  margin: -0.3rem 0 0.8rem;
+  font-size: 0.88rem;
+}
+
+.preference-group__notice {
+  margin-top: 0.75rem;
+  color: #ffd59a;
+}
+
+.preference-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.preference-chips button,
+.preference-entry__review,
+.preference-review button {
+  min-height: 2.7rem;
+  border: 1px solid rgba(197, 181, 255, 0.34);
+  border-radius: 999px;
+  color: #eee9f8;
+  background: rgba(75, 57, 130, 0.22);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease,
+    opacity 150ms ease;
+}
+
+.preference-chips button {
+  padding: 0.62rem 0.9rem;
+}
+
+.preference-chips button[aria-pressed="true"] {
+  color: #171021;
+  border-color: rgba(255, 215, 153, 0.72);
+  background: linear-gradient(135deg, #d8ceff, #ffd18a);
+}
+
+.preference-chips--danger button[aria-pressed="true"] {
+  color: #ffe8e8;
+  border-color: rgba(255, 139, 139, 0.62);
+  background: rgba(137, 46, 61, 0.56);
+}
+
+.preference-chips button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.preference-more {
+  padding: 1rem 0 0;
+  border-top: 1px solid rgba(235, 226, 255, 0.12);
+}
+
+.preference-more summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: #c5b5ff;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.preference-more__content {
+  display: grid;
+  gap: 1.6rem;
+  padding-top: 1rem;
+}
+
+.preference-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.preference-fields label {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.preference-fields input,
+.preference-fields select {
+  min-height: 2.9rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.selectivity {
+  display: grid;
+  gap: 0.3rem;
+  max-width: 46rem;
+  padding: 1rem 1.1rem;
+  border-left: 0.2rem solid rgba(197, 181, 255, 0.7);
+  border-radius: 0.8rem;
+  background: rgba(58, 46, 91, 0.34);
+}
+
+.selectivity strong {
+  color: #ffffff;
+}
+
+.selectivity span {
+  color: #c9c2d7;
+  line-height: 1.5;
+}
+
+.preference-entry__review,
+.preference-review__back {
+  justify-self: start;
+  padding: 0.75rem 1.15rem;
+}
+
+.preference-entry__review {
+  color: #171021;
+  border-color: rgba(255, 215, 153, 0.74);
+  background: linear-gradient(135deg, #d8ceff, #ffd18a);
+}
+
+.preference-review__back {
+  color: #eee9f8;
+  background: transparent;
+}
+
+.preference-review__notice,
+.preference-review__unsupported {
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(255, 202, 112, 0.3);
+  border-radius: 0.9rem;
+  background: rgba(72, 52, 28, 0.28);
+}
+
+.preference-review__notice h3,
+.preference-review__unsupported h3,
+.preference-review__group h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.preference-review__notice ul,
+.preference-review__unsupported ul {
+  margin: 0.7rem 0 0;
+  padding-left: 1.3rem;
+  color: #c9c2d7;
+  line-height: 1.55;
+}
+
+.preference-review__unsupported p,
+.preference-review__group > p {
+  margin: 0.65rem 0 0;
+  color: #aaa2ba;
+  line-height: 1.55;
+}
+
+.preference-review__unsupported-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.preference-review__unsupported-actions button,
+.preference-review__back,
+.preference-review__row button {
+  padding: 0.6rem 0.9rem;
+}
+
+.preference-review__group {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.preference-review__group > ul {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.preference-review__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(235, 226, 255, 0.12);
+  border-radius: 0.85rem;
+  background: rgba(30, 25, 45, 0.58);
+}
+
+.preference-review__row > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.preference-review__row-label {
+  color: #9991a8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.preference-review__row strong {
+  color: #ffffff;
+}
+
+.preference-review__row small {
+  max-width: 36rem;
+}
+
+.preference-results {
+  display: grid;
+  gap: 1.5rem;
+  padding-bottom: clamp(3rem, 8vw, 5.5rem);
+}
+
+.preference-chips button:focus-visible,
+.preference-entry__review:focus-visible,
+.preference-review button:focus-visible,
+.preference-more summary:focus-visible,
+.preference-entry__text textarea:focus-visible,
+.preference-fields input:focus-visible,
+.preference-fields select:focus-visible {
+  outline: 3px solid #ffd18a;
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .preference-chips button:not(:disabled):hover,
+  .preference-entry__review:hover,
+  .preference-review button:hover {
+    border-color: rgba(255, 255, 255, 0.52);
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 44rem) {
+  .preference-entry,
+  .preference-review {
+    padding: 1.1rem;
+  }
+
+  .preference-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .preference-entry__review,
+  .preference-review__back {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .preference-review__row {
+    flex-direction: column;
+  }
+
+  .preference-review__row button {
+    width: 100%;
+  }
+
+  .preference-review__unsupported-actions {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preference-chips button,
+  .preference-entry__review,
+  .preference-review button {
+    transition: none;
+  }
+}

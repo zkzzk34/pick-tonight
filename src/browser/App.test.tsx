@@ -80,15 +80,25 @@ describe("App", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByRole("button", { name: "Request recommendations" }),
-    ).toBeEnabled();
+    const reviewButton = screen.getByRole("button", {
+      name: "Review preferences",
+    });
+
+    expect(reviewButton).toBeEnabled();
 
     expect(
       screen.getByRole("region", {
         name: "Card presentation preview",
       }),
     ).toBeInTheDocument();
+
+    fireEvent.click(reviewButton);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Show 3 picks",
+      }),
+    ).toBeEnabled();
   });
 
   it("stores an accepted analytics choice", () => {
