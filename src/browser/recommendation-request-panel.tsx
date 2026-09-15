@@ -19,6 +19,7 @@ export interface RecommendationRequestPanelProps {
   readonly initialRecommendations?: RecommendationCardSet;
   readonly submittedPreferences: RecommendationRequest;
   readonly requestRecommendations: RecommendationRequester;
+  readonly submitLabel?: string;
   readonly children: (
     recommendations: RecommendationCardSet,
     updateRecommendations: (
@@ -38,6 +39,7 @@ export function RecommendationRequestPanel({
   initialRecommendations,
   submittedPreferences,
   requestRecommendations,
+  submitLabel = "Request recommendations",
   children,
 }: RecommendationRequestPanelProps) {
   const [viewState, setViewState] = useState<RecommendationRequestViewState>(
@@ -140,9 +142,7 @@ export function RecommendationRequestPanel({
           disabled={isLoading}
           type="submit"
         >
-          {isLoading
-            ? "Requesting recommendations…"
-            : "Request recommendations"}
+          {isLoading ? "Requesting recommendations…" : submitLabel}
         </button>
       </form>
 
