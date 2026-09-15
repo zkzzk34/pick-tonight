@@ -1,6 +1,14 @@
 import { useState } from "react";
 
 import type { RecommendationRequest } from "../shared/recommendation-contracts";
+import { AnalyticsConsentPanel, PrivacySection } from "./analytics-consent";
+import {
+  getAnalyticsConsentStorage,
+  readAnalyticsConsent,
+  resetAnalyticsConsent,
+  writeAnalyticsConsent,
+  type AnalyticsConsentChoice,
+} from "./analytics-consent-storage";
 import { Attribution } from "./attribution";
 import { replaceRecommendationAt } from "./recommendation-card-model";
 import {
@@ -14,12 +22,13 @@ import type { RecommendationRequester } from "./recommendation-request-state";
 const productPromises = [
   {
     label: "Under two minutes",
-    detail: "Designed to move from uncertainty to a confident choice quickly.",
+    detail:
+      "Designed to help you choose something tonight in under two minutes.",
   },
   {
     label: "Three focused options",
     detail:
-      "A constrained result set when enough eligible titles are available.",
+      "Exactly three explainable recommendations when enough eligible titles are available.",
   },
   {
     label: "No account required",
@@ -40,6 +49,20 @@ const PREVIEW_SUBMITTED_PREFERENCES = {
 
 function App() {
   const [statusMessage, setStatusMessage] = useState("");
+  const [analyticsConsent, setAnalyticsConsent] =
+    useState<AnalyticsConsentChoice | null>(() =>
+      readAnalyticsConsent(getAnalyticsConsentStorage()),
+    );
+
+  const chooseAnalyticsConsent = (choice: AnalyticsConsentChoice) => {
+    writeAnalyticsConsent(getAnalyticsConsentStorage(), choice);
+    setAnalyticsConsent(choice);
+  };
+
+  const clearAnalyticsConsent = () => {
+    resetAnalyticsConsent(getAnalyticsConsentStorage());
+    setAnalyticsConsent(null);
+  };
 
   const requestPreviewRecommendations: RecommendationRequester = () => {
     setStatusMessage("");
@@ -64,10 +87,10 @@ function App() {
             Choose what to watch without the endless scroll.
           </h1>
           <p className="hero-copy">
-            PickTonight is being built to turn your mood, available time, and
-            viewing context into exactly three explainable recommendations.
+            PickTonight is being built to help you choose something tonight in
+            under two minutes by turning your mood, available time, and viewing
+            context into exactly three explainable recommendations.
           </p>
-
           <ul
             className="product-promises"
             aria-label="PickTonight product promises"
@@ -80,6 +103,11 @@ function App() {
             ))}
           </ul>
         </section>
+
+        <AnalyticsConsentPanel
+          choice={analyticsConsent}
+          onChoose={chooseAnalyticsConsent}
+        />
 
         <section
           className="recommendation-preview"
@@ -136,6 +164,11 @@ function App() {
           </p>
         </section>
 
+        <PrivacySection
+          choice={analyticsConsent}
+          onReset={clearAnalyticsConsent}
+        />
+
         <Attribution />
       </main>
 
@@ -143,6 +176,8 @@ function App() {
         <span>Working title</span>
         <span aria-hidden="true">·</span>
         <span>Non-commercial prototype</span>
+        <span aria-hidden="true">·</span>
+        <a href="#privacy">Privacy</a>
         <span aria-hidden="true">·</span>
         <a href="#credits">Credits</a>
       </footer>
