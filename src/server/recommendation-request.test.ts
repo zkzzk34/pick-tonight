@@ -195,10 +195,11 @@ test("rejects unknown fields without exposing their names or values", () => {
   assert.equal(serializedRootResponse.includes(rootValue), false);
   assert.equal(serializedRootResponse.includes("Unrecognized key"), false);
 
-  const nestedValue = "privateFreshnessValueMarker";
+  const nestedField = "privateNestedFieldMarker";
+  const nestedValue = "privateNestedValueMarker";
   const nestedResponse = expectFailure(
     JSON.stringify({
-      softPreferences: { freshness: nestedValue },
+      softPreferences: { [nestedField]: nestedValue },
     }),
     [
       {
@@ -209,7 +210,7 @@ test("rejects unknown fields without exposing their names or values", () => {
   );
   const serializedNestedResponse = JSON.stringify(nestedResponse);
 
-  assert.equal(serializedNestedResponse.includes("freshness"), false);
+  assert.equal(serializedNestedResponse.includes(nestedField), false);
   assert.equal(serializedNestedResponse.includes(nestedValue), false);
 });
 

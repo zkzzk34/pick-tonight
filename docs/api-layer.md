@@ -6,7 +6,7 @@ The Node API layer is PickTonight's application boundary between browser code an
 
 Local API scripts require Node.js `24.12+` and use its stable built-in TypeScript type stripping. The server code therefore stays within erasable TypeScript syntax, uses explicit `.ts` import extensions, and remains type-checked by the repository's Node TypeScript project without adding a runtime framework or TypeScript launcher.
 
-This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, a server-only TMDB candidate-discovery pipeline, a process-local cache for normalized TMDB reference data, per-title TMDB enrichment, versioned mood mapping, and deterministic recommendation filtering, scoring, and selection. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools; the title client retrieves display-ready enrichment for one validated identity; and the recommendation engine rechecks hard restrictions before scoring and returns up to three results with structured evidence. No recommendation product endpoint is exposed yet.
+This foundation now includes shared recommendation request and response schemas, a strict normalized media-summary schema, server-side request parsing, normalization, a server-only TMDB candidate-discovery pipeline, a process-local cache for normalized TMDB reference data, per-title TMDB enrichment, versioned mood mapping, and deterministic recommendation filtering, scoring, selection, and structured explanation generation. The discovery layer builds normalized, filtered, deduplicated, and attributed candidate pools; the title client retrieves display-ready enrichment for one validated identity; and the recommendation engine rechecks hard restrictions before scoring and returns up to three results with structured scoring, selection, and explanation evidence. No recommendation product endpoint is exposed yet.
 
 ## Module boundaries
 
@@ -36,11 +36,16 @@ Recommendation requests are strict objects at every level. A broad `{}` request 
 | Soft preferences | `preferredGenreIds` | Optional list of unique positive integer IDs; at most 50 |
 | Soft preferences | `contentLanguage` | Optional lowercase two-letter code |
 | Soft preferences | `originCountry` | Optional uppercase two-letter code |
+| Soft preferences | `freshness.releasedSinceYear` | Optional integer cutoff year from 1870 through 9999; omitting it creates no default recency preference |
 | Viewing access | `watchRegion` | Optional uppercase two-letter code; required when provider availability is required |
 
-The contract keeps hard restrictions separate from soft ranking preferences. Free-form text, freshness, companion fit, rating confidence, and other not-yet-defined values are not accepted early; their owning issues must first define reviewed structured vocabulary and behavior.
+The contract keeps hard restrictions separate from soft ranking preferences. Freshness is optional and explicit only through `softPreferences.freshness.releasedSinceYear`; omitting it creates no default recency bias. Rating confidence is derived from candidate evidence and is not accepted as a user-supplied preference. Free-form text, companion fit, and other not-yet-defined values remain rejected until their owning issues define reviewed structured vocabulary and behavior.
 
-`createRecommendationResponseSchema(itemSchema)` remains the reusable shared response-envelope factory. `recommendationResponseSchema` composes that envelope with `mediaSummarySchema` and permits zero through three normalized items. The later recommendation issue owns the rule for returning exactly three eligible results when possible and reporting an honestly limited result set otherwise.
+`createRecommendationResponseSchema(itemSchema)` remains the reusable shared response-envelope factory. `recommendationResponseSchema` composes that envelope with `mediaSummarySchema` and permits zero through three normalized items. The server recommendation engine separately returns exactly three eligible results when possible, reports an honest `limited` result otherwise, and attaches a structured explanation to every selected recommendation.
+
+`recommendationExplanationSchema` validates one concise summary and zero through two strict reasons. Each reason carries a stable code, user-facing text, and either the `verified-constraint` or `soft-match` kind. These schemas are environment-neutral, but `SelectedRecommendation` remains server-owned and no recommendation product endpoint exposes it yet.
+
+The explicit freshness field supplies structured fit evidence for explanation generation. It does not add a release-year score or create a default recency bias in `recommendation-v3`.
 
 ### Normalized media summaries
 
@@ -82,7 +87,8 @@ The discovery pipeline remains entirely under `src/server`. It accepts a validat
 | `tmdb-discovery-candidates.ts` | Filters and deduplicates normalized candidates, preserves source attribution, and tracks which restrictions were verified. |
 | `tmdb-discovery.ts` | Executes every applicable plan, combines successful batches, and reports partial failures without reflecting unsafe details. |
 | `mood-mapping.ts` | Defines versioned mood signals without performing network requests or hard filtering. |
-| `recommendation-engine.ts` | Applies hard filters before scoring, excludes active-session identities, and deterministically selects up to three results with structured evidence. |
+| `recommendation-engine.ts` | Applies hard filters before scoring, excludes active-session identities, deterministically selects up to three results, and attaches validated explanations. |
+| `recommendation-explanations.ts` | Converts the validated request, score breakdown, and exact hard-restriction evidence into concise deterministic reason codes and copy. |
 
 Movie requests plan discovery, weekly trending, and now-playing sources. Television requests plan discovery, weekly trending, and on-the-air sources. An `either` request, or a request without a media-type restriction, plans all six sources to build a broad pool before later ranking and selection.
 
@@ -178,7 +184,7 @@ The implementation was checked against the current official references:
 - [TMDB movie watch providers](https://developer.themoviedb.org/reference/movie-watch-providers)
 - [TMDB television watch providers](https://developer.themoviedb.org/reference/tv-series-watch-providers)
 
-Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, focused engine tests, the browser recommendation-card presentation, the browser request-state controller, and server-side title enrichment now exist as isolated modules. The cards accept display-ready values, while the request controller accepts an injected requester; neither performs networking. Structured fit-explanation generation, HTTP product-route wiring, browser consumption of title enrichment, durable action semantics, analytics, and personalization remain deferred.
+Mood mapping, engine-level hard filtering, deterministic scoring, final recommendation selection, structured fit-explanation generation, focused engine tests, the browser recommendation-card presentation, the browser request-state controller, and server-side title enrichment now exist as isolated modules. The cards accept display-ready values, while the request controller accepts an injected requester; neither performs networking. HTTP product-route wiring, browser consumption of title enrichment and structured explanations, durable action semantics, analytics, and personalization remain deferred.
 
 ### Browser request-state seam
 
@@ -305,4 +311,4 @@ npm run build
 node --env-file=.env proofs/tmdb-server-only/verify-secret-boundary.mjs
 ```
 
-The API tests verify health and standardized errors, strict schemas, request parsing, bounded safe issue mapping, and non-reflection. Discovery, title-enrichment, and TMDB proof tests use mocked responses and injected clients to verify request planning, Bearer-authenticated server requests, normalization, filters, source attribution, deduplication, partial failures, title identity, configured image URLs, official-video selection, regional provider groups, timeouts, and safe errors without live TMDB calls. The secret-boundary proof scans for the configured token without printing it and verifies that it remains outside project files, Git objects, browser assets, browser requests, and responses.
+The API tests verify health and standardized errors, strict schemas, request parsing, bounded safe issue mapping, and non-reflection. Discovery, title-enrichment, and TMDB proof tests use mocked responses and injected clients to verify request planning, Bearer-authenticated server requests, normalization, filters, source attribution, deduplication, partial failures, title identity, configured image URLs, official-video selection, regional provider groups, timeouts, and safe errors without live TMDB calls. Structured-explanation tests verify strict reason contracts, deterministic priority and output, exact runtime and regional-provider evidence, explicit freshness matching, the 100-vote rating threshold, missing-data fallbacks, and prohibited unsupported claims. The secret-boundary proof scans for the configured token without printing it and verifies that it remains outside project files, Git objects, browser assets, browser requests, and responses.

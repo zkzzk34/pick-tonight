@@ -2,11 +2,11 @@
 
 ## Status and purpose
 
-`recommendation-v3` is PickTonight's current, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, and selection.
+`recommendation-v3` is PickTonight's current, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, selection, and evidence-backed explanation generation.
 
 The configuration is an explicit product hypothesis, not a validated emotional-classification model. TMDB genres describe catalog categories; they do not guarantee tone, intensity, humor, romance, fear, or an ending. PickTonight must not present these mappings as promises about how a title will make someone feel.
 
-The typed sources are `src/server/mood-mapping.ts` and `src/server/recommendation-engine.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings remain versioned as `recommendation-v1` because the Issue #24 diversity pass does not change mood-signal semantics. Scoring and selection evidence use the `recommendation-v3` heuristic identifier.
+The typed sources are `src/shared/recommendation-contracts.ts`, `src/server/mood-mapping.ts`, `src/server/recommendation-engine.ts`, and `src/server/recommendation-explanations.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings remain versioned as `recommendation-v1` because the Issue #24 diversity pass does not change mood-signal semantics. Scoring and selection evidence use the `recommendation-v3` heuristic identifier.
 
 ## Initial mapping assumptions
 
@@ -179,19 +179,44 @@ For `surprised`, the existing stronger variety rule then favors the candidate co
 
 The engine returns exactly three recommendations when at least three eligible identities exist. Otherwise it returns every eligible title with an honest `limited` status.
 
-Each result retains its score breakdown, position, temporal evidence, general genre-diversity evidence, and surprised cross-genre evidence for later explanation code.
+Each result retains its score breakdown, position, temporal evidence, general genre-diversity evidence, surprised cross-genre evidence, and a validated structured explanation generated from the current request and evidence.
 
+## Structured recommendation explanations
+
+`src/server/recommendation-explanations.ts` converts the validated request, `RecommendationScoreBreakdown`, and exact `TmdbHardRestrictionEvidence` into a strict `RecommendationExplanation`. It does not inspect raw upstream responses or free-form user text. Explanation generation does not change eligibility, scores, ranking, temporal cohesion, or diversity selection, so Issue #25 does not change the `recommendation-v3` heuristic identifier.
+
+Each explanation contains one concise summary and zero through two ordered reasons. Every reason includes a stable code, user-facing text, and one of two kinds:
+
+- `verified-constraint` identifies satisfaction backed by exact request-bound hard-restriction evidence;
+- `soft-match` identifies a supported current-request match or qualifying rating evidence.
+
+When both kinds are available, the generator selects the highest-priority verified reason and the highest-priority soft reason. Otherwise it fills the two available slots from one kind. Verified priority is provider availability followed by runtime. Soft priority is preferred genre, mood, explicit freshness, requested content language, then rating confidence. Identical request and candidate evidence produces identical output.
+
+| Reason code | Kind | Required structured evidence |
+| --- | --- | --- |
+| `provider-availability` | Verified constraint | The request supplies `watchRegion` and provider IDs, and the candidate retains query evidence for that exact region and provider-ID set. |
+| `runtime-within-limit` | Verified constraint | The request and candidate evidence contain the same maximum-runtime limit. |
+| `preferred-genre-match` | Soft match | At least one requested genre appears in the score's matched genre IDs with a positive contribution. |
+| `mood-match` | Soft match | The requested mood has matching genre or supported discovery-signal evidence. |
+| `freshness-match` | Soft match | The request explicitly supplies `releasedSinceYear` and the candidate's known release year meets that cutoff. |
+| `content-language-match` | Soft match | The requested language exactly matches the scored candidate language. |
+| `rating-confidence` | Soft match | Rating evidence is meaningful, has at least 100 votes, has a positive contribution, and has `medium` or `strong` confidence. |
+
+If no reason qualifies, the generator returns a neutral summary and an empty reason list. Missing provider evidence never becomes a regional-availability claim, and missing or sparse ratings never become a poor-quality claim. User-facing copy does not expose numerical weights, suggest that more preferences improve accuracy, or claim TikTok virality or other unsupported social popularity.
 ## Module and responsibility boundaries
 
 | Module | Responsibility |
 | --- | --- |
-| `src/shared/recommendation-contracts.ts` | Defines the supported mood values and derived `SupportedMood` type used by request validation. |
+| `src/shared/recommendation-contracts.ts` | Defines strict request and explanation schemas, stable reason-code vocabularies, copy limits, and inferred shared types. |
 | `src/server/mood-mapping.ts` | Owns the versioned mapping, typed genre and discovery signals, explanations, and safe lookup functions. |
 | `src/server/mood-mapping.test.ts` | Verifies the exact configuration, every supported mood, every explanation, and unsupported input. |
 | `src/server/tmdb-discovery-candidates.ts` | Preserves source attribution and exact request-bound runtime and provider evidence used by engine-level hard filtering. |
-| `src/server/recommendation-engine.ts` | Rechecks hard restrictions, scores only eligible candidates, selects up to three, and returns structured evidence. |
+| `src/server/recommendation-engine.ts` | Rechecks hard restrictions, scores only eligible candidates, selects up to three, and attaches structured scoring, selection, and explanation evidence. |
+| `src/server/recommendation-explanations.ts` | Selects supported reasons deterministically and validates every generated explanation against the shared schema. |
+| `src/server/recommendation-explanation-contracts.test.ts` | Verifies strict reason kinds, codes, limits, missing-data shape, and unknown-field rejection. |
+| `src/server/recommendation-explanations.test.ts` | Verifies supported combinations, evidence gates, deterministic priority, safe copy, and neutral fallbacks. |
 | `src/server/recommendation-engine.test.ts` | Covers hard filtering, score calculations, rating uncertainty, and mood evidence. |
-| `src/server/recommendation-engine-selection.test.ts` | Covers deterministic ties, session exclusions, temporal cohesion, homogeneous and varied diversity pools, stronger-fit preservation, surprised variety, and limited results. |
+| `src/server/recommendation-engine-selection.test.ts` | Covers deterministic ties, session exclusions, temporal cohesion, diversity behavior, stronger-fit preservation, limited results, and explanation attachment. |
 | `src/browser/recommendation-card-model.ts` | Defines the display-ready card contract, rating-confidence copy, safe URL and runtime formatting, and immutable three-card replacement. |
 | `src/browser/recommendation-cards.tsx` | Renders the semantic three-card deck, honest unavailable states, distinct action seams, and replacement-focus behavior. |
 | `src/browser/recommendation-request-state.ts` | Defines browser lifecycle and result types, fixed safe failure copy, detached request snapshots, and the injected requester contract. |
@@ -199,9 +224,9 @@ Each result retains its score breakdown, position, temporal evidence, general ge
 
 The mapping module performs no network request, candidate filtering, scoring, final selection, or explanation rendering. It is not imported by browser components or `tmdb-discovery-requests.ts`, and Issue #15 does not convert mood signals into TMDB query parameters.
 
-The recommendation engine performs no TMDB request, request planning, browser work, or explanation rendering.
+The recommendation engine performs no TMDB request, request planning, browser work, or UI rendering. Explanation generation remains deterministic server logic and does not alter selection.
 
-The browser card modules perform no TMDB request and do not import the recommendation engine. They accept display-ready evidence from their caller; poster URL construction, provider retrieval, trailer enrichment, and fit-explanation generation remain server-side integration work.
+The browser card modules perform no TMDB request and do not import the recommendation engine. They accept display-ready evidence from their caller; composing server-side title enrichment and mapping structured explanations into browser-ready card data remain later integration work.
 
 The browser request-state modules import shared request types and browser card
 types, not the server recommendation engine. They render cards only while the
@@ -218,23 +243,27 @@ Any change to supported moods, genre IDs, media applicability, or discovery-sign
 
 Any change to scoring weights, rating-confidence thresholds, tie-breaking, temporal cohesion, variety, or selection evidence must update the implementation, this document, and focused tests together. A semantic heuristic change must also receive a new version identifier.
 
+Any change to reason codes, reason kinds, priority, evidence gates, copy limits, or neutral fallback behavior must update the shared schema, generator, this document, and focused tests together. An explanation-only change does not require a new heuristic version unless it also changes scoring or selection semantics.
+
 Potential future evidence includes structured prototype feedback, observed replacement reasons such as `wrong mood`, and research that can distinguish emotional tone from broad genre metadata. Evidence should narrow or revise a proxy rather than turn it into an unsupported guarantee.
 
 ## Deferred work
 
-Issues #15 through #17 established server-side mapping, hard filtering, scoring, deterministic selection, structured evidence, and focused coverage. Issue #18 adds browser presentation without widening the engine or networking responsibilities. Issue #19 adds the browser loading, empty, safe failure, duplicate-submission, and same-preference retry lifecycle through an injected requester without adding live transport. The following remain deferred:
+Issues #15 through #17 established server-side mapping, hard filtering, scoring, deterministic selection, structured evidence, and focused coverage. Issues #18 and #19 added isolated browser presentation and request-state seams. Issues #21 and #22 added server-side reference caching and title enrichment, Issue #24 added deterministic diversity, and Issue #25 adds structured fit explanations. The following remain deferred:
 
-- server-side display enrichment, including poster URL construction, provider retrieval, and trailer lookup;
-- user-facing fit-explanation generation from retained evidence;
+- composing server-side title enrichment into browser-ready recommendation results;
+- mapping structured server-generated explanations into browser card presentation;
 - HTTP product-route wiring unless a separate issue explicitly owns it;
 - durable action, replacement, session, and watchlist semantics;
 - analytics and browser personalization, including any historical-taste adjustment.
 
-No public request field or historical signal is added by this heuristic. TMDB networking and request planning remain separate from the recommendation engine.
+The request contract adds only the optional explicit `softPreferences.freshness.releasedSinceYear` cutoff; omitting it creates no recency preference. No historical signal is added. TMDB networking and request planning remain separate from the recommendation engine.
 
 ## Verification and references
 
 The mood-mapping, candidate-aggregation, and recommendation-engine tests use fixed local data and make no live TMDB requests. Together they cover supported and unsupported moods, restriction evidence, hard filtering, scoring, rating uncertainty, zero- and low-vote evidence, recent and established confidence behavior, deterministic ties including the final media-type and TMDB-ID fallbacks, missing metadata, session exclusions, temporal cohesion, homogeneous and varied genre-diversity pools, stronger-fit preservation, surprised variety, complete and limited selection across zero, one, two, and at least three eligible candidates, and enforcement of the three-result maximum.
+
+Explanation contract and generator tests use fixed local evidence and make no live request. They cover verified runtime and provider reasons, preferred genre, mood, explicit freshness, language, qualifying rating confidence, mixed-kind priority, the two-reason cap, deterministic output, neutral missing-data fallbacks, and prohibited unsupported copy.
 
 Browser request-state tests use injected requesters and fixed local data to
 cover loading, duplicate protection, empty results, safe failure categories,
