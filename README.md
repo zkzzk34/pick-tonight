@@ -118,6 +118,7 @@ PickTonight does not call the JustWatch API directly. The current browser previe
 - [Recommendation card presentation](docs/recommendation-cards.md)
 - [Recommendation request states](docs/recommendation-request-states.md)
 - [Preference entry and interpretation](docs/preference-entry.md)
+- [Title details](docs/title-details.md)
 - [Discovery interview guide](docs/discovery-interview-guide.md)
 - [Discovery interview notes template](docs/discovery-interview-notes-template.md)
 

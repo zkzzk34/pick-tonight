@@ -148,6 +148,97 @@ describe("PreferenceEntryFlow", () => {
     expect(screen.getByText("United Kingdom")).toBeInTheDocument();
   });
 
+  it("opens title details and returns without losing the active preference session", async () => {
+    render(<PreferenceEntryFlow />);
+
+    const preferenceInput = screen.getByLabelText(
+      /Tell PickTonight what you want/i,
+    );
+
+    fireEvent.change(preferenceInput, {
+      target: {
+        value: "funny movie",
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Review preferences",
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Show 3 picks",
+      }),
+    );
+
+    const results = await screen.findByRole("region", {
+      name: "3 picks for tonight",
+    });
+
+    const detailsButton = within(results).getByRole("button", {
+      name: "Details: Preview movie A",
+    });
+
+    detailsButton.focus();
+    fireEvent.click(detailsButton);
+
+    const detail = screen.getByRole("region", {
+      name: "Title details for Preview movie A",
+    });
+
+    expect(detail).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("region", {
+        name: "3 picks for tonight",
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(detail).getByRole("button", {
+        name: "Choose tonight: Preview movie A",
+      }),
+    );
+
+    expect(
+      screen.getByRole("status", {
+        name: "Preview action status",
+      }),
+    ).toHaveTextContent(
+      "Watch intent set for Preview movie A. This does not mark the title as watched.",
+    );
+
+    fireEvent.click(
+      within(detail).getByRole("button", {
+        name: "Back to 3 picks",
+      }),
+    );
+
+    const restoredResults = screen.getByRole("region", {
+      name: "3 picks for tonight",
+    });
+
+    expect(within(restoredResults).getAllByRole("article")).toHaveLength(3);
+
+    expect(
+      within(restoredResults).getByRole("button", {
+        name: "Details: Preview movie A",
+      }),
+    ).toHaveFocus();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Back to request",
+      }),
+    );
+
+    expect(
+      screen.getByLabelText(/Tell PickTonight what you want/i),
+    ).toHaveValue("funny movie");
+  });
+
   it("allows a completely broad request to continue", () => {
     render(<PreferenceEntryFlow />);
 
