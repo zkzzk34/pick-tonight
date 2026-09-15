@@ -60,7 +60,7 @@ describe("App recommendation preview", () => {
     );
 
     expect(actionStatus).toHaveTextContent(
-      "save selected for Preview movie A. Preview actions are not saved.",
+      "Save selected for Preview movie A. This Issue #28 preview keeps the action in the active session only.",
     );
 
     fireEvent.click(
