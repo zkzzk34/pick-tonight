@@ -90,6 +90,24 @@ test("returns the sole eligible candidate in an honest limited result", () => {
   );
 });
 
+test("attaches a structured explanation to each selected recommendation", () => {
+  const result = selectRecommendations(
+    [candidate(movie(901, { genreIds: [35] }))],
+    { softPreferences: { preferredGenreIds: [35] } },
+  );
+  const explanation = result.recommendations[0]?.explanation;
+
+  assert.ok(explanation);
+  assert.equal(
+    explanation.summary,
+    "This title stands out for the reasons below.",
+  );
+  assert.deepEqual(
+    explanation.reasons.map(({ kind, code }) => ({ kind, code })),
+    [{ kind: "soft-match", code: "preferred-genre-match" }],
+  );
+});
+
 test("does not score release year, popularity, or discovery source", () => {
   const classic = candidate(
     movie(1, {

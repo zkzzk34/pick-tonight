@@ -32,6 +32,7 @@ test("recommendation requests accept broad and fully reviewed preferences", () =
       preferredGenreIds: [18, 35],
       contentLanguage: "en",
       originCountry: "US",
+      freshness: { releasedSinceYear: 2022 },
     },
     watchRegion: "US",
   };
@@ -40,6 +41,55 @@ test("recommendation requests accept broad and fully reviewed preferences", () =
     recommendationRequestSchema.parse(reviewedInput);
 
   assert.deepEqual(reviewed, reviewedInput);
+});
+
+test("freshness requires an explicit deterministic cutoff year", () => {
+  const input = {
+    softPreferences: {
+      freshness: {
+        releasedSinceYear: 2022,
+      },
+    },
+  };
+
+  const parsed: RecommendationRequest =
+    recommendationRequestSchema.parse(input);
+
+  assert.deepEqual(parsed, input);
+
+  const invalidRequests: unknown[] = [
+    { softPreferences: { freshness: "recent" } },
+    { softPreferences: { freshness: {} } },
+    {
+      softPreferences: {
+        freshness: { releasedSinceYear: "2022" },
+      },
+    },
+    {
+      softPreferences: {
+        freshness: { releasedSinceYear: 2022.5 },
+      },
+    },
+    {
+      softPreferences: {
+        freshness: { releasedSinceYear: 1869 },
+      },
+    },
+    {
+      softPreferences: {
+        freshness: { releasedSinceYear: 10000 },
+      },
+    },
+    {
+      softPreferences: {
+        freshness: { releasedSinceYear: 2022, windowYears: 5 },
+      },
+    },
+  ];
+
+  for (const request of invalidRequests) {
+    assertRequestRejected(request);
+  }
 });
 
 test("recommendation requests reject missing and non-object values", () => {
@@ -98,7 +148,6 @@ test("strict request schemas reject unknown and deferred fields", () => {
   const invalidRequests: unknown[] = [
     { rawText: "private free-form input" },
     { freshness: "recent" },
-    { softPreferences: { freshness: "recent" } },
     { softPreferences: { viewingCompanion: "family" } },
     { hardRestrictions: { minimumRating: 8 } },
   ];

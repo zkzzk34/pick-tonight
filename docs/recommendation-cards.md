@@ -119,11 +119,13 @@ Automated browser tests verify:
 
 ## Deferred integration
 
+`SelectedRecommendation` now carries a validated structured explanation generated on the server. The browser card contract still accepts display-ready copy from its caller and does not import server modules.
+
 The application preview uses explicitly labeled sample titles and values. It
 does not claim that they are live recommendations.
 
 HTTP recommendation routing, mapping server-side title enrichment into
-browser-ready card data, deterministic explanation generation, durable action
+browser-ready card data, structured explanation mapping, durable action
 semantics, watchlist persistence, analytics, and personalization remain owned
 by their later issues. No TMDB credential or direct TMDB request is added to
 browser code.

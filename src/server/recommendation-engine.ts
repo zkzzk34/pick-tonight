@@ -1,9 +1,11 @@
 import type { MediaSummary } from "../shared/media-contracts.ts";
 import type {
+  RecommendationExplanation,
   RecommendationRequest,
   SupportedMood,
 } from "../shared/recommendation-contracts.ts";
 import { getMoodMapping } from "./mood-mapping.ts";
+import { generateRecommendationExplanation } from "./recommendation-explanations.ts";
 import type { TmdbDiscoveryCandidate } from "./tmdb-discovery-candidates.ts";
 
 export const RECOMMENDATION_HEURISTIC_VERSION = "recommendation-v3" as const;
@@ -445,6 +447,7 @@ export interface RecommendationSelectionEvidence {
 export interface SelectedRecommendation {
   readonly candidate: TmdbDiscoveryCandidate;
   readonly score: RecommendationScoreBreakdown;
+  readonly explanation: RecommendationExplanation;
   readonly selectionEvidence: RecommendationSelectionEvidence;
 }
 
@@ -755,6 +758,11 @@ export function selectRecommendations(
     recommendations.push({
       candidate: choice.candidate,
       score: choice.score,
+      explanation: generateRecommendationExplanation({
+        request,
+        score: choice.score,
+        hardRestrictionEvidence: choice.candidate.hardRestrictionEvidence,
+      }),
       selectionEvidence: {
         position: recommendations.length + 1,
         temporalCohesion: {

@@ -43,6 +43,9 @@ const requiredProviderIdListSchema = z
 
 const contentLanguageSchema = z.string().regex(/^[a-z]{2}$/);
 const countryCodeSchema = z.string().regex(/^[A-Z]{2}$/);
+const freshnessPreferenceSchema = z.strictObject({
+  releasedSinceYear: z.number().int().min(1870).max(9999),
+});
 
 export const recommendationHardRestrictionsSchema = z.strictObject({
   mediaType: z.enum(MEDIA_TYPES).optional(),
@@ -56,6 +59,7 @@ export const recommendationSoftPreferencesSchema = z.strictObject({
   preferredGenreIds: uniquePositiveIdListSchema.optional(),
   contentLanguage: contentLanguageSchema.optional(),
   originCountry: countryCodeSchema.optional(),
+  freshness: freshnessPreferenceSchema.optional(),
 });
 
 export const recommendationRequestSchema = z
@@ -121,4 +125,64 @@ export type RecommendationResponse<TItemSchema extends z.ZodType> = z.infer<
 
 export type NormalizedRecommendationResponse = z.infer<
   typeof recommendationResponseSchema
+>;
+
+export const VERIFIED_CONSTRAINT_REASON_CODES = [
+  "runtime-within-limit",
+  "provider-availability",
+] as const;
+
+export const SOFT_MATCH_REASON_CODES = [
+  "preferred-genre-match",
+  "mood-match",
+  "freshness-match",
+  "rating-confidence",
+  "content-language-match",
+] as const;
+
+export const RECOMMENDATION_REASON_CODES = [
+  ...VERIFIED_CONSTRAINT_REASON_CODES,
+  ...SOFT_MATCH_REASON_CODES,
+] as const;
+
+export const RECOMMENDATION_EXPLANATION_MAX_REASONS = 2;
+export const RECOMMENDATION_REASON_TEXT_MAX_LENGTH = 120;
+export const RECOMMENDATION_EXPLANATION_SUMMARY_MAX_LENGTH = 180;
+
+const explanationTextSchema = z.string().trim().min(1);
+
+export const recommendationReasonSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("verified-constraint"),
+    code: z.enum(VERIFIED_CONSTRAINT_REASON_CODES),
+    text: explanationTextSchema.max(RECOMMENDATION_REASON_TEXT_MAX_LENGTH),
+  }),
+  z.strictObject({
+    kind: z.literal("soft-match"),
+    code: z.enum(SOFT_MATCH_REASON_CODES),
+    text: explanationTextSchema.max(RECOMMENDATION_REASON_TEXT_MAX_LENGTH),
+  }),
+]);
+
+export const recommendationExplanationSchema = z.strictObject({
+  summary: explanationTextSchema.max(
+    RECOMMENDATION_EXPLANATION_SUMMARY_MAX_LENGTH,
+  ),
+  reasons: z
+    .array(recommendationReasonSchema)
+    .max(RECOMMENDATION_EXPLANATION_MAX_REASONS),
+});
+
+export type VerifiedConstraintReasonCode =
+  (typeof VERIFIED_CONSTRAINT_REASON_CODES)[number];
+
+export type SoftMatchReasonCode = (typeof SOFT_MATCH_REASON_CODES)[number];
+
+export type RecommendationReasonCode =
+  (typeof RECOMMENDATION_REASON_CODES)[number];
+
+export type RecommendationReason = z.infer<typeof recommendationReasonSchema>;
+
+export type RecommendationExplanation = z.infer<
+  typeof recommendationExplanationSchema
 >;
