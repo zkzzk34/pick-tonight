@@ -60,7 +60,7 @@ describe("App recommendation preview", () => {
     );
 
     expect(actionStatus).toHaveTextContent(
-      "Save selected for Preview movie A. This Issue #28 preview keeps the action in the active session only.",
+      "Save noted for Preview movie A. Saved-title persistence is not active yet; Issue #30 owns the local watchlist.",
     );
 
     fireEvent.click(

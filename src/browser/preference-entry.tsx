@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { RecommendationRequester } from "./recommendation-request-state";
 import {
@@ -25,18 +25,8 @@ import {
   type PreferenceInterpretation,
   type PreferenceMediaType,
 } from "./preference-entry-model";
-import {
-  replaceRecommendationAt,
-  type RecommendationCardAction,
-  type RecommendationCardData,
-} from "./recommendation-card-model";
-import {
-  INITIAL_PREVIEW_RECOMMENDATIONS,
-  PREVIEW_REPLACEMENT,
-} from "./recommendation-card-preview";
-import { RecommendationCards } from "./recommendation-cards";
-import { TitleDetail } from "./title-detail";
-import { getPreviewTitleDetail } from "./title-detail-preview";
+import { INITIAL_PREVIEW_RECOMMENDATIONS } from "./recommendation-card-preview";
+import { FeedbackRecommendationExperience } from "./feedback-recommendation-experience";
 import { RecommendationRequestPanel } from "./recommendation-request-panel";
 
 interface ReviewRowProps {
@@ -178,22 +168,6 @@ export function PreferenceEntryFlow() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [ignoredUnsupported, setIgnoredUnsupported] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
-  const [selectedDetailMediaKey, setSelectedDetailMediaKey] = useState<
-    string | null
-  >(null);
-  const [chosenTonightMediaKey, setChosenTonightMediaKey] = useState<
-    string | null
-  >(null);
-  const detailReturnFocusRef = useRef<HTMLButtonElement | null>(null);
-  const restoreDetailFocusRef = useRef(false);
-
-  useEffect(() => {
-    if (selectedDetailMediaKey === null && restoreDetailFocusRef.current) {
-      restoreDetailFocusRef.current = false;
-      detailReturnFocusRef.current?.focus();
-    }
-  }, [selectedDetailMediaKey]);
-
   const liveInterpretation = useMemo(
     () => interpretPreferences(draft),
     [draft],
@@ -284,52 +258,6 @@ export function PreferenceEntryFlow() {
         `hard.provider.${id}`,
       ]),
     }));
-  }
-
-  function openTitleDetail(
-    recommendation: Pick<RecommendationCardData, "mediaKey" | "title">,
-  ): void {
-    const activeElement = document.activeElement;
-
-    detailReturnFocusRef.current =
-      activeElement instanceof HTMLButtonElement ? activeElement : null;
-
-    restoreDetailFocusRef.current = false;
-    setSelectedDetailMediaKey(recommendation.mediaKey);
-    setStatusMessage("");
-  }
-
-  function closeTitleDetail(): void {
-    restoreDetailFocusRef.current = true;
-    setSelectedDetailMediaKey(null);
-  }
-
-  function handleSessionAction(
-    action: Exclude<RecommendationCardAction, "details">,
-    recommendation: Pick<RecommendationCardData, "mediaKey" | "title">,
-  ): void {
-    if (action === "choose-tonight") {
-      setChosenTonightMediaKey(recommendation.mediaKey);
-      setStatusMessage(
-        `Watch intent set for ${recommendation.title}. This does not mark the title as watched.`,
-      );
-      return;
-    }
-
-    const labels: Record<
-      Exclude<RecommendationCardAction, "details" | "choose-tonight">,
-      string
-    > = {
-      save: "Save",
-      "more-like-this": "More like this",
-      "not-tonight": "Not tonight",
-      "not-my-taste": "Not my taste",
-      "already-watched": "Already watched",
-    };
-
-    setStatusMessage(
-      `${labels[action]} selected for ${recommendation.title}. This Issue #28 preview keeps the action in the active session only.`,
-    );
   }
 
   if (reviewed === null) {
@@ -926,85 +854,17 @@ export function PreferenceEntryFlow() {
           submitLabel="Show 3 picks"
           submittedPreferences={reviewed.request}
         >
-          {(recommendations, updateRecommendations) => {
-            const activeDetail =
-              selectedDetailMediaKey === null
-                ? null
-                : getPreviewTitleDetail(selectedDetailMediaKey);
-
-            return (
-              <>
-                <div hidden={activeDetail !== null}>
-                  <RecommendationCards
-                    recommendations={recommendations}
-                    onAction={(action, recommendation) => {
-                      if (action === "details") {
-                        openTitleDetail(recommendation);
-                        return;
-                      }
-
-                      handleSessionAction(action, recommendation);
-                    }}
-                    onReplace={(recommendation, index) => {
-                      updateRecommendations((current) =>
-                        replaceRecommendationAt(
-                          current,
-                          index,
-                          PREVIEW_REPLACEMENT,
-                        ),
-                      );
-
-                      setStatusMessage(
-                        `${recommendation.title} was replaced with ${PREVIEW_REPLACEMENT.title}. The other recommendations stayed in place.`,
-                      );
-                    }}
-                  />
-                </div>
-
-                {activeDetail === null ? null : (
-                  <TitleDetail
-                    detail={activeDetail}
-                    isChosenTonight={
-                      chosenTonightMediaKey === activeDetail.mediaKey
-                    }
-                    onAction={(action, detail) =>
-                      handleSessionAction(action, detail)
-                    }
-                    onBack={closeTitleDetail}
-                    onReplace={(detail) => {
-                      const index = recommendations.findIndex(
-                        (recommendation) =>
-                          recommendation.mediaKey === detail.mediaKey,
-                      );
-
-                      if (index === -1) {
-                        setStatusMessage(
-                          `Could not replace ${detail.title} because it is no longer in the current recommendation set.`,
-                        );
-                        return;
-                      }
-
-                      restoreDetailFocusRef.current = false;
-                      detailReturnFocusRef.current = null;
-                      setSelectedDetailMediaKey(null);
-
-                      updateRecommendations((current) =>
-                        replaceRecommendationAt(
-                          current,
-                          index,
-                          PREVIEW_REPLACEMENT,
-                        ),
-                      );
-
-                      setStatusMessage(
-                        `${detail.title} was replaced with ${PREVIEW_REPLACEMENT.title}. The other recommendations and active preferences stayed in place.`,
-                      );
-                    }}
-                  />
-                )}
-              </>
-            );
-          }}
+          {(recommendations, updateRecommendations) => (
+            <FeedbackRecommendationExperience
+              onEditRequiredRestrictions={() => {
+                setReviewed(null);
+                setStatusMessage("");
+              }}
+              onStatusMessage={setStatusMessage}
+              recommendations={recommendations}
+              updateRecommendations={updateRecommendations}
+            />
+          )}
         </RecommendationRequestPanel>
 
         <p
