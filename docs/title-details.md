@@ -91,11 +91,12 @@ absorbing later issues.
 `Choose tonight` records active-session watch intent only. It is not proof that
 the title was completed or watched.
 
-`Save` does not persist a watchlist in Issue #28. Persistent watchlist behavior
-belongs to the later watchlist issue.
+Issue #28 originally left `Save` session-visible only. Issue #30 now routes
+`Save` through the shared local watchlist. Saved state stays synchronized with
+recommendation cards and the Saved view, and repeated saves are idempotent.
 
-Feedback-driven recommendation/exclusion semantics remain deferred to the
-feedback/replacement issue.
+Issue #29 supplies feedback-driven recommendation and exclusion semantics.
+Issue #30 adds watchlist persistence without collapsing Save into feedback.
 
 The existing local Replace demonstration continues replacing only the selected
 card while keeping the other recommendations and active preferences stable.

@@ -12,6 +12,7 @@ import {
 
 export interface RecommendationCardsProps {
   readonly recommendations: RecommendationCardSet;
+  readonly savedMediaKeys?: ReadonlySet<string>;
   readonly onAction: (
     action: RecommendationCardAction,
     recommendation: RecommendationCardData,
@@ -42,6 +43,8 @@ const additionalActions = [
   readonly action: RecommendationCardAction;
   readonly label: string;
 }[];
+
+const EMPTY_SAVED_MEDIA_KEYS: ReadonlySet<string> = new Set();
 
 function RecommendationPoster({
   title,
@@ -76,6 +79,7 @@ function RecommendationPoster({
 
 interface RecommendationCardProps {
   readonly cardRef: RefCallback<HTMLElement>;
+  readonly isSaved: boolean;
   readonly recommendation: RecommendationCardData;
   readonly position: number;
   readonly onAction: RecommendationCardsProps["onAction"];
@@ -84,6 +88,7 @@ interface RecommendationCardProps {
 
 function RecommendationCard({
   cardRef,
+  isSaved,
   recommendation,
   position,
   onAction,
@@ -222,16 +227,26 @@ function RecommendationCard({
         </div>
 
         <div className="recommendation-card__actions">
-          {directActions.map(({ action, label }) => (
-            <button
-              aria-label={`${label}: ${recommendation.title}`}
-              key={action}
-              onClick={() => onAction(action, recommendation)}
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
+          {directActions.map(({ action, label }) => {
+            const saveAlreadyExists = action === "save" && isSaved;
+
+            return (
+              <button
+                aria-disabled={saveAlreadyExists || undefined}
+                aria-label={`${label}: ${recommendation.title}`}
+                aria-pressed={action === "save" ? isSaved : undefined}
+                key={action}
+                onClick={() => {
+                  if (!saveAlreadyExists) {
+                    onAction(action, recommendation);
+                  }
+                }}
+                type="button"
+              >
+                {saveAlreadyExists ? "Saved" : label}
+              </button>
+            );
+          })}
           <button
             aria-label={`Replace: ${recommendation.title}`}
             onClick={() => onReplace(recommendation, position - 1)}
@@ -271,6 +286,7 @@ function RecommendationCard({
 
 export function RecommendationCards({
   recommendations,
+  savedMediaKeys = EMPTY_SAVED_MEDIA_KEYS,
   onAction,
   onReplace,
   replacementUnavailableIndexes = [],
@@ -351,6 +367,7 @@ export function RecommendationCards({
                 cardRef={(node) => {
                   cardRefs.current[index] = node;
                 }}
+                isSaved={savedMediaKeys.has(recommendation.mediaKey)}
                 onAction={onAction}
                 onReplace={onReplace}
                 position={index + 1}
