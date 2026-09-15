@@ -60,7 +60,30 @@ describe("App recommendation preview", () => {
     );
 
     expect(actionStatus).toHaveTextContent(
-      "Save noted for Preview movie A. Saved-title persistence is not active yet; Issue #30 owns the local watchlist.",
+      "Saved Preview movie A in this browser. It will not synchronize to another browser or device.",
+    );
+
+    expect(window.localStorage.getItem("picktonight.watchlist")).toContain(
+      '"title":"Preview movie A"',
+    );
+    expect(window.localStorage.getItem("picktonight.watchlist")).not.toContain(
+      "overview",
+    );
+
+    const savedControl = within(initialCards[0]).getByRole("button", {
+      name: "Save: Preview movie A",
+    });
+
+    expect(savedControl).toHaveTextContent("Saved");
+    expect(savedControl).toHaveAttribute("aria-pressed", "true");
+    expect(savedControl).toHaveAttribute("aria-disabled", "true");
+
+    const storedAfterFirstSave = window.localStorage.getItem(
+      "picktonight.watchlist",
+    );
+    fireEvent.click(savedControl);
+    expect(window.localStorage.getItem("picktonight.watchlist")).toBe(
+      storedAfterFirstSave,
     );
 
     fireEvent.click(

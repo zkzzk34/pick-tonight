@@ -1,14 +1,14 @@
 # PickTonight Privacy, Local Data, and Optional Analytics
 
-- **Status:** Planned MVP behavior; not yet implemented
+- **Status:** Implemented for active-session, watchlist, and consent controls; personalization and analytics delivery remain planned
 - **Owner:** ZK Zhao
-- **Date:** August 17, 2026
+- **Date:** September 15, 2026
 - **Related issue:** [#5 — Draft privacy, local-data, and analytics-consent language](https://github.com/zkzzk34/pick-tonight/issues/5)
 - **Requirements:** [Product Requirements and Research Boundaries](./product-requirements.md)
 
 ## Purpose
 
-This document defines the planned plain-language privacy behavior for the PickTonight MVP.
+This document defines the current and planned plain-language privacy behavior for the PickTonight MVP.
 
 It distinguishes active-session information, the local watchlist, optional local taste personalization, and optional product analytics. These are separate mechanisms and must not be presented as one shared data system.
 
@@ -56,23 +56,28 @@ Starting a new decision or using the complete reset must remove the previous act
 
 ## Local watchlist
 
-The watchlist is created through explicit `Save` actions.
+The watchlist is created through explicit `Save` actions. Issue #30 implements it through versioned browser-local storage under the `picktonight.watchlist` key.
 
-It must:
+The implementation:
 
-- remain separate from the taste profile;
-- use only the minimum normalized title reference needed to restore a saved title;
-- remain in the current browser, device, and site origin;
-- work without an account;
-- avoid claiming cross-device synchronization;
-- include a control for removing an individual title;
-- include a control for clearing the complete watchlist.
+- remains separate from the optional taste profile;
+- stores only `mediaKey`, `mediaType`, `title`, `year`, and `posterUrl`;
+- keeps the newest saved title first;
+- treats repeated saves as idempotent without reordering the title;
+- works without an account or cross-device synchronization;
+- exposes immediate individual removal and confirmed complete clearing;
+- does not interpret removal as a negative taste signal; and
+- emits a weak Save signal only through the existing personalization seam when personalization is enabled.
 
-Saving a title does not prove that the title was watched or liked. It provides a weak taste signal only when personalization is enabled.
+Version-one reads validate and normalize stored entries, remove duplicate media keys, and strip extra data. Recognized version-zero data is migrated in memory. Malformed records and unknown future schema versions are treated as empty without automatic deletion or overwrite.
 
-### Proposed watchlist explanation
+If browser storage is unavailable, the active session still provides Save, Saved, and Remove behavior. The interface explicitly identifies that fallback as session-only rather than implying that the titles will survive closing the page.
 
-> Saved titles stay in this browser. They are not connected to an account or synchronized with another browser or device. Clearing PickTonight data or your browser's site data removes them.
+### Current watchlist explanation
+
+> Saved titles stay only in this browser, on this device, and for this site. They do not synchronize to another browser or device.
+
+See the [local-watchlist implementation contract](./local-watchlist.md) for schema, migration, interaction, reset, and verification details.
 
 ## Optional local taste personalization
 
@@ -231,16 +236,22 @@ PickTonight must not promise that previously sent events can be individually loc
 | Clear watchlist | Deletes locally saved titles |
 | Reset all PickTonight data | Deletes session state, watchlist, taste profile, consent choices, and local identifiers |
 
-### Proposed complete-reset confirmation
+The current implementation exposes `Reset analytics choice`, `Clear watchlist`, and `Reset all PickTonight data` as separate controls. Analytics reset removes only the consent key. Watchlist clearing removes only the watchlist key. Complete reset removes the currently known PickTonight consent and watchlist keys, clears the active decision, and returns to Choose.
 
-**Clear all PickTonight data from this browser?**
+The implementation does not call `localStorage.clear()` and does not delete unrelated data belonging to the same origin. Future taste-profile or analytics-identifier keys must be added explicitly to the scoped complete-reset registry before those features ship. If a scoped removal fails, the interface must not claim complete persistent deletion; it reports which data may return after reload.
 
-> This removes your saved titles, local taste profile, analytics choice, and local identifiers. It cannot be undone. It does not promise deletion of information that was already sent before analytics was turned off.
+### Current complete-reset confirmation
 
-Suggested choices:
+**Reset all PickTonight data?**
 
-- `Clear all data`
+> This removes the local watchlist and analytics choice, clears the active decision, and returns to Choose.
+
+Choices:
+
+- `Reset all PickTonight data`
 - `Cancel`
+
+Cancel receives initial focus because the operation is destructive. Escape and Cancel return focus to the invoking control. After confirmation, focus moves to the local-data status message.
 
 ## Analytics provider gate
 
@@ -269,7 +280,7 @@ A deployed server may require limited security, reliability, or diagnostic logs 
 
 ## Implementation checks
 
-The later implementation must verify that:
+The implementation must continue to verify that:
 
 - no nonessential analytics request occurs before consent;
 - declining analytics leaves the core flow functional;

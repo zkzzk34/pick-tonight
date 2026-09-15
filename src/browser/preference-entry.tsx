@@ -28,6 +28,7 @@ import {
 import { INITIAL_PREVIEW_RECOMMENDATIONS } from "./recommendation-card-preview";
 import { FeedbackRecommendationExperience } from "./feedback-recommendation-experience";
 import { RecommendationRequestPanel } from "./recommendation-request-panel";
+import type { SaveToWatchlist } from "./local-watchlist";
 
 interface ReviewRowProps {
   label: string;
@@ -158,7 +159,22 @@ const requestPreviewRecommendations: RecommendationRequester = () =>
     recommendations: INITIAL_PREVIEW_RECOMMENDATIONS,
   });
 
-export function PreferenceEntryFlow() {
+interface PreferenceEntryFlowProps {
+  readonly savedMediaKeys?: ReadonlySet<string>;
+  readonly onSaveTitle?: SaveToWatchlist;
+}
+
+const EMPTY_SAVED_MEDIA_KEYS: ReadonlySet<string> = new Set();
+
+const saveForCurrentVisit: SaveToWatchlist = () => ({
+  outcome: "added",
+  persistence: "session-only",
+});
+
+export function PreferenceEntryFlow({
+  onSaveTitle = saveForCurrentVisit,
+  savedMediaKeys = EMPTY_SAVED_MEDIA_KEYS,
+}: PreferenceEntryFlowProps = {}) {
   const [draft, setDraft] = useState<PreferenceDraft>(() =>
     createDefaultPreferenceDraft(),
   );
@@ -856,6 +872,8 @@ export function PreferenceEntryFlow() {
         >
           {(recommendations, updateRecommendations) => (
             <FeedbackRecommendationExperience
+              onSaveTitle={onSaveTitle}
+              savedMediaKeys={savedMediaKeys}
               onEditRequiredRestrictions={() => {
                 setReviewed(null);
                 setStatusMessage("");

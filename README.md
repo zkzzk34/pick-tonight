@@ -25,9 +25,10 @@ Current work includes:
 - proving that TMDB credentials remain available only to server-side code;
 - presenting an accessible three-card browser preview without widening the server boundary;
 - managing explicit browser loading, empty, safe failure, duplicate-submission, and same-preference retry states without adding live networking;
-- maintaining accessible in-application Credits for TMDB data and images and JustWatch watch-provider availability.
+- maintaining accessible in-application Credits for TMDB data and images and JustWatch watch-provider availability; and
+- maintaining a versioned browser-local watchlist with shared Save state, a dedicated Saved view, scoped reset behavior, and an honest session-only fallback.
 
-The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, a normalized process-local TMDB reference-data cache, per-title server enrichment, versioned mood mapping, deterministic filtering and selection, structured deterministic fit explanations, focused engine tests, an accessible recommendation-card presentation, an injected browser request-state controller, and a deterministic browser preference-entry and interpretation flow. The browser accepts words, tags, or both; exposes reviewed hard restrictions and soft preferences before submission; keeps unsupported text honest and raw text session-only; and then feeds the structured request into the existing non-live local recommendation sample. The request controller still performs no direct TMDB request. HTTP product-route wiring, browser consumption of title enrichment, durable action semantics, analytics, personalization, and deployment remain separate backlog work. See the [recommendation v1 contract](./docs/recommendation-v1.md), [recommendation-card contract](./docs/recommendation-cards.md), and [recommendation request-state contract](./docs/recommendation-request-states.md).
+The repository now includes the application and API foundations, strict shared recommendation contracts, server-side parsing and normalization, a server-only TMDB candidate-discovery pipeline, a normalized process-local TMDB reference-data cache, per-title server enrichment, versioned mood mapping, deterministic filtering and selection, structured deterministic fit explanations, focused engine tests, an accessible recommendation-card presentation, an injected browser request-state controller, and a deterministic browser preference-entry and interpretation flow. The browser accepts words, tags, or both; exposes reviewed hard restrictions and soft preferences before submission; keeps unsupported text honest and raw text session-only; and then feeds the structured request into the existing non-live local recommendation sample. The request controller still performs no direct TMDB request. The browser now also supports title details, distinct feedback and one-card replacement, and a versioned local watchlist with a dedicated Saved view and scoped local-data reset controls. Live product-route wiring, browser consumption of server title enrichment, analytics event delivery, optional taste-profile personalization, and deployment remain separate backlog work. See the [recommendation v1 contract](./docs/recommendation-v1.md), [recommendation-card contract](./docs/recommendation-cards.md), and [recommendation request-state contract](./docs/recommendation-request-states.md).
 
 ## Local development
 
@@ -120,6 +121,7 @@ PickTonight does not call the JustWatch API directly. The current browser previe
 - [Preference entry and interpretation](docs/preference-entry.md)
 - [Title details](docs/title-details.md)
 - [Feedback and individual replacement](docs/feedback-and-replacement.md)
+- [Local watchlist](docs/local-watchlist.md)
 - [Discovery interview guide](docs/discovery-interview-guide.md)
 - [Discovery interview notes template](docs/discovery-interview-notes-template.md)
 

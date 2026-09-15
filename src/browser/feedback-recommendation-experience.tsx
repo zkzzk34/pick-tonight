@@ -25,8 +25,11 @@ import { RecommendationCards } from "./recommendation-cards";
 import { TitleDetail } from "./title-detail";
 import type { TitleDetailAction, TitleDetailData } from "./title-detail-model";
 import { getPreviewTitleDetail } from "./title-detail-preview";
+import type { SaveToWatchlist } from "./local-watchlist";
 
 interface FeedbackRecommendationExperienceProps {
+  readonly savedMediaKeys?: ReadonlySet<string>;
+  readonly onSaveTitle?: SaveToWatchlist;
   readonly recommendations: RecommendationCardSet;
   readonly updateRecommendations: (
     update: (current: RecommendationCardSet) => RecommendationCardSet,
@@ -104,7 +107,16 @@ function replacementMessage(
     : `${previousTitle} was replaced with ${replacementTitle}. Already watched was not treated as dislike or stored beyond this session.`;
 }
 
+const EMPTY_SAVED_MEDIA_KEYS: ReadonlySet<string> = new Set();
+
+const saveForCurrentVisit: SaveToWatchlist = () => ({
+  outcome: "added",
+  persistence: "session-only",
+});
+
 export function FeedbackRecommendationExperience({
+  onSaveTitle = saveForCurrentVisit,
+  savedMediaKeys = EMPTY_SAVED_MEDIA_KEYS,
   recommendations,
   updateRecommendations,
   onStatusMessage,
@@ -270,12 +282,25 @@ export function FeedbackRecommendationExperience({
     }
 
     if (action === "save") {
+      const saveResult = onSaveTitle(recommendation);
+
+      if (saveResult.outcome === "already-saved") {
+        onStatusMessage(
+          saveResult.persistence === "persistent"
+            ? `${recommendation.title} is already saved in this browser.`
+            : `${recommendation.title} is already saved for this visit only because browser storage is unavailable.`,
+        );
+        return;
+      }
+
       setSession((current) =>
         recordSessionAction(current, action, recommendation.mediaKey),
       );
       emitTasteSignal("weak-save", "save", recommendation);
       onStatusMessage(
-        `Save noted for ${recommendation.title}. Saved-title persistence is not active yet; Issue #30 owns the local watchlist.`,
+        saveResult.persistence === "persistent"
+          ? `Saved ${recommendation.title} in this browser. It will not synchronize to another browser or device.`
+          : `Saved ${recommendation.title} for this visit only because browser storage is unavailable.`,
       );
       return;
     }
@@ -372,6 +397,7 @@ export function FeedbackRecommendationExperience({
           onEditRequiredRestrictions={onEditRequiredRestrictions}
           onReplace={handleReplace}
           recommendations={recommendations}
+          savedMediaKeys={savedMediaKeys}
           replacementUnavailableIndexes={replacementUnavailableIndexes}
         />
       </div>
@@ -380,6 +406,7 @@ export function FeedbackRecommendationExperience({
         <TitleDetail
           detail={activeDetail}
           isChosenTonight={chosenTonightMediaKey === activeDetail.mediaKey}
+          isSaved={savedMediaKeys.has(activeDetail.mediaKey)}
           onAction={handleDetailAction}
           onBack={closeTitleDetail}
           onReplace={(detail) => {

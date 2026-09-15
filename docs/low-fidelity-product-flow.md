@@ -271,15 +271,21 @@ The screen does not claim that the viewer started or completed the title.
 
 Let the viewer revisit explicitly saved titles without requiring an account or treating saving as proof of positive taste.
 
-### Mobile layout and behavior
+### Implemented browser behavior
 
-- A **Saved in this browser** confirmation appears immediately after **Save**.
-- **View saved titles** opens the local watchlist.
-- Each saved title has **View details** and **Remove**.
-- **Clear watchlist** requires confirmation.
-- The screen explains: "Saved titles stay in this browser and do not synchronize with another browser or device."
-- The watchlist remains separate from the optional taste profile.
-- Clearing the watchlist does not clear unrelated personalization or analytics choices.
+- A browser-specific confirmation appears immediately after a successful `Save`.
+- Top-level `Saved (count)` navigation opens the local watchlist.
+- The Choose subtree remains mounted while Saved is visible, preserving the active preference, recommendation, detail, and decision state.
+- Saved records contain only the minimal title reference required for the list.
+- Each saved title has `Remove`. Details are intentionally unavailable from Saved until a resolver can rebuild the complete title-detail evidence.
+- Removal is immediate, is not treated as negative taste, and moves focus to the next logical Remove control or the `Find something to watch` action.
+- Shared state keeps recommendation-card and title-detail Save controls synchronized with the Saved view.
+- `Clear watchlist` is available under Privacy & local data and requires confirmation.
+- Cancel receives initial dialog focus; Escape and Cancel restore focus to the invoker.
+- Confirmed clearing preserves analytics consent and the active Choose decision.
+- If persistent browser storage is unavailable, the interface explains that saved titles are available only for the current session.
+- The watchlist explanation states that titles do not synchronize to another browser or device.
+- The watchlist remains separate from optional taste personalization.
 
 ## Screen 9 — Limited and empty results
 

@@ -16,6 +16,7 @@ import {
 interface TitleDetailProps {
   readonly detail: TitleDetailData;
   readonly isChosenTonight: boolean;
+  readonly isSaved?: boolean;
   readonly onAction: (
     action: TitleDetailAction,
     detail: TitleDetailData,
@@ -148,6 +149,7 @@ function DetailPoster({
 export function TitleDetail({
   detail,
   isChosenTonight,
+  isSaved = false,
   onAction,
   onBack,
   onReplace,
@@ -325,19 +327,32 @@ export function TitleDetail({
             ) : null}
 
             <div className="title-detail__actions">
-              {actions.map(({ action, label }) => (
-                <button
-                  aria-label={`${label}: ${detail.title}`}
-                  aria-pressed={
-                    action === "choose-tonight" ? isChosenTonight : undefined
-                  }
-                  key={action}
-                  onClick={() => onAction(action, detail)}
-                  type="button"
-                >
-                  {label}
-                </button>
-              ))}
+              {actions.map(({ action, label }) => {
+                const saveAlreadyExists = action === "save" && isSaved;
+
+                return (
+                  <button
+                    aria-disabled={saveAlreadyExists || undefined}
+                    aria-label={`${label}: ${detail.title}`}
+                    aria-pressed={
+                      action === "choose-tonight"
+                        ? isChosenTonight
+                        : action === "save"
+                          ? isSaved
+                          : undefined
+                    }
+                    key={action}
+                    onClick={() => {
+                      if (!saveAlreadyExists) {
+                        onAction(action, detail);
+                      }
+                    }}
+                    type="button"
+                  >
+                    {saveAlreadyExists ? "Saved" : label}
+                  </button>
+                );
+              })}
 
               <button
                 aria-label={`Replace: ${detail.title}`}

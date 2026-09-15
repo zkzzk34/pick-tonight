@@ -10,6 +10,7 @@ import "./styles/feedback-replacement.css";
 import "./styles/recommendation-cards.css";
 import "./styles/recommendation-request.css";
 import "./styles/attribution.css";
+import "./styles/saved-titles.css";
 
 const rootElement = document.getElementById("root");
 

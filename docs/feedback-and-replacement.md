@@ -17,8 +17,7 @@ The implementation follows the approved product decisions:
   memory only;
 - personalization uses an explicit integration seam but creates no persistent
   taste profile in Issue #29;
-- Save remains a distinct action but persistent watchlist behavior belongs to
-  Issue #30;
+- Save uses the shared Issue #30 watchlist and remains distinct from feedback;
 - no eligible replacement produces an explicit insufficient-result slot rather
   than repeating a title or relaxing a required restriction.
 
@@ -31,12 +30,11 @@ as watched.
 
 ### Save
 
-Remains distinct from all feedback actions. Issue #29 does not fake watchlist
-persistence. Issue #30 owns the local watchlist.
+Remains distinct from all feedback actions. Issue #30 connects Save to the shared browser-local watchlist used by recommendation cards, title details, and the Saved view.
 
-When personalization is enabled through the integration seam, Save may emit a
-weak taste signal. It is not treated as proof that the title was watched or
-liked.
+The first Save prepends one minimal title record. Repeated saves are idempotent, do not reorder the title, and do not repeat the session or personalization signal.
+
+When personalization is enabled through the integration seam, the first Save may emit a weak taste signal. It is not treated as proof that the title was watched or liked. With personalization disabled, no lasting taste signal is created.
 
 ### More like this
 
@@ -132,16 +130,19 @@ reset, and ranking integration remain owned by Issue #50.
 
 ## Watchlist boundary
 
-Issue #29 does not create persistent saved-title state.
-
-Issue #30 owns:
+Issue #30 provides:
 
 - versioned watchlist storage;
-- Saved view;
-- removal;
-- watchlist clear;
-- corrupted-storage handling; and
-- complete-reset integration.
+- the dedicated Saved view;
+- shared Saved state across cards and title details;
+- individual removal;
+- confirmed watchlist clearing;
+- malformed, unavailable, legacy, and future-version storage handling; and
+- scoped complete-reset integration.
+
+The watchlist stores only minimal normalized title references. It does not persist free-form feedback, title overviews, recommendation explanations, active preferences, or unnecessary timestamps.
+
+Optional taste-profile persistence, controls, migration, and ranking integration remain owned by Issue #50.
 
 ## Exhaustion
 
@@ -158,7 +159,7 @@ PickTonight does not:
 
 ## Privacy and storage
 
-The Issue #29 feedback modules add no persistent storage.
+The Issue #29 feedback modules add no persistent storage. Issue #30 adds only the separate versioned watchlist record described above.
 
 Active-session feedback may include structured and optional free-form reasons,
 but free-form text remains browser-memory-only.

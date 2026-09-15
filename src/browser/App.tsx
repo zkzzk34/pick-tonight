@@ -10,6 +10,8 @@ import {
 } from "./analytics-consent-storage";
 import { Attribution } from "./attribution";
 import { PreferenceEntryFlow } from "./preference-entry";
+import { SavedTitles } from "./saved-titles";
+import { useLocalWatchlist } from "./local-watchlist";
 
 const productPromises = [
   {
@@ -30,6 +32,9 @@ const productPromises = [
 ] as const;
 
 function App() {
+  const watchlist = useLocalWatchlist();
+  const [activeView, setActiveView] = useState<"choose" | "saved">("choose");
+  const [decisionSessionKey, setDecisionSessionKey] = useState(0);
   const [analyticsConsent, setAnalyticsConsent] =
     useState<AnalyticsConsentChoice | null>(() =>
       readAnalyticsConsent(getAnalyticsConsentStorage()),
@@ -41,57 +46,115 @@ function App() {
   };
 
   const clearAnalyticsConsent = () => {
-    resetAnalyticsConsent(getAnalyticsConsentStorage());
+    const storageCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
     setAnalyticsConsent(null);
+    return storageCleared;
+  };
+
+  const clearLocalWatchlist = () =>
+    watchlist.clearTitles().persistence === "persistent";
+
+  const resetAllPickTonightData = () => {
+    const analyticsStorageCleared = resetAnalyticsConsent(
+      getAnalyticsConsentStorage(),
+    );
+    const watchlistStorageCleared =
+      watchlist.clearTitles().persistence === "persistent";
+
+    setAnalyticsConsent(null);
+    setActiveView("choose");
+    setDecisionSessionKey((current) => current + 1);
+
+    return {
+      analyticsStorageCleared,
+      watchlistStorageCleared,
+    };
   };
 
   return (
     <div className="app-shell">
       <header className="site-header">
-        <span className="wordmark">PickTonight</span>
-        <span className="prototype-badge">Working prototype</span>
+        <div className="site-header__identity">
+          <span className="wordmark">PickTonight</span>
+          <span className="prototype-badge">Working prototype</span>
+        </div>
+
+        <nav aria-label="Primary" className="site-navigation">
+          <button
+            aria-current={activeView === "choose" ? "page" : undefined}
+            onClick={() => setActiveView("choose")}
+            type="button"
+          >
+            Choose
+          </button>
+          <button
+            aria-current={activeView === "saved" ? "page" : undefined}
+            onClick={() => setActiveView("saved")}
+            type="button"
+          >
+            Saved ({watchlist.savedTitles.length})
+          </button>
+        </nav>
       </header>
 
       <main>
-        <section className="hero" aria-labelledby="product-heading">
-          <p className="eyebrow">Flexible input. Constrained output.</p>
-          <h1 id="product-heading">
-            Choose what to watch without the endless scroll.
-          </h1>
-          <p className="hero-copy">
-            PickTonight is being built to help you choose something tonight in
-            under two minutes by turning your mood, available time, and viewing
-            context into exactly three explainable recommendations.
-          </p>
+        <div hidden={activeView !== "choose"}>
+          <section className="hero" aria-labelledby="product-heading">
+            <p className="eyebrow">Flexible input. Constrained output.</p>
+            <h1 id="product-heading">
+              Choose what to watch without the endless scroll.
+            </h1>
+            <p className="hero-copy">
+              PickTonight is being built to help you choose something tonight in
+              under two minutes by turning your mood, available time, and
+              viewing context into exactly three explainable recommendations.
+            </p>
 
-          <ul
-            aria-label="PickTonight product promises"
-            className="product-promises"
+            <ul
+              aria-label="PickTonight product promises"
+              className="product-promises"
+            >
+              {productPromises.map((promise) => (
+                <li className="promise-card" key={promise.label}>
+                  <strong>{promise.label}</strong>
+                  <span>{promise.detail}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <AnalyticsConsentPanel
+            choice={analyticsConsent}
+            onChoose={chooseAnalyticsConsent}
+          />
+
+          <section
+            aria-label="Card presentation preview"
+            className="recommendation-preview"
           >
-            {productPromises.map((promise) => (
-              <li className="promise-card" key={promise.label}>
-                <strong>{promise.label}</strong>
-                <span>{promise.detail}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+            <PreferenceEntryFlow
+              key={decisionSessionKey}
+              onSaveTitle={watchlist.saveTitle}
+              savedMediaKeys={watchlist.savedMediaKeys}
+            />
+          </section>
+        </div>
 
-        <AnalyticsConsentPanel
-          choice={analyticsConsent}
-          onChoose={chooseAnalyticsConsent}
-        />
-
-        <section
-          aria-label="Card presentation preview"
-          className="recommendation-preview"
-        >
-          <PreferenceEntryFlow />
-        </section>
+        <div hidden={activeView !== "saved"}>
+          <SavedTitles
+            onChoose={() => setActiveView("choose")}
+            onRemoveTitle={watchlist.removeTitle}
+            persistence={watchlist.persistence}
+            savedTitles={watchlist.savedTitles}
+          />
+        </div>
 
         <PrivacySection
           choice={analyticsConsent}
-          onReset={clearAnalyticsConsent}
+          onClearWatchlist={clearLocalWatchlist}
+          onResetAll={resetAllPickTonightData}
+          onResetAnalytics={clearAnalyticsConsent}
+          savedTitleCount={watchlist.savedTitles.length}
         />
 
         <Attribution />
