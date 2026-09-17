@@ -4,6 +4,7 @@ import {
   DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT,
   activateDevelopmentAnalytics,
   buildDevelopmentPostHogConfig,
+  captureDevelopmentAnalyticsEvent,
   deactivateDevelopmentAnalytics,
   resetDevelopmentAnalyticsForTests,
   resolveDevelopmentPostHogConfiguration,
@@ -11,6 +12,7 @@ import {
   type DevelopmentAnalyticsClientFactory,
 } from "./analytics-posthog";
 import type { AnalyticsIdentifiers } from "./analytics-identity-storage";
+import { createAnalyticsBaseProperties } from "./analytics-events";
 
 const IDENTIFIERS: AnalyticsIdentifiers = {
   browserId: "11111111-1111-4111-8111-111111111111",
@@ -30,10 +32,14 @@ const CONFIGURED_ENVIRONMENT = {
 
 function makeClient() {
   const captureVerificationEvent = vi.fn(() => undefined);
+  const captureEvent = vi.fn<DevelopmentAnalyticsClient["captureEvent"]>(
+    () => undefined,
+  );
   const disableCapture = vi.fn(() => undefined);
 
   return {
     captureVerificationEvent,
+    captureEvent,
     disableCapture,
   } satisfies DevelopmentAnalyticsClient;
 }
@@ -157,7 +163,7 @@ describe("development PostHog adapter", () => {
     expect(config.bootstrap).not.toHaveProperty("sessionID");
   });
 
-  it("hard-gates provider delivery to the one Issue #32 verification event", () => {
+  it("hard-gates provider delivery to the verification event and reviewed Issue #33 taxonomy", () => {
     const config = buildDevelopmentPostHogConfig(
       CONFIGURED_ENVIRONMENT.apiHost,
       IDENTIFIERS.browserId,
@@ -175,14 +181,29 @@ describe("development PostHog adapter", () => {
       event: DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT,
       properties: {},
     };
-
-    const unexpectedEvent = {
-      event: "$pageview",
+    const reviewedProductEvent = {
+      event: "recommendation_opened",
       properties: {},
     };
 
     expect(beforeSend(verificationEvent as never)).toEqual(verificationEvent);
-    expect(beforeSend(unexpectedEvent as never)).toBeNull();
+    expect(beforeSend(reviewedProductEvent as never)).toEqual(
+      reviewedProductEvent,
+    );
+
+    for (const eventName of [
+      "$pageview",
+      "$autocapture",
+      "$exception",
+      "picktonight_unreviewed_event",
+    ]) {
+      expect(
+        beforeSend({
+          event: eventName,
+          properties: {},
+        } as never),
+      ).toBeNull();
+    }
   });
 
   it("does not create a provider outside development or without configuration", () => {
@@ -236,6 +257,57 @@ describe("development PostHog adapter", () => {
     expect(instanceName).toBe("picktonight_development_1");
 
     expect(client.captureVerificationEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("delivers reviewed product events only while the provider is active", () => {
+    const client = makeClient();
+    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
+    const properties = createAnalyticsBaseProperties(IDENTIFIERS.sessionId);
+
+    expect(captureDevelopmentAnalyticsEvent("app_opened", properties)).toBe(
+      false,
+    );
+
+    activateDevelopmentAnalytics(IDENTIFIERS, {
+      environment: CONFIGURED_ENVIRONMENT,
+      createClient,
+    });
+
+    expect(captureDevelopmentAnalyticsEvent("app_opened", properties)).toBe(
+      true,
+    );
+
+    expect(client.captureEvent).toHaveBeenCalledTimes(1);
+    expect(client.captureEvent).toHaveBeenCalledWith("app_opened", properties);
+
+    deactivateDevelopmentAnalytics();
+
+    expect(captureDevelopmentAnalyticsEvent("app_opened", properties)).toBe(
+      false,
+    );
+    expect(client.captureEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("isolates provider capture failure from core product behavior", () => {
+    const client = makeClient();
+
+    client.captureEvent.mockImplementation(() => {
+      throw new Error("capture failure");
+    });
+
+    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
+
+    activateDevelopmentAnalytics(IDENTIFIERS, {
+      environment: CONFIGURED_ENVIRONMENT,
+      createClient,
+    });
+
+    expect(
+      captureDevelopmentAnalyticsEvent(
+        "app_opened",
+        createAnalyticsBaseProperties(IDENTIFIERS.sessionId),
+      ),
+    ).toBe(false);
   });
 
   it("does not initialize or capture again for duplicate React synchronization", () => {

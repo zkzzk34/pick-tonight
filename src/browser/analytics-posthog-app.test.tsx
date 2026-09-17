@@ -9,15 +9,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const providerMocks = vi.hoisted(() => ({
   activate: vi.fn(),
+  capture: vi.fn<
+    (eventName: string, properties: Record<string, unknown>) => boolean
+  >(() => true),
   deactivate: vi.fn(),
 }));
 
 vi.mock("./analytics-posthog", () => ({
   activateDevelopmentAnalytics: providerMocks.activate,
+  captureDevelopmentAnalyticsEvent: providerMocks.capture,
   deactivateDevelopmentAnalytics: providerMocks.deactivate,
 }));
 
 import App from "./App";
+import { resetAnalyticsTrackerForTests } from "./analytics-tracker";
 import {
   ANALYTICS_IDENTITY_STORAGE_KEY,
   ANALYTICS_SESSION_STORAGE_KEY,
@@ -30,7 +35,10 @@ describe("App development analytics provider lifecycle", () => {
     window.sessionStorage.clear();
 
     providerMocks.activate.mockReset();
+    providerMocks.capture.mockReset();
+    providerMocks.capture.mockReturnValue(true);
     providerMocks.deactivate.mockReset();
+    resetAnalyticsTrackerForTests();
   });
 
   it("never activates the provider before consent", async () => {
@@ -41,6 +49,7 @@ describe("App development analytics provider lifecycle", () => {
     });
 
     expect(providerMocks.activate).not.toHaveBeenCalled();
+    expect(providerMocks.capture).not.toHaveBeenCalled();
 
     expect(
       window.localStorage.getItem(ANALYTICS_IDENTITY_STORAGE_KEY),
@@ -82,6 +91,21 @@ describe("App development analytics provider lifecycle", () => {
       browserId: browserRecord?.id,
       sessionId: sessionRecord?.id,
     });
+
+    expect(providerMocks.capture).toHaveBeenCalledWith(
+      "consent_responded",
+      expect.objectContaining({
+        session_id: sessionRecord?.id,
+        response: "accepted",
+      }),
+    );
+
+    expect(providerMocks.capture).toHaveBeenCalledWith(
+      "app_opened",
+      expect.objectContaining({
+        session_id: sessionRecord?.id,
+      }),
+    );
   });
 
   it("restores accepted consent and activates from restored identifiers", async () => {
@@ -103,6 +127,19 @@ describe("App development analytics provider lifecycle", () => {
 
     expect(call.browserId).toEqual(expect.any(String));
     expect(call.sessionId).toEqual(expect.any(String));
+
+    expect(providerMocks.capture).toHaveBeenCalledWith(
+      "app_opened",
+      expect.objectContaining({
+        session_id: call.sessionId,
+      }),
+    );
+
+    expect(
+      providerMocks.capture.mock.calls.some(
+        ([eventName]) => eventName === "consent_responded",
+      ),
+    ).toBe(false);
   });
 
   it("deactivates immediately when analytics is reset", async () => {

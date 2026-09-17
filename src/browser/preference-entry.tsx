@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type { RecommendationRequester } from "./recommendation-request-state";
 import {
@@ -29,6 +29,11 @@ import { INITIAL_PREVIEW_RECOMMENDATIONS } from "./recommendation-card-preview";
 import { FeedbackRecommendationExperience } from "./feedback-recommendation-experience";
 import { RecommendationRequestPanel } from "./recommendation-request-panel";
 import type { SaveToWatchlist } from "./local-watchlist";
+import type { ContextSummaryProperties } from "./analytics-events";
+import {
+  trackPickerStarted,
+  trackPickerStepCompleted,
+} from "./analytics-tracker";
 
 interface ReviewRowProps {
   label: string;
@@ -160,6 +165,10 @@ const requestPreviewRecommendations: RecommendationRequester = () =>
   });
 
 interface PreferenceEntryFlowProps {
+  readonly analyticsPickerAttemptKey?: number;
+  readonly analyticsSessionId?: string | null;
+  readonly onContextSubmitted?: () => void;
+  readonly onPickerStarted?: () => void;
   readonly savedMediaKeys?: ReadonlySet<string>;
   readonly onSaveTitle?: SaveToWatchlist;
 }
@@ -172,6 +181,10 @@ const saveForCurrentVisit: SaveToWatchlist = () => ({
 });
 
 export function PreferenceEntryFlow({
+  analyticsPickerAttemptKey = 0,
+  analyticsSessionId = null,
+  onContextSubmitted,
+  onPickerStarted,
   onSaveTitle = saveForCurrentVisit,
   savedMediaKeys = EMPTY_SAVED_MEDIA_KEYS,
 }: PreferenceEntryFlowProps = {}) {
@@ -184,6 +197,22 @@ export function PreferenceEntryFlow({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [ignoredUnsupported, setIgnoredUnsupported] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const pickerStartedAttempt = useRef<number | null>(null);
+
+  function markPickerStarted(): void {
+    if (
+      analyticsSessionId === null ||
+      pickerStartedAttempt.current === analyticsPickerAttemptKey
+    ) {
+      return;
+    }
+
+    if (trackPickerStarted(analyticsSessionId, analyticsPickerAttemptKey)) {
+      pickerStartedAttempt.current = analyticsPickerAttemptKey;
+      onPickerStarted?.();
+    }
+  }
+
   const liveInterpretation = useMemo(
     () => interpretPreferences(draft),
     [draft],
@@ -247,6 +276,12 @@ export function PreferenceEntryFlow({
   }
 
   function handleReview(): void {
+    markPickerStarted();
+
+    if (analyticsSessionId !== null) {
+      trackPickerStepCompleted(analyticsSessionId, analyticsPickerAttemptKey);
+    }
+
     setReviewed(interpretPreferences(draft));
     setIgnoredUnsupported(false);
     setStatusMessage("");
@@ -291,6 +326,8 @@ export function PreferenceEntryFlow({
         <div
           className="preference-entry"
           aria-labelledby="preference-entry-heading"
+          onClickCapture={markPickerStarted}
+          onInputCapture={markPickerStarted}
         >
           <div className="preference-entry__text">
             <label htmlFor="preference-text">
@@ -642,6 +679,20 @@ export function PreferenceEntryFlow({
     (resolved.originCountry === undefined ? 0 : 1) +
     (resolved.companion === undefined ? 0 : 1);
 
+  const analyticsContextSummary: ContextSummaryProperties = {
+    media_type_code: resolved.mediaType,
+    mood_code: resolved.mood,
+    companion_code: resolved.companion,
+    maximum_runtime_minutes: resolved.maximumRuntimeMinutes,
+    freshness_year: resolved.freshnessYear,
+    content_language_code: resolved.contentLanguage,
+    origin_country_code: resolved.originCountry,
+    watch_region_code: resolved.watchRegion,
+    used_typed_input: draft.rawText.trim().length > 0,
+    required_restriction_count: requiredRestrictionCount,
+    soft_preference_count: softPreferenceCount,
+  };
+
   return (
     <div className="preference-flow">
       <section
@@ -865,13 +916,18 @@ export function PreferenceEntryFlow({
         </div>
 
         <RecommendationRequestPanel
+          analyticsContextSummary={analyticsContextSummary}
+          analyticsSessionId={analyticsSessionId}
           key={JSON.stringify(reviewed.request)}
+          onBeforeContextSubmit={markPickerStarted}
+          onContextSubmitted={onContextSubmitted}
           requestRecommendations={requestPreviewRecommendations}
           submitLabel="Show 3 picks"
           submittedPreferences={reviewed.request}
         >
-          {(recommendations, updateRecommendations) => (
+          {(recommendations, updateRecommendations, analyticsContext) => (
             <FeedbackRecommendationExperience
+              analyticsContext={analyticsContext}
               onSaveTitle={onSaveTitle}
               savedMediaKeys={savedMediaKeys}
               onEditRequiredRestrictions={() => {

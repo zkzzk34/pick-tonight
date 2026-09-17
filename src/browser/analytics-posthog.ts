@@ -1,5 +1,10 @@
 import posthog, { type PostHogConfig } from "posthog-js";
 
+import {
+  isPickTonightAnalyticsEventName,
+  type AnalyticsEventProperties,
+  type PickTonightAnalyticsEventName,
+} from "./analytics-events";
 import type { AnalyticsIdentifiers } from "./analytics-identity-storage";
 
 export const DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT =
@@ -21,6 +26,10 @@ export type DevelopmentAnalyticsActivationStatus =
 
 export interface DevelopmentAnalyticsClient {
   captureVerificationEvent(): void;
+  captureEvent(
+    eventName: PickTonightAnalyticsEventName,
+    properties: Record<string, unknown>,
+  ): void;
   disableCapture(): void;
 }
 
@@ -189,10 +198,15 @@ export function buildDevelopmentPostHogConfig(
     // consent persistence.
     opt_out_capturing_by_default: false,
 
-    // Defense in depth: Issue #32 is allowed to deliver exactly one named
-    // infrastructure verification event. Everything else is rejected locally.
+    // Defense in depth: only the Issue #32 infrastructure verification
+    // event and the reviewed Issue #33 product taxonomy may leave the browser.
+    // Automatic/system PostHog events remain rejected locally.
     before_send: (event) =>
-      event?.event === DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT ? event : null,
+      event?.event === DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT ||
+      (typeof event?.event === "string" &&
+        isPickTonightAnalyticsEventName(event.event))
+        ? event
+        : null,
 
     // This prevents an explicit event property containing an IP address.
     // Network-level IP handling still requires the development PostHog project
@@ -219,6 +233,12 @@ const defaultClientFactory: DevelopmentAnalyticsClientFactory = (
   return {
     captureVerificationEvent() {
       client.capture(DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT, undefined, {
+        send_instantly: true,
+      });
+    },
+
+    captureEvent(eventName, properties) {
+      client.capture(eventName, properties, {
         send_instantly: true,
       });
     },
@@ -318,6 +338,30 @@ export function activateDevelopmentAnalytics(
     );
 
     return "failed";
+  }
+}
+
+export function captureDevelopmentAnalyticsEvent<
+  TEventName extends PickTonightAnalyticsEventName,
+>(
+  eventName: TEventName,
+  properties: AnalyticsEventProperties<TEventName>,
+): boolean {
+  const client = activeClient;
+
+  if (!client) {
+    return false;
+  }
+
+  try {
+    client.captureEvent(
+      eventName,
+      properties as unknown as Record<string, unknown>,
+    );
+    return true;
+  } catch {
+    // Analytics are optional. Capture failure must never break core behavior.
+    return false;
   }
 }
 
