@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AnalyticsConsentPanel, PrivacySection } from "./analytics-consent";
+import {
+  activateDevelopmentAnalytics,
+  deactivateDevelopmentAnalytics,
+} from "./analytics-posthog";
 import {
   getAnalyticsIdentityStorage,
   getAnalyticsSessionStorage,
@@ -102,6 +106,18 @@ function App() {
     getInitialAnalyticsAppState,
   );
 
+  useEffect(() => {
+    if (
+      analyticsState.consent === "accepted" &&
+      analyticsState.identity.status === "ready"
+    ) {
+      activateDevelopmentAnalytics(analyticsState.identity.identifiers);
+      return;
+    }
+
+    deactivateDevelopmentAnalytics();
+  }, [analyticsState]);
+
   const chooseAnalyticsConsent = (choice: AnalyticsConsentChoice) => {
     const consentStored = writeAnalyticsConsent(
       getAnalyticsConsentStorage(),
@@ -132,6 +148,8 @@ function App() {
       return;
     }
 
+    deactivateDevelopmentAnalytics();
+
     resetAnalyticsIdentifiers(
       getAnalyticsIdentityStorage(),
       getAnalyticsSessionStorage(),
@@ -147,6 +165,8 @@ function App() {
   };
 
   const clearAnalyticsConsent = () => {
+    deactivateDevelopmentAnalytics();
+
     const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
     const identifierReset = resetAnalyticsIdentifiers(
       getAnalyticsIdentityStorage(),
@@ -172,6 +192,8 @@ function App() {
     watchlist.clearTitles().persistence === "persistent";
 
   const resetAllPickTonightData = () => {
+    deactivateDevelopmentAnalytics();
+
     const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
     const identifierReset = resetAnalyticsIdentifiers(
       getAnalyticsIdentityStorage(),

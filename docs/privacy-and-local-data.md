@@ -1,6 +1,6 @@
 # PickTonight Privacy, Local Data, and Optional Analytics
 
-- **Status:** Implemented for active-session, watchlist, consent controls, and consent-gated analytics identity/session identifiers; personalization and analytics delivery remain planned
+- **Status:** Implemented for active-session, watchlist, consent controls, consent-gated analytics identity/session identifiers, and development-only PostHog verification; personalization and reviewed product analytics remain planned
 - **Owner:** ZK Zhao
 - **Date:** September 17, 2026
 - **Related issue:** [#5 — Draft privacy, local-data, and analytics-consent language](https://github.com/zkzzk34/pick-tonight/issues/5)
@@ -269,9 +269,19 @@ Cancel receives initial focus because the operation is destructive. Escape and C
 
 ## Analytics provider gate
 
-No analytics provider has been approved by this document.
+Issue #32 adds a development-only PostHog adapter for consent and network verification. This development integration is not approval for a pilot or production analytics environment.
 
-Product analytics must remain disabled until the project verifies and documents:
+The SDK is not initialized before affirmative analytics consent and ready PickTonight analytics identifiers. The development provider uses no durable PostHog persistence, receives the PickTonight browser identifier as an anonymous bootstrapped distinct ID, does not receive the PickTonight UUIDv4 session identifier as a native PostHog session ID, and disables automatic capture, session recording, surveys, feature-flag requests, person profiles, and unnecessary automatic collection.
+
+A local `before_send` gate rejects every event other than the Issue #32 development verification event.
+
+The dedicated development PostHog project must be configured to discard client IP data before live verification. PickTonight does not intentionally add an IP address as an analytics property or derive an identifier from network metadata.
+
+Development configuration uses `VITE_POSTHOG_DEV_PROJECT_TOKEN` and `VITE_POSTHOG_DEV_HOST`. Only the browser-visible project token belongs in frontend configuration. Personal and administrative PostHog API credentials remain prohibited from frontend code and Git history.
+
+Any future pilot integration remains separately gated.
+
+Product analytics must remain disabled for a pilot until the project verifies and documents:
 
 - the provider and its applicable privacy terms;
 - every event and property sent;
@@ -284,7 +294,9 @@ Product analytics must remain disabled until the project verifies and documents:
 - consent withdrawal behavior;
 - deletion and reset limitations.
 
-Issue #31 defines the consent-gated pseudonymous browser identity and page-session identifier. Issue #32 owns provider integration, Issue #33 owns the reviewed event taxonomy, and Issue #34 will verify the final event-property allowlist.
+Issue #31 defines the consent-gated pseudonymous browser identity and page-session identifier. Issue #32 owns the development PostHog adapter and provider-boundary verification. Issue #33 owns the reviewed product event taxonomy, and Issue #34 will verify the final event-property allowlist.
+
+See [Development PostHog integration](./posthog-development.md) for the exact provider configuration and manual browser-network verification procedure.
 
 ## Operational-data boundary
 
@@ -317,5 +329,7 @@ These sources inform the product behavior but do not by themselves establish leg
 - [`localStorage` — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
 - [`sessionStorage` — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage)
 - [`crypto.randomUUID()` — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)
+- [PostHog JavaScript configuration](https://posthog.com/docs/libraries/js/config)
+- [PostHog controlling data collection](https://posthog.com/docs/privacy/data-collection)
 - [Pseudonymisation — UK Information Commissioner's Office](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-sharing/anonymisation/pseudonymisation/)
 - [Managing consent in practice — UK Information Commissioner's Office](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/guidance-on-the-use-of-storage-and-access-technologies/how-do-we-manage-consent-in-practice/)
