@@ -14,6 +14,7 @@ interface CompleteResetResult {
 }
 
 interface PrivacySectionProps {
+  readonly analyticsIdentityStatus: "disabled" | "ready" | "unavailable";
   readonly choice: AnalyticsConsentChoice | null;
   readonly savedTitleCount: number;
   readonly onResetAnalytics: () => boolean;
@@ -78,6 +79,12 @@ export function AnalyticsConsentPanel({
           location, title descriptions, and local taste information are not
           included. All core features work if you decline.
         </p>
+        <p>
+          If you allow analytics, PickTonight creates random pseudonymous
+          browser and tab-session identifiers used only for optional analytics.
+          They are not derived from your name, email address, saved titles, or
+          taste profile.
+        </p>
       </div>
 
       <div
@@ -109,6 +116,7 @@ export function AnalyticsConsentPanel({
 }
 
 export function PrivacySection({
+  analyticsIdentityStatus,
   choice,
   savedTitleCount,
   onResetAnalytics,
@@ -128,8 +136,8 @@ export function PrivacySection({
 
     setStatusMessage(
       storageCleared
-        ? "Analytics choice reset. Optional analytics are off and undecided."
-        : "Analytics choice was reset for this visit, but browser storage could not be updated. The previous choice may return after reload.",
+        ? "Analytics choice and local analytics identifiers reset. Optional analytics are off and undecided."
+        : "Analytics was reset for this visit, but browser storage could not be fully updated. A previous analytics choice or identifier may remain or return after reload.",
     );
   };
 
@@ -153,16 +161,16 @@ export function PrivacySection({
     const dataThatMayReturn =
       !resetResult.analyticsStorageCleared &&
       !resetResult.watchlistStorageCleared
-        ? "Saved titles and the analytics choice"
+        ? "Saved titles and analytics choice or identifier data"
         : resetResult.watchlistStorageCleared
-          ? "The analytics choice"
+          ? "Analytics choice or identifier data"
           : "Saved titles";
 
     setConfirmation(null);
     setStatusMessage(
       storageFullyCleared
         ? "All current PickTonight data was reset. Your active decision was also cleared."
-        : `Current-session PickTonight data was reset, but browser storage could not be fully updated. ${dataThatMayReturn} may return after reload.`,
+        : `Current-session PickTonight data was reset, but browser storage could not be fully updated. ${dataThatMayReturn} may remain or return after reload.`,
     );
   };
 
@@ -208,6 +216,29 @@ export function PrivacySection({
                 ? "Nonessential analytics remain off unless you make an affirmative choice."
                 : "The choice is remembered in this browser when browser storage is available."}
             </p>
+
+            {choice === "accepted" && analyticsIdentityStatus === "ready" ? (
+              <p>
+                PickTonight created a random pseudonymous browser identifier and
+                a tab-scoped session identifier for optional analytics only.
+                They do not contain your name or email address and are not
+                intended to identify you across browsers or devices.
+              </p>
+            ) : choice === "accepted" &&
+              analyticsIdentityStatus === "unavailable" ? (
+              <p>
+                You allowed analytics, but required browser storage or secure
+                identifier generation is unavailable. PickTonight cannot
+                establish the required analytics identifiers, so optional
+                analytics remain unavailable for this visit.
+              </p>
+            ) : (
+              <p>
+                PickTonight does not create an analytics identifier unless you
+                allow optional analytics.
+              </p>
+            )}
+
             <button
               className="privacy-section__reset"
               disabled={choice === null}
@@ -217,8 +248,9 @@ export function PrivacySection({
               Reset analytics choice
             </button>
             <p className="privacy-section__reset-help">
-              This removes only the analytics-consent choice. It does not clear
-              saved titles or the active decision.
+              This removes the analytics-consent choice and local analytics
+              identifiers. It does not clear saved titles or the active
+              decision.
             </p>
           </div>
 
@@ -252,9 +284,10 @@ export function PrivacySection({
           <div className="privacy-section__detail">
             <h3>Complete local-data reset</h3>
             <p>
-              Reset the watchlist, analytics choice, and active decision, then
-              return to Choose. Optional personalization data will belong to
-              this same complete reset when that feature is available.
+              Reset the watchlist, analytics choice and identifiers, and active
+              decision, then return to Choose. Optional personalization data
+              will belong to this same complete reset when that feature is
+              available.
             </p>
             <button
               className="privacy-section__reset privacy-section__reset--danger"
@@ -296,7 +329,7 @@ export function PrivacySection({
       ) : confirmation === "all" ? (
         <ConfirmationDialog
           confirmLabel="Reset all PickTonight data"
-          description="This removes the local watchlist and analytics choice, clears the active decision, and returns to Choose."
+          description="This removes the local watchlist, analytics choice and identifiers, clears the active decision, and returns to Choose."
           getConfirmedFocus={() => statusRef.current}
           onCancel={() => setConfirmation(null)}
           onConfirm={confirmCompleteReset}

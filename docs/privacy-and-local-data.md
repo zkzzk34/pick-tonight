@@ -1,8 +1,8 @@
 # PickTonight Privacy, Local Data, and Optional Analytics
 
-- **Status:** Implemented for active-session, watchlist, and consent controls; personalization and analytics delivery remain planned
+- **Status:** Implemented for active-session, watchlist, consent controls, and consent-gated analytics identity/session identifiers; personalization and analytics delivery remain planned
 - **Owner:** ZK Zhao
-- **Date:** September 15, 2026
+- **Date:** September 17, 2026
 - **Related issue:** [#5 — Draft privacy, local-data, and analytics-consent language](https://github.com/zkzzk34/pick-tonight/issues/5)
 - **Requirements:** [Product Requirements and Research Boundaries](./product-requirements.md)
 
@@ -207,6 +207,20 @@ The identifier must:
 
 A pseudonymous identifier is not automatically anonymous. PickTonight must not describe analytics as fully anonymous unless the implemented provider, event data, network metadata, retention, and re-identification risk have been verified to support that claim.
 
+### Current analytics identity implementation
+
+Issue #31 implements two separate version-one analytics identifiers:
+
+- `picktonight.analytics-identity` is a random pseudonymous browser identifier stored in `localStorage` only after affirmative analytics consent;
+- `picktonight.analytics-session` is a random analytics session identifier stored in `sessionStorage`, so it is bounded to the browser tab/page session and survives reloads only within that page session.
+
+Both records contain only `version` and `id`. The identifiers are generated from browser cryptographic randomness and are not derived from preference text, saved titles, taste-profile contents, names, email addresses, IP addresses, precise location, account data, or device fingerprinting.
+
+If the persistent browser identifier, page-session identifier, or secure identifier generation cannot be established, analytics remain unavailable for that visit. PickTonight does not silently fall back to a provider-generated identifier. Core recommendations, the watchlist, and optional personalization remain independent.
+
+When analytics consent is absent or declined, PickTonight does not create analytics identifiers and removes recognized local analytics identifier records. Resetting analytics consent or performing the complete PickTonight reset removes both identifiers. Unknown future identity-schema versions are not destructively overwritten during identifier initialization.
+
+
 ## Withdrawing analytics consent
 
 The user must be able to change the analytics choice later.
@@ -236,15 +250,15 @@ PickTonight must not promise that previously sent events can be individually loc
 | Clear watchlist | Deletes locally saved titles |
 | Reset all PickTonight data | Deletes session state, watchlist, taste profile, consent choices, and local identifiers |
 
-The current implementation exposes `Reset analytics choice`, `Clear watchlist`, and `Reset all PickTonight data` as separate controls. Analytics reset removes only the consent key. Watchlist clearing removes only the watchlist key. Complete reset removes the currently known PickTonight consent and watchlist keys, clears the active decision, and returns to Choose.
+The current implementation exposes `Reset analytics choice`, `Clear watchlist`, and `Reset all PickTonight data` as separate controls. Analytics reset removes the analytics-consent record plus the persistent analytics browser identifier and current analytics-session identifier. Watchlist clearing removes only the watchlist key. Complete reset removes the currently known PickTonight consent, analytics-identifier, analytics-session, and watchlist keys, clears the active decision, and returns to Choose.
 
-The implementation does not call `localStorage.clear()` and does not delete unrelated data belonging to the same origin. Future taste-profile or analytics-identifier keys must be added explicitly to the scoped complete-reset registry before those features ship. If a scoped removal fails, the interface must not claim complete persistent deletion; it reports which data may return after reload.
+The implementation does not call `localStorage.clear()` or `sessionStorage.clear()` in production reset paths and does not delete unrelated data belonging to the same origin. Future taste-profile or other PickTonight-owned keys must be added explicitly to the scoped complete-reset registry before those features ship. If a scoped removal fails, the interface must not claim complete persistent deletion; it reports which data may remain or return after reload.
 
 ### Current complete-reset confirmation
 
 **Reset all PickTonight data?**
 
-> This removes the local watchlist and analytics choice, clears the active decision, and returns to Choose.
+> This removes the local watchlist, analytics choice and identifiers, clears the active decision, and returns to Choose.
 
 Choices:
 
@@ -270,7 +284,7 @@ Product analytics must remain disabled until the project verifies and documents:
 - consent withdrawal behavior;
 - deletion and reset limitations.
 
-Issue #31 will define the pseudonymous analytics identity. Issue #34 will verify the final event-property allowlist.
+Issue #31 defines the consent-gated pseudonymous browser identity and page-session identifier. Issue #32 owns provider integration, Issue #33 owns the reviewed event taxonomy, and Issue #34 will verify the final event-property allowlist.
 
 ## Operational-data boundary
 
@@ -301,5 +315,7 @@ These sources inform the product behavior but do not by themselves establish leg
 - [Privacy and Security Enforcement — U.S. Federal Trade Commission](https://www.ftc.gov/news-events/topics/protecting-consumer-privacy-security/privacy-security-enforcement)
 - [Web Storage API — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API)
 - [`localStorage` — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
+- [`sessionStorage` — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage)
+- [`crypto.randomUUID()` — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)
 - [Pseudonymisation — UK Information Commissioner's Office](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-sharing/anonymisation/pseudonymisation/)
 - [Managing consent in practice — UK Information Commissioner's Office](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/guidance-on-the-use-of-storage-and-access-technologies/how-do-we-manage-consent-in-practice/)

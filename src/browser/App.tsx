@@ -2,6 +2,13 @@ import { useState } from "react";
 
 import { AnalyticsConsentPanel, PrivacySection } from "./analytics-consent";
 import {
+  getAnalyticsIdentityStorage,
+  getAnalyticsSessionStorage,
+  initializeAnalyticsIdentifiers,
+  resetAnalyticsIdentifiers,
+  type AnalyticsIdentifiers,
+} from "./analytics-identity-storage";
+import {
   getAnalyticsConsentStorage,
   readAnalyticsConsent,
   resetAnalyticsConsent,
@@ -9,9 +16,9 @@ import {
   type AnalyticsConsentChoice,
 } from "./analytics-consent-storage";
 import { Attribution } from "./attribution";
+import { useLocalWatchlist } from "./local-watchlist";
 import { PreferenceEntryFlow } from "./preference-entry";
 import { SavedTitles } from "./saved-titles";
-import { useLocalWatchlist } from "./local-watchlist";
 
 const productPromises = [
   {
@@ -31,37 +38,162 @@ const productPromises = [
   },
 ] as const;
 
+type AnalyticsIdentityLifecycle =
+  | {
+      readonly status: "disabled";
+      readonly identifiers: null;
+    }
+  | {
+      readonly status: "unavailable";
+      readonly identifiers: null;
+    }
+  | {
+      readonly status: "ready";
+      readonly identifiers: AnalyticsIdentifiers;
+    };
+
+interface AnalyticsAppState {
+  readonly consent: AnalyticsConsentChoice | null;
+  readonly identity: AnalyticsIdentityLifecycle;
+}
+
+function getInitialAnalyticsAppState(): AnalyticsAppState {
+  const consent = readAnalyticsConsent(getAnalyticsConsentStorage());
+
+  if (consent !== "accepted") {
+    resetAnalyticsIdentifiers(
+      getAnalyticsIdentityStorage(),
+      getAnalyticsSessionStorage(),
+    );
+
+    return {
+      consent,
+      identity: {
+        status: "disabled",
+        identifiers: null,
+      },
+    };
+  }
+
+  const identifiers = initializeAnalyticsIdentifiers(
+    getAnalyticsIdentityStorage(),
+    getAnalyticsSessionStorage(),
+  );
+
+  return {
+    consent,
+    identity: identifiers
+      ? {
+          status: "ready",
+          identifiers,
+        }
+      : {
+          status: "unavailable",
+          identifiers: null,
+        },
+  };
+}
+
 function App() {
   const watchlist = useLocalWatchlist();
   const [activeView, setActiveView] = useState<"choose" | "saved">("choose");
   const [decisionSessionKey, setDecisionSessionKey] = useState(0);
-  const [analyticsConsent, setAnalyticsConsent] =
-    useState<AnalyticsConsentChoice | null>(() =>
-      readAnalyticsConsent(getAnalyticsConsentStorage()),
-    );
+  const [analyticsState, setAnalyticsState] = useState<AnalyticsAppState>(
+    getInitialAnalyticsAppState,
+  );
 
   const chooseAnalyticsConsent = (choice: AnalyticsConsentChoice) => {
-    writeAnalyticsConsent(getAnalyticsConsentStorage(), choice);
-    setAnalyticsConsent(choice);
+    const consentStored = writeAnalyticsConsent(
+      getAnalyticsConsentStorage(),
+      choice,
+    );
+
+    if (choice === "accepted") {
+      const identifiers = consentStored
+        ? initializeAnalyticsIdentifiers(
+            getAnalyticsIdentityStorage(),
+            getAnalyticsSessionStorage(),
+          )
+        : null;
+
+      setAnalyticsState({
+        consent: choice,
+        identity: identifiers
+          ? {
+              status: "ready",
+              identifiers,
+            }
+          : {
+              status: "unavailable",
+              identifiers: null,
+            },
+      });
+
+      return;
+    }
+
+    resetAnalyticsIdentifiers(
+      getAnalyticsIdentityStorage(),
+      getAnalyticsSessionStorage(),
+    );
+
+    setAnalyticsState({
+      consent: choice,
+      identity: {
+        status: "disabled",
+        identifiers: null,
+      },
+    });
   };
 
   const clearAnalyticsConsent = () => {
-    const storageCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
-    setAnalyticsConsent(null);
-    return storageCleared;
+    const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
+    const identifierReset = resetAnalyticsIdentifiers(
+      getAnalyticsIdentityStorage(),
+      getAnalyticsSessionStorage(),
+    );
+
+    setAnalyticsState({
+      consent: null,
+      identity: {
+        status: "disabled",
+        identifiers: null,
+      },
+    });
+
+    return (
+      consentCleared &&
+      identifierReset.browserCleared &&
+      identifierReset.sessionCleared
+    );
   };
 
   const clearLocalWatchlist = () =>
     watchlist.clearTitles().persistence === "persistent";
 
   const resetAllPickTonightData = () => {
-    const analyticsStorageCleared = resetAnalyticsConsent(
-      getAnalyticsConsentStorage(),
+    const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
+    const identifierReset = resetAnalyticsIdentifiers(
+      getAnalyticsIdentityStorage(),
+      getAnalyticsSessionStorage(),
     );
+
+    const analyticsStorageCleared =
+      consentCleared &&
+      identifierReset.browserCleared &&
+      identifierReset.sessionCleared;
+
     const watchlistStorageCleared =
       watchlist.clearTitles().persistence === "persistent";
 
-    setAnalyticsConsent(null);
+    setAnalyticsState({
+      consent: null,
+      identity: {
+        status: "disabled",
+        identifiers: null,
+      },
+    });
+
     setActiveView("choose");
     setDecisionSessionKey((current) => current + 1);
 
@@ -87,6 +219,7 @@ function App() {
           >
             Choose
           </button>
+
           <button
             aria-current={activeView === "saved" ? "page" : undefined}
             onClick={() => setActiveView("saved")}
@@ -101,9 +234,11 @@ function App() {
         <div hidden={activeView !== "choose"}>
           <section className="hero" aria-labelledby="product-heading">
             <p className="eyebrow">Flexible input. Constrained output.</p>
+
             <h1 id="product-heading">
               Choose what to watch without the endless scroll.
             </h1>
+
             <p className="hero-copy">
               PickTonight is being built to help you choose something tonight in
               under two minutes by turning your mood, available time, and
@@ -124,7 +259,7 @@ function App() {
           </section>
 
           <AnalyticsConsentPanel
-            choice={analyticsConsent}
+            choice={analyticsState.consent}
             onChoose={chooseAnalyticsConsent}
           />
 
@@ -150,7 +285,8 @@ function App() {
         </div>
 
         <PrivacySection
-          choice={analyticsConsent}
+          analyticsIdentityStatus={analyticsState.identity.status}
+          choice={analyticsState.consent}
           onClearWatchlist={clearLocalWatchlist}
           onResetAll={resetAllPickTonightData}
           onResetAnalytics={clearAnalyticsConsent}
