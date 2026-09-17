@@ -203,8 +203,10 @@ export function PrivacySection({
               descriptions, or local taste information.
             </p>
             <p>
-              This prototype does not currently send nonessential analytics
-              because no analytics provider is enabled.
+              A configured development build can send one deliberate provider
+              verification event after you allow analytics. Automatic collection
+              remains disabled, and the reviewed product event taxonomy is
+              separate follow-up work.
             </p>
           </div>
 
