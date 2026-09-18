@@ -4,11 +4,12 @@ import type {
   RecommendationRequest,
   SupportedMood,
 } from "../shared/recommendation-contracts.ts";
+import { RECOMMENDATION_HEURISTIC_VERSION } from "../shared/recommendation-version.ts";
 import { getMoodMapping } from "./mood-mapping.ts";
 import { generateRecommendationExplanation } from "./recommendation-explanations.ts";
 import type { TmdbDiscoveryCandidate } from "./tmdb-discovery-candidates.ts";
 
-export const RECOMMENDATION_HEURISTIC_VERSION = "recommendation-v3" as const;
+export { RECOMMENDATION_HEURISTIC_VERSION } from "../shared/recommendation-version.ts";
 export const RECOMMENDATION_LIMIT = 3;
 export const TEMPORAL_COHESION_SCORE_WINDOW = 5;
 export const TEMPORAL_COHESION_MAX_YEAR_GAP = 50;

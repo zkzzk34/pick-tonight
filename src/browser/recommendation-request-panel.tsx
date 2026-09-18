@@ -8,6 +8,16 @@ import {
 
 import type { RecommendationRequest } from "../shared/recommendation-contracts";
 import type { RecommendationCardSet } from "./recommendation-card-model";
+import type { ContextSummaryProperties } from "./analytics-events";
+import {
+  advanceRecommendationAnalyticsBatch,
+  createRecommendationAnalyticsContext,
+  mapRecommendationFailureToAnalyticsError,
+  trackApiErrorShown,
+  trackContextSubmitted,
+  trackRecommendationBatchViewed,
+  type RecommendationAnalyticsContext,
+} from "./analytics-tracker";
 import {
   recommendationFailureCopy,
   snapshotRecommendationRequest,
@@ -16,7 +26,11 @@ import {
 } from "./recommendation-request-state";
 
 export interface RecommendationRequestPanelProps {
+  readonly analyticsContextSummary?: ContextSummaryProperties;
+  readonly analyticsSessionId?: string | null;
   readonly initialRecommendations?: RecommendationCardSet;
+  readonly onBeforeContextSubmit?: () => void;
+  readonly onContextSubmitted?: () => void;
   readonly submittedPreferences: RecommendationRequest;
   readonly requestRecommendations: RecommendationRequester;
   readonly submitLabel?: string;
@@ -25,6 +39,7 @@ export interface RecommendationRequestPanelProps {
     updateRecommendations: (
       update: (current: RecommendationCardSet) => RecommendationCardSet,
     ) => void,
+    analyticsContext: RecommendationAnalyticsContext | null,
   ) => ReactNode;
 }
 
@@ -36,7 +51,11 @@ const UNKNOWN_FAILURE_STATE = {
 } as const;
 
 export function RecommendationRequestPanel({
+  analyticsContextSummary,
+  analyticsSessionId = null,
   initialRecommendations,
+  onBeforeContextSubmit,
+  onContextSubmitted,
   submittedPreferences,
   requestRecommendations,
   submitLabel = "Request recommendations",
@@ -53,6 +72,11 @@ export function RecommendationRequestPanel({
   );
   const requestInFlight = useRef(false);
   const lastSubmittedPreferences = useRef<RecommendationRequest | null>(null);
+  const activeAnalyticsContext = useRef<RecommendationAnalyticsContext | null>(
+    null,
+  );
+  const [analyticsContext, setAnalyticsContext] =
+    useState<RecommendationAnalyticsContext | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -78,10 +102,38 @@ export function RecommendationRequestPanel({
 
       if (mounted.current) {
         setViewState(result);
+
+        const currentAnalyticsContext = activeAnalyticsContext.current;
+
+        if (result.status === "complete" && currentAnalyticsContext !== null) {
+          const nextAnalyticsContext = advanceRecommendationAnalyticsBatch(
+            currentAnalyticsContext,
+          );
+
+          activeAnalyticsContext.current = nextAnalyticsContext;
+          setAnalyticsContext(nextAnalyticsContext);
+
+          trackRecommendationBatchViewed(
+            nextAnalyticsContext,
+            result.recommendations.length,
+          );
+        } else if (
+          result.status === "error" &&
+          currentAnalyticsContext !== null
+        ) {
+          trackApiErrorShown(
+            currentAnalyticsContext,
+            mapRecommendationFailureToAnalyticsError(result.failure),
+          );
+        }
       }
     } catch {
       if (mounted.current) {
         setViewState(UNKNOWN_FAILURE_STATE);
+
+        if (activeAnalyticsContext.current !== null) {
+          trackApiErrorShown(activeAnalyticsContext.current, "unknown");
+        }
       }
     } finally {
       requestInFlight.current = false;
@@ -95,8 +147,27 @@ export function RecommendationRequestPanel({
       return;
     }
 
+    onBeforeContextSubmit?.();
+
     const snapshot = snapshotRecommendationRequest(submittedPreferences);
     lastSubmittedPreferences.current = snapshot;
+
+    const nextAnalyticsContext =
+      analyticsSessionId === null
+        ? null
+        : createRecommendationAnalyticsContext(analyticsSessionId);
+
+    activeAnalyticsContext.current = nextAnalyticsContext;
+    setAnalyticsContext(nextAnalyticsContext);
+
+    if (
+      nextAnalyticsContext !== null &&
+      analyticsContextSummary !== undefined
+    ) {
+      trackContextSubmitted(nextAnalyticsContext, analyticsContextSummary);
+    }
+
+    onContextSubmitted?.();
     void runRequest(snapshot);
   }
 
@@ -208,7 +279,11 @@ export function RecommendationRequestPanel({
         role="group"
       >
         {viewState.status === "complete"
-          ? children(viewState.recommendations, updateRecommendations)
+          ? children(
+              viewState.recommendations,
+              updateRecommendations,
+              analyticsContext,
+            )
           : null}
       </div>
     </section>

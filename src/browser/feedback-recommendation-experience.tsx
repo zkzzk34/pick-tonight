@@ -26,8 +26,21 @@ import { TitleDetail } from "./title-detail";
 import type { TitleDetailAction, TitleDetailData } from "./title-detail-model";
 import { getPreviewTitleDetail } from "./title-detail-preview";
 import type { SaveToWatchlist } from "./local-watchlist";
+import {
+  createRecommendationItemAnalyticsReference,
+  trackFeedbackSubmitted,
+  trackRecommendationOpened,
+  trackRecommendationRejected,
+  trackRecommendationSaved,
+  trackRecommendationsRefreshed,
+  trackTrailerClicked,
+  trackWatchIntentConfirmed,
+  type RecommendationAnalyticsContext,
+  type RecommendationItemAnalyticsReference,
+} from "./analytics-tracker";
 
 interface FeedbackRecommendationExperienceProps {
+  readonly analyticsContext?: RecommendationAnalyticsContext | null;
   readonly savedMediaKeys?: ReadonlySet<string>;
   readonly onSaveTitle?: SaveToWatchlist;
   readonly recommendations: RecommendationCardSet;
@@ -115,6 +128,7 @@ const saveForCurrentVisit: SaveToWatchlist = () => ({
 });
 
 export function FeedbackRecommendationExperience({
+  analyticsContext = null,
   onSaveTitle = saveForCurrentVisit,
   savedMediaKeys = EMPTY_SAVED_MEDIA_KEYS,
   recommendations,
@@ -141,6 +155,54 @@ export function FeedbackRecommendationExperience({
 
   const detailReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const restoreDetailFocusRef = useRef(false);
+  const recommendationItemIds = useRef(new Map<string, string>());
+  const pendingFeedbackAnalyticsItem =
+    useRef<RecommendationItemAnalyticsReference | null>(null);
+
+  function getAnalyticsItemReference(
+    recommendation: RecommendationCardData,
+    explicitIndex?: number,
+  ): RecommendationItemAnalyticsReference | null {
+    if (analyticsContext === null) {
+      return null;
+    }
+
+    const index =
+      explicitIndex ??
+      recommendations.findIndex(
+        ({ mediaKey }) => mediaKey === recommendation.mediaKey,
+      );
+
+    if (index < 0) {
+      return null;
+    }
+
+    const existingItemId = recommendationItemIds.current.get(
+      recommendation.mediaKey,
+    );
+
+    if (existingItemId !== undefined) {
+      return {
+        recommendationItemId: existingItemId,
+        mediaType: recommendation.mediaType,
+        position: index + 1,
+      };
+    }
+
+    const created = createRecommendationItemAnalyticsReference(
+      recommendation.mediaType,
+      index + 1,
+    );
+
+    if (created !== null) {
+      recommendationItemIds.current.set(
+        recommendation.mediaKey,
+        created.recommendationItemId,
+      );
+    }
+
+    return created;
+  }
 
   useEffect(() => {
     if (selectedDetailMediaKey === null && restoreDetailFocusRef.current) {
@@ -179,6 +241,12 @@ export function FeedbackRecommendationExperience({
   }
 
   function openTitleDetail(recommendation: RecommendationCardData): void {
+    const analyticsItem = getAnalyticsItemReference(recommendation);
+
+    if (analyticsContext !== null && analyticsItem !== null) {
+      trackRecommendationOpened(analyticsContext, analyticsItem);
+    }
+
     const activeElement = document.activeElement;
 
     detailReturnFocusRef.current =
@@ -199,6 +267,18 @@ export function FeedbackRecommendationExperience({
     recommendation: RecommendationCardData,
     index: number,
   ): void {
+    const analyticsItem = getAnalyticsItemReference(recommendation, index);
+
+    if (
+      analyticsContext !== null &&
+      analyticsItem !== null &&
+      action !== "replace"
+    ) {
+      trackRecommendationRejected(analyticsContext, analyticsItem, action);
+    }
+
+    pendingFeedbackAnalyticsItem.current = analyticsItem;
+
     const replacement = selectNextReplacement(
       replacementPool,
       session,
@@ -251,6 +331,14 @@ export function FeedbackRecommendationExperience({
       replaceRecommendationAt(current, index, replacement),
     );
 
+    if (
+      action === "replace" &&
+      analyticsContext !== null &&
+      analyticsItem !== null
+    ) {
+      trackRecommendationsRefreshed(analyticsContext, analyticsItem);
+    }
+
     onStatusMessage(
       replacementMessage(
         action,
@@ -271,6 +359,12 @@ export function FeedbackRecommendationExperience({
     }
 
     if (action === "choose-tonight") {
+      const analyticsItem = getAnalyticsItemReference(recommendation);
+
+      if (analyticsContext !== null && analyticsItem !== null) {
+        trackWatchIntentConfirmed(analyticsContext, analyticsItem);
+      }
+
       setChosenTonightMediaKey(recommendation.mediaKey);
       setSession((current) =>
         recordSessionAction(current, action, recommendation.mediaKey),
@@ -291,6 +385,16 @@ export function FeedbackRecommendationExperience({
             : `${recommendation.title} is already saved for this visit only because browser storage is unavailable.`,
         );
         return;
+      }
+
+      const analyticsItem = getAnalyticsItemReference(recommendation);
+
+      if (analyticsContext !== null && analyticsItem !== null) {
+        trackRecommendationSaved(
+          analyticsContext,
+          analyticsItem,
+          saveResult.persistence,
+        );
       }
 
       setSession((current) =>
@@ -345,6 +449,24 @@ export function FeedbackRecommendationExperience({
     performReplacement("not-tonight", recommendation, index);
   }
 
+  function handleTrailerClick(recommendation: RecommendationCardData): void {
+    const analyticsItem = getAnalyticsItemReference(recommendation);
+
+    if (analyticsContext !== null && analyticsItem !== null) {
+      trackTrailerClicked(analyticsContext, analyticsItem);
+    }
+  }
+
+  function handleDetailTrailerClick(detail: TitleDetailData): void {
+    const recommendation = recommendations.find(
+      ({ mediaKey }) => mediaKey === detail.mediaKey,
+    );
+
+    if (recommendation !== undefined) {
+      handleTrailerClick(recommendation);
+    }
+  }
+
   function handleDetailAction(
     action: TitleDetailAction,
     detail: TitleDetailData,
@@ -382,6 +504,20 @@ export function FeedbackRecommendationExperience({
       recordFeedbackReason(current, pendingFeedback, reason, freeText),
     );
 
+    if (
+      analyticsContext !== null &&
+      pendingFeedbackAnalyticsItem.current !== null
+    ) {
+      trackFeedbackSubmitted(
+        analyticsContext,
+        pendingFeedbackAnalyticsItem.current,
+        reason,
+        pendingFeedback.action,
+      );
+    }
+
+    pendingFeedbackAnalyticsItem.current = null;
+
     onStatusMessage(
       `Reason noted for ${pendingFeedback.title}. This feedback stays in the active session only.`,
     );
@@ -396,6 +532,7 @@ export function FeedbackRecommendationExperience({
           onAction={handleAction}
           onEditRequiredRestrictions={onEditRequiredRestrictions}
           onReplace={handleReplace}
+          onTrailerClick={handleTrailerClick}
           recommendations={recommendations}
           savedMediaKeys={savedMediaKeys}
           replacementUnavailableIndexes={replacementUnavailableIndexes}
@@ -409,6 +546,7 @@ export function FeedbackRecommendationExperience({
           isSaved={savedMediaKeys.has(activeDetail.mediaKey)}
           onAction={handleDetailAction}
           onBack={closeTitleDetail}
+          onTrailerClick={handleDetailTrailerClick}
           onReplace={(detail) => {
             const recommendation = recommendations.find(
               ({ mediaKey }) => mediaKey === detail.mediaKey,
@@ -434,7 +572,10 @@ export function FeedbackRecommendationExperience({
         <FeedbackReasonPanel
           key={`${pendingFeedback.mediaKey}:${pendingFeedback.action}`}
           onReason={handleFeedbackReason}
-          onSkip={() => setPendingFeedback(null)}
+          onSkip={() => {
+            pendingFeedbackAnalyticsItem.current = null;
+            setPendingFeedback(null);
+          }}
           pending={pendingFeedback}
         />
       )}

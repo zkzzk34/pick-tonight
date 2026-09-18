@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AnalyticsConsentPanel, PrivacySection } from "./analytics-consent";
 import {
   activateDevelopmentAnalytics,
   deactivateDevelopmentAnalytics,
 } from "./analytics-posthog";
+import {
+  trackAppOpened,
+  trackConsentResponded,
+  trackPickerAbandoned,
+} from "./analytics-tracker";
 import {
   getAnalyticsIdentityStorage,
   getAnalyticsSessionStorage,
@@ -102,6 +107,9 @@ function App() {
   const watchlist = useLocalWatchlist();
   const [activeView, setActiveView] = useState<"choose" | "saved">("choose");
   const [decisionSessionKey, setDecisionSessionKey] = useState(0);
+  const [analyticsPickerAttemptKey, setAnalyticsPickerAttemptKey] = useState(0);
+  const pickerAttemptState = useRef<"idle" | "started" | "submitted">("idle");
+  const pendingAcceptedConsentSessionId = useRef<string | null>(null);
   const [analyticsState, setAnalyticsState] = useState<AnalyticsAppState>(
     getInitialAnalyticsAppState,
   );
@@ -111,12 +119,41 @@ function App() {
       analyticsState.consent === "accepted" &&
       analyticsState.identity.status === "ready"
     ) {
-      activateDevelopmentAnalytics(analyticsState.identity.identifiers);
+      const identifiers = analyticsState.identity.identifiers;
+
+      activateDevelopmentAnalytics(identifiers);
+
+      if (pendingAcceptedConsentSessionId.current === identifiers.sessionId) {
+        trackConsentResponded(identifiers.sessionId);
+        pendingAcceptedConsentSessionId.current = null;
+      }
+
+      trackAppOpened(identifiers.sessionId);
       return;
     }
 
     deactivateDevelopmentAnalytics();
   }, [analyticsState]);
+
+  const abandonActivePicker = (
+    reason: "opened_saved" | "analytics_reset" | "all_data_reset",
+  ): void => {
+    if (
+      pickerAttemptState.current !== "started" ||
+      analyticsState.identity.status !== "ready"
+    ) {
+      return;
+    }
+
+    trackPickerAbandoned(
+      analyticsState.identity.identifiers.sessionId,
+      analyticsPickerAttemptKey,
+      reason,
+    );
+
+    pickerAttemptState.current = "idle";
+    setAnalyticsPickerAttemptKey((current) => current + 1);
+  };
 
   const chooseAnalyticsConsent = (choice: AnalyticsConsentChoice) => {
     const consentStored = writeAnalyticsConsent(
@@ -131,6 +168,8 @@ function App() {
             getAnalyticsSessionStorage(),
           )
         : null;
+
+      pendingAcceptedConsentSessionId.current = identifiers?.sessionId ?? null;
 
       setAnalyticsState({
         consent: choice,
@@ -165,6 +204,8 @@ function App() {
   };
 
   const clearAnalyticsConsent = () => {
+    abandonActivePicker("analytics_reset");
+    pendingAcceptedConsentSessionId.current = null;
     deactivateDevelopmentAnalytics();
 
     const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
@@ -192,6 +233,8 @@ function App() {
     watchlist.clearTitles().persistence === "persistent";
 
   const resetAllPickTonightData = () => {
+    abandonActivePicker("all_data_reset");
+    pendingAcceptedConsentSessionId.current = null;
     deactivateDevelopmentAnalytics();
 
     const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
@@ -244,7 +287,10 @@ function App() {
 
           <button
             aria-current={activeView === "saved" ? "page" : undefined}
-            onClick={() => setActiveView("saved")}
+            onClick={() => {
+              abandonActivePicker("opened_saved");
+              setActiveView("saved");
+            }}
             type="button"
           >
             Saved ({watchlist.savedTitles.length})
@@ -290,7 +336,20 @@ function App() {
             className="recommendation-preview"
           >
             <PreferenceEntryFlow
+              analyticsPickerAttemptKey={analyticsPickerAttemptKey}
+              analyticsSessionId={
+                analyticsState.identity.status === "ready"
+                  ? analyticsState.identity.identifiers.sessionId
+                  : null
+              }
               key={decisionSessionKey}
+              onContextSubmitted={() => {
+                pickerAttemptState.current = "submitted";
+                setAnalyticsPickerAttemptKey((current) => current + 1);
+              }}
+              onPickerStarted={() => {
+                pickerAttemptState.current = "started";
+              }}
               onSaveTitle={watchlist.saveTitle}
               savedMediaKeys={watchlist.savedMediaKeys}
             />

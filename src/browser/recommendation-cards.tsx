@@ -21,6 +21,7 @@ export interface RecommendationCardsProps {
     recommendation: RecommendationCardData,
     index: number,
   ) => void;
+  readonly onTrailerClick?: (recommendation: RecommendationCardData) => void;
   readonly replacementUnavailableIndexes?: readonly number[];
   readonly onEditRequiredRestrictions?: () => void;
 }
@@ -84,6 +85,7 @@ interface RecommendationCardProps {
   readonly position: number;
   readonly onAction: RecommendationCardsProps["onAction"];
   readonly onReplace: RecommendationCardsProps["onReplace"];
+  readonly onTrailerClick: RecommendationCardsProps["onTrailerClick"];
 }
 
 function RecommendationCard({
@@ -93,6 +95,7 @@ function RecommendationCard({
   position,
   onAction,
   onReplace,
+  onTrailerClick,
 }: RecommendationCardProps) {
   const headingId = useId();
   const moreActionsId = useId();
@@ -222,7 +225,12 @@ function RecommendationCard({
           {trailerUrl === null ? (
             <span>Trailer unavailable.</span>
           ) : (
-            <a href={trailerUrl}>Watch trailer for {recommendation.title}</a>
+            <a
+              href={trailerUrl}
+              onClick={() => onTrailerClick?.(recommendation)}
+            >
+              Watch trailer for {recommendation.title}
+            </a>
           )}
         </div>
 
@@ -289,6 +297,7 @@ export function RecommendationCards({
   savedMediaKeys = EMPTY_SAVED_MEDIA_KEYS,
   onAction,
   onReplace,
+  onTrailerClick,
   replacementUnavailableIndexes = [],
   onEditRequiredRestrictions,
 }: RecommendationCardsProps) {
@@ -370,6 +379,7 @@ export function RecommendationCards({
                 isSaved={savedMediaKeys.has(recommendation.mediaKey)}
                 onAction={onAction}
                 onReplace={onReplace}
+                onTrailerClick={onTrailerClick}
                 position={index + 1}
                 recommendation={recommendation}
               />

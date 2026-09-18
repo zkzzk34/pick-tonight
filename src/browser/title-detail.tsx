@@ -23,6 +23,7 @@ interface TitleDetailProps {
   ) => void;
   readonly onBack: () => void;
   readonly onReplace: (detail: TitleDetailData) => void;
+  readonly onTrailerClick?: (detail: TitleDetailData) => void;
 }
 
 const actions = [
@@ -153,6 +154,7 @@ export function TitleDetail({
   onAction,
   onBack,
   onReplace,
+  onTrailerClick,
 }: TitleDetailProps) {
   const headingId = useId();
   const runtime = formatRuntime(detail.runtime);
@@ -299,6 +301,7 @@ export function TitleDetail({
               <a
                 className="title-detail__trailer"
                 href={trailerUrl}
+                onClick={() => onTrailerClick?.(detail)}
                 rel="noreferrer"
                 target="_blank"
               >
