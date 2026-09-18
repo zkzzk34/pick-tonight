@@ -1,15 +1,13 @@
 import posthog, { type PostHogConfig } from "posthog-js";
 
+import { filterPickTonightAnalyticsBrowserProperties } from "./analytics-property-policy";
+
 import {
   isPickTonightAnalyticsEventName,
   type AnalyticsEventProperties,
   type PickTonightAnalyticsEventName,
 } from "./analytics-events";
 import type { AnalyticsIdentifiers } from "./analytics-identity-storage";
-
-export const DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT =
-  "picktonight_development_analytics_verified" as const;
-
 export interface DevelopmentAnalyticsEnvironment {
   readonly isDevelopment: boolean;
   readonly projectToken?: string;
@@ -198,15 +196,36 @@ export function buildDevelopmentPostHogConfig(
     // consent persistence.
     opt_out_capturing_by_default: false,
 
-    // Defense in depth: only the Issue #32 infrastructure verification
-    // event and the reviewed Issue #33 product taxonomy may leave the browser.
-    // Automatic/system PostHog events remain rejected locally.
-    before_send: (event) =>
-      event?.event === DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT ||
-      (typeof event?.event === "string" &&
-        isPickTonightAnalyticsEventName(event.event))
-        ? event
-        : null,
+    // Defense in depth: only the reviewed Issue #33 product taxonomy may
+    // leave the browser. Automatic/system PostHog events remain rejected.
+    //
+    // For approved events, rebuild the property object from the event-specific
+    // PickTonight allowlist plus the minimum transport fields required for
+    // anonymous delivery. SDK-added URL, browser, device, session-entry,
+    // referrer, screen, viewport, and other provider metadata are not copied.
+    before_send: (event) => {
+      if (
+        !event ||
+        typeof event.event !== "string" ||
+        !isPickTonightAnalyticsEventName(event.event)
+      ) {
+        return null;
+      }
+
+      const properties = filterPickTonightAnalyticsBrowserProperties(
+        event.event,
+        event.properties,
+      );
+
+      if (!properties) {
+        return null;
+      }
+
+      return {
+        ...event,
+        properties,
+      };
+    },
 
     // This prevents an explicit event property containing an IP address.
     // Network-level IP handling still requires the development PostHog project
@@ -231,11 +250,7 @@ const defaultClientFactory: DevelopmentAnalyticsClientFactory = (
   const client = posthog.init(projectToken, config, instanceName);
 
   return {
-    captureVerificationEvent() {
-      client.capture(DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT, undefined, {
-        send_instantly: true,
-      });
-    },
+    captureVerificationEvent() {},
 
     captureEvent(eventName, properties) {
       client.capture(eventName, properties, {

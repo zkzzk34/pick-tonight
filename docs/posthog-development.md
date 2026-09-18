@@ -84,9 +84,14 @@ Text and element attributes are masked defensively.
 
 Common automatic URL, pathname, referrer, title, search-engine, and keyword properties are denylisted.
 
-A `before_send` gate rejects every event other than the Issue #32 verification event.
+Issue #32 originally used a `before_send` gate around its infrastructure verification event. Issue #34 now restricts provider delivery to the reviewed 15-event product taxonomy and applies an exact property allowlist before transmission.
 
-## Issue #32 verification event
+## Retired Issue #32 verification event
+
+> Historical record: Issue #34 retired this infrastructure-only event after
+> Issue #32 live verification was complete. It is no longer emitted by the
+> application. The reviewed 15-event taxonomy is the active analytics
+> vocabulary.
 
 Issue #32 may emit exactly one deliberate development infrastructure event during a page lifetime:
 
