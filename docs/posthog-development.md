@@ -84,7 +84,7 @@ Text and element attributes are masked defensively.
 
 Common automatic URL, pathname, referrer, title, search-engine, and keyword properties are denylisted.
 
-Issue #32 originally used a `before_send` gate around its infrastructure verification event. Issue #34 now restricts provider delivery to the reviewed 15-event product taxonomy and applies an exact property allowlist before transmission.
+Issue #32 originally used a `before_send` gate around its infrastructure verification event. Issue #34 now restricts provider delivery to the reviewed 16-event product taxonomy and applies an exact property allowlist before transmission.
 
 ## Retired Issue #32 verification event
 
@@ -194,3 +194,11 @@ free-form PickTonight user content was intentionally added by Issue #32.
 The development verification event is infrastructure-only. Issue #33 remains
 responsible for the reviewed product event taxonomy, and Issue #34 remains
 responsible for final event-property verification.
+
+## Picker funnel dashboard
+
+Issue #35 adds the first pilot-facing picker funnel dashboard.
+
+Its metric definitions, audience filters, denominator semantics, guardrails,
+breakdowns, and validation procedure are documented in
+[`picker-funnel-dashboard.md`](./picker-funnel-dashboard.md).

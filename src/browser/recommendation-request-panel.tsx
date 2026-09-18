@@ -15,6 +15,7 @@ import {
   mapRecommendationFailureToAnalyticsError,
   trackApiErrorShown,
   trackContextSubmitted,
+  trackRecommendationEmptyShown,
   trackRecommendationBatchViewed,
   type RecommendationAnalyticsContext,
 } from "./analytics-tracker";
@@ -117,6 +118,11 @@ export function RecommendationRequestPanel({
             nextAnalyticsContext,
             result.recommendations.length,
           );
+        } else if (
+          result.status === "empty" &&
+          currentAnalyticsContext !== null
+        ) {
+          trackRecommendationEmptyShown(currentAnalyticsContext);
         } else if (
           result.status === "error" &&
           currentAnalyticsContext !== null

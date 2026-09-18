@@ -5,7 +5,7 @@ import type {
   ReplacementFeedbackAction,
 } from "./feedback-session";
 
-export const ANALYTICS_TAXONOMY_VERSION = 1 as const;
+export const ANALYTICS_TAXONOMY_VERSION = 2 as const;
 export const ANALYTICS_UI_LOCALE = "en-US" as const;
 
 export const PICKTONIGHT_ANALYTICS_EVENT_NAMES = [
@@ -16,6 +16,7 @@ export const PICKTONIGHT_ANALYTICS_EVENT_NAMES = [
   "picker_abandoned",
   "context_submitted",
   "recommendation_batch_viewed",
+  "recommendation_empty_shown",
   "recommendation_opened",
   "trailer_clicked",
   "recommendation_saved",
@@ -39,9 +40,15 @@ export function isPickTonightAnalyticsEventName(
   return PICKTONIGHT_ANALYTICS_EVENT_NAME_SET.has(value);
 }
 
+export type AnalyticsEnvironmentCode = "development" | "pilot";
+
+export type AnalyticsTrafficClass = "internal" | "participant";
+
 export interface AnalyticsBaseProperties {
   readonly taxonomy_version: typeof ANALYTICS_TAXONOMY_VERSION;
   readonly ui_locale: typeof ANALYTICS_UI_LOCALE;
+  readonly analytics_environment: AnalyticsEnvironmentCode;
+  readonly traffic_class: AnalyticsTrafficClass;
   readonly session_id: string;
 }
 
@@ -106,6 +113,7 @@ export interface PickTonightAnalyticsEventProperties {
     readonly batch_sequence: number;
     readonly recommendation_count: number;
   };
+  readonly recommendation_empty_shown: RecommendationScopedProperties;
 
   readonly recommendation_opened: RecommendationItemProperties;
 
@@ -145,9 +153,13 @@ export type AnalyticsEventProperties<
 export function createAnalyticsBaseProperties(
   sessionId: string,
 ): AnalyticsBaseProperties {
+  const isDevelopment = import.meta.env.DEV;
+
   return {
     taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
     ui_locale: ANALYTICS_UI_LOCALE,
+    analytics_environment: isDevelopment ? "development" : "pilot",
+    traffic_class: isDevelopment ? "internal" : "participant",
     session_id: sessionId,
   };
 }

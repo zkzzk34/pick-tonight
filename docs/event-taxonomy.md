@@ -14,7 +14,7 @@ It does not enable PostHog autocapture or other automatic product collection.
 - Declining analytics produces no provider event.
 - Events fire from explicit application transitions and user-action handlers,
   never merely because React rendered.
-- `taxonomy_version` is exactly `1`.
+- `taxonomy_version` is exactly `2`.
 - `ui_locale` is exactly `en-US` for the MVP.
 - `session_id` is PickTonight's page-session analytics UUID.
 - The persistent anonymous browser identifier remains PostHog's distinct ID and
@@ -36,8 +36,10 @@ Every product event requires:
 
 | Property | Contract |
 | --- | --- |
-| `taxonomy_version` | exactly `1` |
+| `taxonomy_version` | exactly `2` |
 | `ui_locale` | exactly `en-US` |
+| `analytics_environment` | `development` or `pilot` |
+| `traffic_class` | `internal` or `participant` |
 | `session_id` | PickTonight analytics page-session identifier |
 
 Recommendation-scoped events additionally require:
@@ -55,6 +57,22 @@ Recommendation-item events additionally require:
 | `media_type` | `movie` or `tv` |
 | `position` | one-based integer position in the displayed recommendation set |
 
+## Taxonomy v2
+
+Issue #35 extends the reviewed taxonomy from 15 to 16 product events.
+
+Taxonomy version `2` adds:
+
+- `analytics_environment` to every event, with the controlled values
+  `development` or `pilot`;
+- `traffic_class` to every event, with the controlled values `internal` or
+  `participant`;
+- `recommendation_empty_shown` for a recommendation request that successfully
+  resolves with no eligible recommendations.
+
+These values are coded product-analysis metadata. They do not contain raw
+request text, participant identity, URLs, device metadata, or provider payloads.
+
 ## Event contract
 
 ### `app_opened`
@@ -70,7 +88,7 @@ activation. Pre-consent activity is not replayed.
 
 **Optional properties:** none.
 
-**Allowed values:** `taxonomy_version=1`, `ui_locale=en-US`, and the current
+**Allowed values:** `taxonomy_version=2`, `ui_locale=en-US`, and the current
 PickTonight `session_id`. No event-specific values are allowed.
 
 ### `consent_responded`
@@ -198,6 +216,24 @@ user.
 **Allowed values:** `batch_sequence` is a positive integer identifying the
 displayed batch within the journey. `recommendation_count` is a non-negative
 integer. Recommendation-scoped values follow the global contract.
+
+### `recommendation_empty_shown`
+
+**Owner:** recommendation request result lifecycle.
+
+**Fires:** when one completed recommendation request resolves successfully but
+contains no eligible recommendations and the empty-result state becomes
+user-visible.
+
+A later deliberate request that also resolves empty is a separate event. React
+rerenders do not create additional events.
+
+**Required properties:** recommendation-scoped properties.
+
+**Optional properties:** none.
+
+This event is intentionally distinct from `recommendation_batch_viewed`.
+An empty result does not claim that a recommendation batch was viewed.
 
 ### `recommendation_opened`
 

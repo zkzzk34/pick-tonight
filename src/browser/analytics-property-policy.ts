@@ -17,24 +17,49 @@ type AnalyticsPropertyAllowlist = {
 };
 
 export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
-  app_opened: ["taxonomy_version", "ui_locale", "session_id"],
+  app_opened: [
+    "taxonomy_version",
+    "ui_locale",
+    "analytics_environment",
+    "traffic_class",
+    "session_id",
+  ],
   consent_responded: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "response",
   ],
-  picker_started: ["taxonomy_version", "ui_locale", "session_id"],
+  picker_started: [
+    "taxonomy_version",
+    "ui_locale",
+    "analytics_environment",
+    "traffic_class",
+    "session_id",
+  ],
   picker_step_completed: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "step",
   ],
-  picker_abandoned: ["taxonomy_version", "ui_locale", "session_id", "reason"],
+  picker_abandoned: [
+    "taxonomy_version",
+    "ui_locale",
+    "analytics_environment",
+    "traffic_class",
+    "session_id",
+    "reason",
+  ],
   context_submitted: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -53,15 +78,28 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   recommendation_batch_viewed: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
     "batch_sequence",
     "recommendation_count",
   ],
+  recommendation_empty_shown: [
+    "taxonomy_version",
+    "ui_locale",
+    "analytics_environment",
+    "traffic_class",
+    "session_id",
+    "recommendation_session_id",
+    "algorithm_version",
+  ],
   recommendation_opened: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -72,6 +110,8 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   trailer_clicked: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -82,6 +122,8 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   recommendation_saved: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -93,6 +135,8 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   recommendation_rejected: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -104,6 +148,8 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   recommendations_refreshed: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -114,6 +160,8 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   watch_intent_confirmed: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -124,6 +172,8 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   feedback_submitted: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -134,6 +184,8 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
   api_error_shown: [
     "taxonomy_version",
     "ui_locale",
+    "analytics_environment",
+    "traffic_class",
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
@@ -305,6 +357,11 @@ function hasValidBaseProperties(properties: PropertyRecord): boolean {
   return (
     properties.taxonomy_version === ANALYTICS_TAXONOMY_VERSION &&
     properties.ui_locale === ANALYTICS_UI_LOCALE &&
+    isOneOf(properties.analytics_environment, [
+      "development",
+      "pilot",
+    ] as const) &&
+    isOneOf(properties.traffic_class, ["internal", "participant"] as const) &&
     isUuidV4(properties.session_id)
   );
 }
@@ -414,6 +471,9 @@ function validateProjectedProperties(
           MAXIMUM_RECOMMENDATION_COUNT,
         )
       );
+
+    case "recommendation_empty_shown":
+      return hasValidRecommendationScopedProperties(properties);
 
     case "recommendation_opened":
     case "trailer_clicked":
