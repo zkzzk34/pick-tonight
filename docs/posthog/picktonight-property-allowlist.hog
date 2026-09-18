@@ -1,6 +1,6 @@
 // PickTonight Issue #34
 //
-// PostHog storage-side property allowlist for the 15 reviewed PickTonight
+// PostHog storage-side property allowlist for the 16 reviewed PickTonight
 // product events.
 //
 // Deployment contract:
@@ -25,6 +25,8 @@ if (event.event = 'app_opened') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id
     }
 
@@ -35,6 +37,8 @@ if (event.event = 'consent_responded') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'response': event.properties.response
     }
@@ -46,6 +50,8 @@ if (event.event = 'picker_started') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id
     }
 
@@ -56,6 +62,8 @@ if (event.event = 'picker_step_completed') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'step': event.properties.step
     }
@@ -67,6 +75,8 @@ if (event.event = 'picker_abandoned') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'reason': event.properties.reason
     }
@@ -78,6 +88,8 @@ if (event.event = 'context_submitted') {
     let allowedProperties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -130,6 +142,8 @@ if (event.event = 'recommendation_batch_viewed') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -140,10 +154,26 @@ if (event.event = 'recommendation_batch_viewed') {
     return returnEvent
 }
 
+if (event.event = 'recommendation_empty_shown') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version
+    }
+
+    return returnEvent
+}
+
 if (event.event = 'recommendation_opened') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -159,6 +189,8 @@ if (event.event = 'trailer_clicked') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -174,6 +206,8 @@ if (event.event = 'recommendation_saved') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -190,6 +224,8 @@ if (event.event = 'recommendation_rejected') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -206,6 +242,8 @@ if (event.event = 'recommendations_refreshed') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -221,6 +259,8 @@ if (event.event = 'watch_intent_confirmed') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -236,6 +276,8 @@ if (event.event = 'feedback_submitted') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,
@@ -251,6 +293,8 @@ if (event.event = 'api_error_shown') {
     returnEvent.properties := {
         'taxonomy_version': event.properties.taxonomy_version,
         'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version,

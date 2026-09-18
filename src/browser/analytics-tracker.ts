@@ -160,6 +160,18 @@ export function trackRecommendationBatchViewed(
   );
 }
 
+export function trackRecommendationEmptyShown(
+  context: RecommendationAnalyticsContext,
+): boolean {
+  return captureDevelopmentAnalyticsEvent(
+    "recommendation_empty_shown",
+    createRecommendationScopedProperties(
+      context.analyticsSessionId,
+      context.recommendationSessionId,
+    ),
+  );
+}
+
 export function mapRecommendationFailureToAnalyticsError(
   failure: RecommendationFailureKind,
 ): ApiErrorKind {

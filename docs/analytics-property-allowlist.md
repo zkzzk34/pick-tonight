@@ -27,7 +27,7 @@ compilation.
 
 At runtime, the browser:
 
-1. rejects event names outside the reviewed 15-event taxonomy;
+1. rejects event names outside the reviewed 16-event taxonomy;
 2. projects the event onto that event's reviewed property keys;
 3. validates coded, bounded, boolean, numeric, and UUID values;
 4. drops the event if required reviewed values are invalid;
@@ -42,6 +42,23 @@ outgoing property object.
 The automated hostile-property tests inject examples of those property classes
 together with titles, TMDB identifiers, free-form text, written feedback,
 watchlist-shaped data, profile-shaped data, URLs, and nested objects.
+
+## Issue #35 taxonomy v2 extension
+
+Issue #35 expands the reviewed vocabulary from 15 to 16 events and increments
+`taxonomy_version` to `2`.
+
+Every reviewed event now includes the coded properties:
+
+- `analytics_environment = development | pilot`
+- `traffic_class = internal | participant`
+
+The new `recommendation_empty_shown` event carries only recommendation-scoped
+properties.
+
+Both new base properties and the new event remain subject to the same dual
+browser/storage allowlist. They do not reopen browser, URL, GeoIP, title,
+TMDB-ID, or free-text collection.
 
 ## PostHog storage boundary
 
@@ -69,7 +86,7 @@ The PickTonight Development project must use all of the following:
 - **Discard client IP data:** enabled.
 - **GeoIP enrichment transformation:** disabled.
 - **PickTonight property allowlist transformation:** enabled.
-- **Transformation event filter:** exactly the 15 reviewed PickTonight product
+- **Transformation event filter:** exactly the 16 reviewed PickTonight product
   event names.
 - **Transformation order:** the PickTonight property allowlist must be the last
   transformation capable of modifying those events.

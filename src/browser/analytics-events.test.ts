@@ -10,7 +10,7 @@ import {
   isPickTonightAnalyticsEventName,
 } from "./analytics-events";
 
-describe("Issue #33 analytics event contract", () => {
+describe("PickTonight analytics event contract", () => {
   it("defines exactly the reviewed product event vocabulary", () => {
     expect(PICKTONIGHT_ANALYTICS_EVENT_NAMES).toEqual([
       "app_opened",
@@ -20,6 +20,7 @@ describe("Issue #33 analytics event contract", () => {
       "picker_abandoned",
       "context_submitted",
       "recommendation_batch_viewed",
+      "recommendation_empty_shown",
       "recommendation_opened",
       "trailer_clicked",
       "recommendation_saved",
@@ -51,6 +52,8 @@ describe("Issue #33 analytics event contract", () => {
     expect(createAnalyticsBaseProperties("analytics-session")).toEqual({
       taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
       ui_locale: ANALYTICS_UI_LOCALE,
+      analytics_environment: "development",
+      traffic_class: "internal",
       session_id: "analytics-session",
     });
   });
@@ -62,8 +65,10 @@ describe("Issue #33 analytics event contract", () => {
         "recommendation-session",
       ),
     ).toEqual({
-      taxonomy_version: 1,
-      ui_locale: "en-US",
+      taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
+      ui_locale: ANALYTICS_UI_LOCALE,
+      analytics_environment: "development",
+      traffic_class: "internal",
       session_id: "analytics-session",
       recommendation_session_id: "recommendation-session",
       algorithm_version: RECOMMENDATION_HEURISTIC_VERSION,

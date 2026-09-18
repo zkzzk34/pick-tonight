@@ -23,6 +23,8 @@ const RECOMMENDATION_ITEM_ID = "33333333-3333-4333-8333-333333333333";
 const BASE_PROPERTIES = {
   taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
   ui_locale: ANALYTICS_UI_LOCALE,
+  analytics_environment: "development",
+  traffic_class: "internal",
   session_id: SESSION_ID,
 } as const;
 
@@ -82,6 +84,10 @@ const VALID_EVENT_PROPERTIES = {
     ...RECOMMENDATION_PROPERTIES,
     batch_sequence: 1,
     recommendation_count: 3,
+  },
+
+  recommendation_empty_shown: {
+    ...RECOMMENDATION_PROPERTIES,
   },
 
   recommendation_opened: {
@@ -293,6 +299,24 @@ describe("Issue #34 analytics browser property policy", () => {
       }
     });
   }
+
+  it("rejects unreviewed environment and traffic-class codes", () => {
+    expectEventToBeRejected("app_opened", {
+      analytics_environment: "production",
+    });
+
+    expectEventToBeRejected("app_opened", {
+      analytics_environment: "staging",
+    });
+
+    expectEventToBeRejected("app_opened", {
+      traffic_class: "employee",
+    });
+
+    expectEventToBeRejected("app_opened", {
+      traffic_class: "test-user",
+    });
+  });
 
   it("rejects invalid shared identifiers instead of forwarding them", () => {
     expectEventToBeRejected("app_opened", {
