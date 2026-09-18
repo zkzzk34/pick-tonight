@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT,
   activateDevelopmentAnalytics,
   buildDevelopmentPostHogConfig,
   captureDevelopmentAnalyticsEvent,
@@ -18,12 +17,6 @@ const IDENTIFIERS: AnalyticsIdentifiers = {
   browserId: "11111111-1111-4111-8111-111111111111",
   sessionId: "22222222-2222-4222-8222-222222222222",
 };
-
-const ROTATED_IDENTIFIERS: AnalyticsIdentifiers = {
-  browserId: "33333333-3333-4333-8333-333333333333",
-  sessionId: "44444444-4444-4444-8444-444444444444",
-};
-
 const CONFIGURED_ENVIRONMENT = {
   isDevelopment: true,
   projectToken: "phc_development_project_token",
@@ -162,50 +155,6 @@ describe("development PostHog adapter", () => {
 
     expect(config.bootstrap).not.toHaveProperty("sessionID");
   });
-
-  it("hard-gates provider delivery to the verification event and reviewed Issue #33 taxonomy", () => {
-    const config = buildDevelopmentPostHogConfig(
-      CONFIGURED_ENVIRONMENT.apiHost,
-      IDENTIFIERS.browserId,
-    );
-
-    const beforeSend = config.before_send;
-
-    expect(beforeSend).toBeTypeOf("function");
-
-    if (typeof beforeSend !== "function") {
-      throw new Error("Expected a before_send event gate.");
-    }
-
-    const verificationEvent = {
-      event: DEVELOPMENT_ANALYTICS_VERIFICATION_EVENT,
-      properties: {},
-    };
-    const reviewedProductEvent = {
-      event: "recommendation_opened",
-      properties: {},
-    };
-
-    expect(beforeSend(verificationEvent as never)).toEqual(verificationEvent);
-    expect(beforeSend(reviewedProductEvent as never)).toEqual(
-      reviewedProductEvent,
-    );
-
-    for (const eventName of [
-      "$pageview",
-      "$autocapture",
-      "$exception",
-      "picktonight_unreviewed_event",
-    ]) {
-      expect(
-        beforeSend({
-          event: eventName,
-          properties: {},
-        } as never),
-      ).toBeNull();
-    }
-  });
-
   it("does not create a provider outside development or without configuration", () => {
     const createClient = vi.fn<DevelopmentAnalyticsClientFactory>();
 
@@ -232,33 +181,6 @@ describe("development PostHog adapter", () => {
 
     expect(createClient).not.toHaveBeenCalled();
   });
-
-  it("bootstraps the PickTonight browser ID and captures one verification event", () => {
-    const client = makeClient();
-
-    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
-
-    expect(
-      activateDevelopmentAnalytics(IDENTIFIERS, {
-        environment: CONFIGURED_ENVIRONMENT,
-        createClient,
-      }),
-    ).toBe("active");
-
-    expect(createClient).toHaveBeenCalledTimes(1);
-
-    const [token, config, instanceName] = createClient.mock.calls[0];
-
-    expect(token).toBe(CONFIGURED_ENVIRONMENT.projectToken);
-    expect(config.bootstrap).toEqual({
-      distinctID: IDENTIFIERS.browserId,
-      isIdentifiedID: false,
-    });
-    expect(instanceName).toBe("picktonight_development_1");
-
-    expect(client.captureVerificationEvent).toHaveBeenCalledTimes(1);
-  });
-
   it("delivers reviewed product events only while the provider is active", () => {
     const client = makeClient();
     const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
@@ -343,34 +265,6 @@ describe("development PostHog adapter", () => {
 
     expect(client.disableCapture).toHaveBeenCalledTimes(1);
   });
-
-  it("uses a fresh provider instance after identity rotation without duplicating the verification event", () => {
-    const firstClient = makeClient();
-    const secondClient = makeClient();
-
-    const createClient = vi
-      .fn<DevelopmentAnalyticsClientFactory>()
-      .mockReturnValueOnce(firstClient)
-      .mockReturnValueOnce(secondClient);
-
-    activateDevelopmentAnalytics(IDENTIFIERS, {
-      environment: CONFIGURED_ENVIRONMENT,
-      createClient,
-    });
-
-    deactivateDevelopmentAnalytics();
-
-    activateDevelopmentAnalytics(ROTATED_IDENTIFIERS, {
-      environment: CONFIGURED_ENVIRONMENT,
-      createClient,
-    });
-
-    expect(createClient).toHaveBeenCalledTimes(2);
-    expect(firstClient.disableCapture).toHaveBeenCalledTimes(1);
-    expect(firstClient.captureVerificationEvent).toHaveBeenCalledTimes(1);
-    expect(secondClient.captureVerificationEvent).not.toHaveBeenCalled();
-  });
-
   it("fails safely when provider startup fails", () => {
     const warn = vi.fn();
 

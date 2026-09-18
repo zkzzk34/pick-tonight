@@ -1,0 +1,266 @@
+// PickTonight Issue #34
+//
+// PostHog storage-side property allowlist for the 15 reviewed PickTonight
+// product events.
+//
+// Deployment contract:
+//
+// 1. Apply this transformation only to the 15 PickTonight taxonomy events.
+// 2. Disable the GeoIP enrichment transformation for PickTonight.
+// 3. Keep project-level "Discard client IP data" enabled.
+// 4. Place this transformation last among transformations that can modify
+//    these events.
+// 5. Keep the browser before_send allowlist enabled as the first boundary.
+//
+// This transformation deliberately replaces event.properties rather than
+// deleting a blacklist of known-sensitive properties.
+//
+// Event envelope fields such as event.event, event.uuid, event.distinct_id,
+// and event.timestamp remain on the event envelope. Only the properties object
+// is reconstructed below.
+
+let returnEvent := event
+
+if (event.event = 'app_opened') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'consent_responded') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'response': event.properties.response
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'picker_started') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'picker_step_completed') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'step': event.properties.step
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'picker_abandoned') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'reason': event.properties.reason
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'context_submitted') {
+    let allowedProperties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'used_typed_input': event.properties.used_typed_input,
+        'required_restriction_count': event.properties.required_restriction_count,
+        'soft_preference_count': event.properties.soft_preference_count
+    }
+
+    // Optional context values are copied only when present. Every valid value
+    // for these fields is non-empty / positive, so truthiness is sufficient
+    // after the browser-side schema validator has accepted the event.
+    if (event.properties.media_type_code) {
+        allowedProperties['media_type_code'] := event.properties.media_type_code
+    }
+
+    if (event.properties.mood_code) {
+        allowedProperties['mood_code'] := event.properties.mood_code
+    }
+
+    if (event.properties.companion_code) {
+        allowedProperties['companion_code'] := event.properties.companion_code
+    }
+
+    if (event.properties.maximum_runtime_minutes) {
+        allowedProperties['maximum_runtime_minutes'] := event.properties.maximum_runtime_minutes
+    }
+
+    if (event.properties.freshness_year) {
+        allowedProperties['freshness_year'] := event.properties.freshness_year
+    }
+
+    if (event.properties.content_language_code) {
+        allowedProperties['content_language_code'] := event.properties.content_language_code
+    }
+
+    if (event.properties.origin_country_code) {
+        allowedProperties['origin_country_code'] := event.properties.origin_country_code
+    }
+
+    if (event.properties.watch_region_code) {
+        allowedProperties['watch_region_code'] := event.properties.watch_region_code
+    }
+
+    returnEvent.properties := allowedProperties
+
+    return returnEvent
+}
+
+if (event.event = 'recommendation_batch_viewed') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'batch_sequence': event.properties.batch_sequence,
+        'recommendation_count': event.properties.recommendation_count
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'recommendation_opened') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'media_type': event.properties.media_type,
+        'position': event.properties.position
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'trailer_clicked') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'media_type': event.properties.media_type,
+        'position': event.properties.position
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'recommendation_saved') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'media_type': event.properties.media_type,
+        'position': event.properties.position,
+        'persistence': event.properties.persistence
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'recommendation_rejected') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'media_type': event.properties.media_type,
+        'position': event.properties.position,
+        'rejection_reason': event.properties.rejection_reason
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'recommendations_refreshed') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'position': event.properties.position,
+        'batch_sequence': event.properties.batch_sequence
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'watch_intent_confirmed') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'media_type': event.properties.media_type,
+        'position': event.properties.position
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'feedback_submitted') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'feedback_reason': event.properties.feedback_reason,
+        'originating_action': event.properties.originating_action
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'api_error_shown') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'error_kind': event.properties.error_kind
+    }
+
+    return returnEvent
+}
+
+// The deployed transformation must be filtered to the reviewed PickTonight
+// events above. If the filter is accidentally widened, unrelated events are
+// left unchanged rather than silently destroyed.
+return event

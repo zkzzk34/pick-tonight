@@ -28,7 +28,7 @@ It does not enable PostHog autocapture or other automatic product collection.
 - Free-form preference text and written feedback are excluded from analytics.
 - Content-language and origin-country selections use codes rather than
   translated labels.
-- Issue #34 owns the final sensitive-data/property allowlist audit.
+- Issue #34 enforces the final sensitive-data/property allowlist at the browser and PostHog storage boundaries.
 
 ## Shared property contracts
 

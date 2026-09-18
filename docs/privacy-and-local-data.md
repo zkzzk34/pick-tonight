@@ -273,7 +273,7 @@ Issue #32 adds a development-only PostHog adapter for consent and network verifi
 
 The SDK is not initialized before affirmative analytics consent and ready PickTonight analytics identifiers. The development provider uses no durable PostHog persistence, receives the PickTonight browser identifier as an anonymous bootstrapped distinct ID, does not receive the PickTonight UUIDv4 session identifier as a native PostHog session ID, and disables automatic capture, session recording, surveys, feature-flag requests, person profiles, and unnecessary automatic collection.
 
-A local `before_send` gate rejects every event other than the Issue #32 development verification event.
+The Issue #34 `before_send` boundary rejects events outside the reviewed 15-event taxonomy and reconstructs approved events from an exact event-specific property allowlist before network delivery.
 
 The dedicated development PostHog project must be configured to discard client IP data before live verification. PickTonight does not intentionally add an IP address as an analytics property or derive an identifier from network metadata.
 
