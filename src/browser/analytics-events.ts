@@ -1,11 +1,15 @@
 import type { SupportedMood } from "../shared/recommendation-contracts";
+import type {
+  RecommendationCandidateAgeCode,
+  RecommendationRatingConfidenceCode,
+} from "../shared/recommendation-evidence";
 import { RECOMMENDATION_HEURISTIC_VERSION } from "../shared/recommendation-version";
 import type {
   FeedbackReasonCode,
   ReplacementFeedbackAction,
 } from "./feedback-session";
 
-export const ANALYTICS_TAXONOMY_VERSION = 2 as const;
+export const ANALYTICS_TAXONOMY_VERSION = 3 as const;
 export const ANALYTICS_UI_LOCALE = "en-US" as const;
 
 export const PICKTONIGHT_ANALYTICS_EVENT_NAMES = [
@@ -17,6 +21,7 @@ export const PICKTONIGHT_ANALYTICS_EVENT_NAMES = [
   "context_submitted",
   "recommendation_batch_viewed",
   "recommendation_empty_shown",
+  "recommendation_item_shown",
   "recommendation_opened",
   "trailer_clicked",
   "recommendation_saved",
@@ -71,6 +76,10 @@ export type PickerAbandonmentReason =
 export type RecommendationRejectionReason =
   "not-tonight" | "not-my-taste" | "already-watched";
 
+export type RecommendationProviderClaimStatus = "claimed" | "not-claimed";
+
+export type RecommendationRepeatStatus = "first-shown" | "repeated";
+
 export type ApiErrorKind =
   "network" | "upstream" | "invalid-response" | "unknown";
 
@@ -114,6 +123,15 @@ export interface PickTonightAnalyticsEventProperties {
     readonly recommendation_count: number;
   };
   readonly recommendation_empty_shown: RecommendationScopedProperties;
+
+  readonly recommendation_item_shown: RecommendationItemProperties & {
+    readonly batch_sequence: number;
+    readonly impression_sequence: number;
+    readonly candidate_age_code: RecommendationCandidateAgeCode;
+    readonly rating_confidence_code: RecommendationRatingConfidenceCode;
+    readonly provider_claim_status: RecommendationProviderClaimStatus;
+    readonly repeat_status: RecommendationRepeatStatus;
+  };
 
   readonly recommendation_opened: RecommendationItemProperties;
 

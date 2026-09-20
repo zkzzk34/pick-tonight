@@ -90,6 +90,16 @@ const VALID_EVENT_PROPERTIES = {
     ...RECOMMENDATION_PROPERTIES,
   },
 
+  recommendation_item_shown: {
+    ...ITEM_PROPERTIES,
+    batch_sequence: 1,
+    impression_sequence: 1,
+    candidate_age_code: "established",
+    rating_confidence_code: "strong",
+    provider_claim_status: "claimed",
+    repeat_status: "first-shown",
+  },
+
   recommendation_opened: {
     ...ITEM_PROPERTIES,
   },
@@ -391,8 +401,30 @@ describe("Issue #34 analytics browser property policy", () => {
       recommendation_count: 4,
     });
 
+    expectEventToBeRejected("recommendation_item_shown", {
+      impression_sequence: 0,
+    });
+
     expectEventToBeRejected("recommendations_refreshed", {
       batch_sequence: 0,
+    });
+  });
+
+  it("rejects unreviewed item evidence and guardrail codes", () => {
+    expectEventToBeRejected("recommendation_item_shown", {
+      candidate_age_code: "new-release",
+    });
+
+    expectEventToBeRejected("recommendation_item_shown", {
+      rating_confidence_code: "high",
+    });
+
+    expectEventToBeRejected("recommendation_item_shown", {
+      provider_claim_status: "netflix",
+    });
+
+    expectEventToBeRejected("recommendation_item_shown", {
+      repeat_status: "same-title",
     });
   });
 

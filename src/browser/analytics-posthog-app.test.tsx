@@ -108,6 +108,46 @@ describe("App development analytics provider lifecycle", () => {
     );
   });
 
+  it("does not replay recommendation activity that occurred before consent", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/Tell PickTonight what you want/i), {
+      target: { value: "funny movie" },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Review preferences",
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Show 3 picks",
+      }),
+    );
+
+    await screen.findByRole("region", {
+      name: "3 picks for tonight",
+    });
+
+    expect(providerMocks.capture).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Allow analytics",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(providerMocks.activate).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      providerMocks.capture.mock.calls.map(([eventName]) => eventName),
+    ).toEqual(["consent_responded", "app_opened"]);
+  });
+
   it("restores accepted consent and activates from restored identifiers", async () => {
     window.localStorage.setItem(
       ANALYTICS_CONSENT_STORAGE_KEY,

@@ -21,6 +21,7 @@ describe("PickTonight analytics event contract", () => {
       "context_submitted",
       "recommendation_batch_viewed",
       "recommendation_empty_shown",
+      "recommendation_item_shown",
       "recommendation_opened",
       "trailer_clicked",
       "recommendation_saved",

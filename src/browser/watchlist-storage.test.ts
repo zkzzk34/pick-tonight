@@ -67,6 +67,10 @@ const recommendation: RecommendationCardData = {
   title: "Example Movie",
   year: 1995,
   mediaType: "movie",
+  decisionEvidence: {
+    candidateAgeCode: "established",
+    ratingConfidenceCode: "strong",
+  },
   overview: "This overview must never enter the watchlist.",
   posterUrl: "https://image.tmdb.org/t/p/w500/example.jpg",
   genres: ["Drama", "Comedy"],

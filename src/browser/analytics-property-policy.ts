@@ -1,4 +1,8 @@
 import type { SupportedMood } from "../shared/recommendation-contracts";
+import {
+  RECOMMENDATION_CANDIDATE_AGE_CODES,
+  RECOMMENDATION_RATING_CONFIDENCE_CODES,
+} from "../shared/recommendation-evidence";
 import { RECOMMENDATION_HEURISTIC_VERSION } from "../shared/recommendation-version";
 import {
   ANALYTICS_TAXONOMY_VERSION,
@@ -94,6 +98,24 @@ export const PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST = {
     "session_id",
     "recommendation_session_id",
     "algorithm_version",
+  ],
+  recommendation_item_shown: [
+    "taxonomy_version",
+    "ui_locale",
+    "analytics_environment",
+    "traffic_class",
+    "session_id",
+    "recommendation_session_id",
+    "algorithm_version",
+    "recommendation_item_id",
+    "media_type",
+    "position",
+    "batch_sequence",
+    "impression_sequence",
+    "candidate_age_code",
+    "rating_confidence_code",
+    "provider_claim_status",
+    "repeat_status",
   ],
   recommendation_opened: [
     "taxonomy_version",
@@ -286,6 +308,8 @@ const RECOMMENDATION_MEDIA_TYPES = ["movie", "tv"] as const;
 const CONTEXT_MEDIA_TYPES = ["movie", "tv", "either"] as const;
 const COMPANION_CODES = ["alone", "partner", "friends", "family"] as const;
 const PERSISTENCE_CODES = ["persistent", "session-only"] as const;
+const PROVIDER_CLAIM_STATUSES = ["claimed", "not-claimed"] as const;
+const REPEAT_STATUSES = ["first-shown", "repeated"] as const;
 
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -474,6 +498,23 @@ function validateProjectedProperties(
 
     case "recommendation_empty_shown":
       return hasValidRecommendationScopedProperties(properties);
+
+    case "recommendation_item_shown":
+      return (
+        hasValidRecommendationItemProperties(properties) &&
+        isSafePositiveInteger(properties.batch_sequence) &&
+        isSafePositiveInteger(properties.impression_sequence) &&
+        isOneOf(
+          properties.candidate_age_code,
+          RECOMMENDATION_CANDIDATE_AGE_CODES,
+        ) &&
+        isOneOf(
+          properties.rating_confidence_code,
+          RECOMMENDATION_RATING_CONFIDENCE_CODES,
+        ) &&
+        isOneOf(properties.provider_claim_status, PROVIDER_CLAIM_STATUSES) &&
+        isOneOf(properties.repeat_status, REPEAT_STATUSES)
+      );
 
     case "recommendation_opened":
     case "trailer_clicked":

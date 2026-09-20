@@ -16,6 +16,10 @@ function recommendation(mediaKey: string): RecommendationCardData {
     title: mediaKey,
     year: null,
     mediaType: "movie",
+    decisionEvidence: {
+      candidateAgeCode: "unknown",
+      ratingConfidenceCode: "limited",
+    },
     overview: null,
     posterUrl: null,
     genres: [],

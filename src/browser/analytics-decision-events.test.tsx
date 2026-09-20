@@ -69,6 +69,48 @@ function DecisionHarness({
   );
 }
 
+function ExposureLifecycleHarness() {
+  const [recommendations, setRecommendations] =
+    useState<RecommendationCardSet>(TEST_RECOMMENDATIONS);
+  const [recommendationSessionId, setRecommendationSessionId] =
+    useState<string>(ANALYTICS_CONTEXT.recommendationSessionId);
+
+  return (
+    <>
+      <button
+        onClick={() =>
+          setRecommendations((current) => [current[1], current[1], current[2]])
+        }
+        type="button"
+      >
+        Inject repeated recommendation
+      </button>
+      <button
+        onClick={() => setRecommendationSessionId("next-journey")}
+        type="button"
+      >
+        Start next recommendation journey
+      </button>
+      <FeedbackRecommendationExperience
+        analyticsContext={{
+          ...ANALYTICS_CONTEXT,
+          recommendationSessionId,
+        }}
+        onEditRequiredRestrictions={() => undefined}
+        onSaveTitle={() => ({
+          outcome: "added",
+          persistence: "session-only",
+        })}
+        onStatusMessage={() => undefined}
+        recommendations={recommendations}
+        updateRecommendations={(update) =>
+          setRecommendations((current) => update(current))
+        }
+      />
+    </>
+  );
+}
+
 function eventNames(): string[] {
   return analyticsCapture.mock.calls.map(([eventName]) => eventName);
 }
@@ -79,7 +121,7 @@ function propertiesFor(eventName: string): Record<string, unknown>[] {
     .map(([, properties]) => properties);
 }
 
-describe("Issue #33 recommendation decision analytics", () => {
+describe("Issue #36 recommendation decision analytics", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -87,7 +129,7 @@ describe("Issue #33 recommendation decision analytics", () => {
     analyticsCapture.mockReturnValue(true);
   });
 
-  it("fires the seven decision events with opaque, privacy-bounded properties", () => {
+  it("fires the eight decision events with opaque, privacy-bounded properties", () => {
     let saveAttempts = 0;
 
     const onSaveTitle: SaveToWatchlist = () => {
@@ -195,6 +237,7 @@ describe("Issue #33 recommendation decision analytics", () => {
     );
 
     for (const expectedEvent of [
+      "recommendation_item_shown",
       "recommendation_opened",
       "trailer_clicked",
       "recommendation_saved",
@@ -205,6 +248,24 @@ describe("Issue #33 recommendation decision analytics", () => {
     ]) {
       expect(eventNames()).toContain(expectedEvent);
     }
+
+    expect(propertiesFor("recommendation_item_shown")).toHaveLength(5);
+    expect(propertiesFor("recommendation_item_shown")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          impression_sequence: 1,
+          candidate_age_code: "established",
+          rating_confidence_code: "strong",
+          provider_claim_status: "not-claimed",
+          repeat_status: "first-shown",
+        }),
+        expect.objectContaining({
+          impression_sequence: 3,
+          candidate_age_code: "unknown",
+          rating_confidence_code: "limited",
+        }),
+      ]),
+    );
 
     // Card + detail trailer interactions are both deliberate events.
     expect(
@@ -272,5 +333,79 @@ describe("Issue #33 recommendation decision analytics", () => {
 
       expect(itemId).not.toContain("analytics-test:");
     }
+  });
+
+  it("marks an unexpectedly repeated title without sending its identity", () => {
+    render(<ExposureLifecycleHarness />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Inject repeated recommendation",
+      }),
+    );
+
+    const shownEvents = propertiesFor("recommendation_item_shown");
+    const firstTelevisionExposure = shownEvents.find(
+      (properties) => properties.impression_sequence === 2,
+    );
+    const repeatedExposure = shownEvents.find(
+      (properties) => properties.impression_sequence === 4,
+    );
+
+    expect(firstTelevisionExposure).toEqual(
+      expect.objectContaining({
+        position: 2,
+        repeat_status: "first-shown",
+      }),
+    );
+    expect(repeatedExposure).toEqual(
+      expect.objectContaining({
+        position: 1,
+        repeat_status: "repeated",
+        recommendation_item_id: firstTelevisionExposure?.recommendation_item_id,
+      }),
+    );
+    expect(repeatedExposure).not.toHaveProperty("mediaKey");
+    expect(repeatedExposure).not.toHaveProperty("title");
+  });
+
+  it("resets item identity and first-shown state for a new journey", () => {
+    render(<ExposureLifecycleHarness />);
+
+    const firstJourneyEvents = propertiesFor("recommendation_item_shown");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Start next recommendation journey",
+      }),
+    );
+
+    const allShownEvents = propertiesFor("recommendation_item_shown");
+    const nextJourneyEvents = allShownEvents.slice(firstJourneyEvents.length);
+
+    expect(firstJourneyEvents).toHaveLength(3);
+    expect(nextJourneyEvents).toHaveLength(3);
+    expect(nextJourneyEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recommendation_session_id: "next-journey",
+          impression_sequence: 1,
+          repeat_status: "first-shown",
+        }),
+      ]),
+    );
+    expect(
+      new Set(
+        firstJourneyEvents.map(
+          (properties) => properties.recommendation_item_id,
+        ),
+      ),
+    ).not.toEqual(
+      new Set(
+        nextJourneyEvents.map(
+          (properties) => properties.recommendation_item_id,
+        ),
+      ),
+    );
   });
 });

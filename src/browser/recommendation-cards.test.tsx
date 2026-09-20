@@ -17,6 +17,10 @@ function recommendation(
     title: "Title A",
     year: 2026,
     mediaType: "movie",
+    decisionEvidence: {
+      candidateAgeCode: "recent",
+      ratingConfidenceCode: "strong",
+    },
     overview: "A concise supported overview.",
     posterUrl: "https://images.example.com/title-a.jpg",
     genres: ["Comedy", "Romance"],
@@ -43,6 +47,10 @@ const initialRecommendations = [
     mediaKey: "movie:2",
     title: "Title B",
     year: null,
+    decisionEvidence: {
+      candidateAgeCode: "unknown",
+      ratingConfidenceCode: "limited",
+    },
     overview: " ",
     posterUrl: "http://images.example.com/title-b.jpg",
     genres: [" "],
@@ -61,6 +69,10 @@ const initialRecommendations = [
     mediaKey: "tv:3",
     title: "Title C",
     mediaType: "tv",
+    decisionEvidence: {
+      candidateAgeCode: "recent",
+      ratingConfidenceCode: "limited",
+    },
     runtime: { kind: "episode", minutes: 48 },
     rating: { average: 9.9, voteCount: 0, confidence: "none" },
   }),

@@ -18,7 +18,7 @@ The browser policy is implemented in:
 - `src/browser/analytics-posthog.ts`
 
 `PICKTONIGHT_ANALYTICS_PROPERTY_ALLOWLIST` is the reviewed source of truth for
-the custom properties allowed on each of the 15 product events.
+the custom properties allowed on each of the 17 product events.
 
 The registry is compile-time exhaustive against
 `PickTonightAnalyticsEventProperties`. Adding a property to the typed event
@@ -27,7 +27,7 @@ compilation.
 
 At runtime, the browser:
 
-1. rejects event names outside the reviewed 16-event taxonomy;
+1. rejects event names outside the reviewed 17-event taxonomy;
 2. projects the event onto that event's reviewed property keys;
 3. validates coded, bounded, boolean, numeric, and UUID values;
 4. drops the event if required reviewed values are invalid;
@@ -60,6 +60,25 @@ Both new base properties and the new event remain subject to the same dual
 browser/storage allowlist. They do not reopen browser, URL, GeoIP, title,
 TMDB-ID, or free-text collection.
 
+## Issue #36 taxonomy v3 extension
+
+Issue #36 expands the reviewed vocabulary from 16 to 17 events and increments
+`taxonomy_version` to `3`.
+
+The new `recommendation_item_shown` event carries the existing opaque
+recommendation-item identity plus positive batch/impression sequences and four
+controlled analysis codes:
+
+- candidate age: `recent | established | unknown`;
+- rating confidence: `limited | medium | strong`;
+- provider claim status: `claimed | not-claimed`;
+- repeat status: `first-shown | repeated`.
+
+The event does not carry title identity, a media key, TMDB data, release dates,
+ratings, vote counts, provider names, provider URLs, or raw availability data.
+The browser derives the codes from card evidence and keeps the title-to-opaque-
+ID/repeat map only in memory for the current recommendation journey.
+
 ## PostHog storage boundary
 
 The repository-owned transformation source is:
@@ -86,7 +105,7 @@ The PickTonight Development project must use all of the following:
 - **Discard client IP data:** enabled.
 - **GeoIP enrichment transformation:** disabled.
 - **PickTonight property allowlist transformation:** enabled.
-- **Transformation event filter:** exactly the 16 reviewed PickTonight product
+- **Transformation event filter:** exactly the 17 reviewed PickTonight product
   event names.
 - **Transformation order:** the PickTonight property allowlist must be the last
   transformation capable of modifying those events.
@@ -119,18 +138,21 @@ The infrastructure-only event:
 was retired by Issue #34.
 
 Issue #32's historical verification remains documented as historical evidence,
-but the event is no longer emitted by the application and is not part of the
-15-event product taxonomy.
+but the event is no longer emitted by the application. It was never part of the
+then-15-event product taxonomy and is not part of the current 17-event
+taxonomy.
 
 ## Recommendation item identity
 
 `recommendation_item_id` remains an opaque UUIDv4 generated in memory.
 
-It exists so deliberate actions on one displayed recommendation can be
-correlated without sending the title, TMDB ID, media key, provider URL, or
-watchlist identifier.
+It exists so a displayed item and later deliberate actions on that item can be
+correlated without sending the title, TMDB ID, media key, provider name,
+provider URL, or watchlist identifier.
 
-It is not persisted into the watchlist or other product storage.
+It is not persisted into the watchlist or other product storage. The mapping
+from the product's internal media key to the analytics identifier is discarded
+when the recommendation journey changes.
 
 ## Reset boundary
 
@@ -308,3 +330,34 @@ returned no matching events.
 
 Historical copies may remain from Issue #32, but Issue #34 confirms the event is
 no longer emitted by the application.
+
+## Taxonomy-v3 storage verification — 2026-09-20
+
+Issue #36 updated the existing **PickTonight — Property Allowlist v1**
+transformation in place. Its name and execution order were preserved.
+
+The final project state was re-read and confirmed:
+
+- **PickTonight — Property Allowlist v1** is active at execution order `2`;
+- its event filter contains exactly the 17 reviewed product events, including
+  `recommendation_item_shown`;
+- **GeoIP** remains paused at execution order `1`;
+- project-level **Discard client IP data** remains enabled.
+
+PostHog's function test runner executed the active taxonomy-v3 transformation
+with a valid `recommendation_item_shown` envelope plus hostile title, TMDB ID,
+media key, provider name, provider URL, raw text, current URL, browser, GeoIP,
+and other unapproved properties.
+
+The test succeeded. The transformed property object contained exactly:
+
+- the five shared event properties;
+- `recommendation_session_id` and `algorithm_version`;
+- opaque `recommendation_item_id`, `media_type`, and `position`;
+- `batch_sequence` and `impression_sequence`;
+- `candidate_age_code` and `rating_confidence_code`;
+- `provider_claim_status` and `repeat_status`.
+
+Every hostile property was absent from the result. A fresh stored browser event
+was not manufactured to populate the dashboard; time-bounded ingestion
+verification remains required after the taxonomy-v3 browser bundle is deployed.

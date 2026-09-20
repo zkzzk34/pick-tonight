@@ -22,6 +22,7 @@ import {
   trackFeedbackSubmitted,
   trackPickerStarted,
   trackRecommendationBatchViewed,
+  trackRecommendationItemShown,
   trackRecommendationOpened,
   trackRecommendationRejected,
   trackRecommendationSaved,
@@ -29,8 +30,9 @@ import {
   trackTrailerClicked,
   trackWatchIntentConfirmed,
 } from "./analytics-tracker";
+import { INITIAL_PREVIEW_RECOMMENDATIONS } from "./recommendation-card-preview";
 
-describe("Issue #33 analytics tracker", () => {
+describe("Issue #36 analytics tracker", () => {
   beforeEach(() => {
     captureMock.mockReset();
     captureMock.mockReturnValue(true);
@@ -130,9 +132,10 @@ describe("Issue #33 analytics tracker", () => {
     expect(trackRecommendationBatchViewed(secondBatch, 3)).toBe(true);
   });
 
-  it("captures the seven reviewed recommendation-decision events without title identity", () => {
+  it("captures the eight reviewed recommendation-decision events without title identity", () => {
     const context = createRecommendationAnalyticsContext("page-session");
-    const item = createRecommendationItemAnalyticsReference("movie", 2);
+    const recommendation = INITIAL_PREVIEW_RECOMMENDATIONS[0];
+    const item = createRecommendationItemAnalyticsReference(recommendation, 2);
 
     if (context === null || item === null) {
       throw new Error("Expected analytics references.");
@@ -140,6 +143,7 @@ describe("Issue #33 analytics tracker", () => {
 
     const activeContext = advanceRecommendationAnalyticsBatch(context);
 
+    trackRecommendationItemShown(activeContext, item, 1, "first-shown");
     trackRecommendationOpened(activeContext, item);
     trackTrailerClicked(activeContext, item);
     trackRecommendationSaved(activeContext, item, "persistent");
@@ -149,6 +153,7 @@ describe("Issue #33 analytics tracker", () => {
     trackFeedbackSubmitted(activeContext, item, "wrong-mood", "not-my-taste");
 
     expect(captureMock.mock.calls.map(([eventName]) => eventName)).toEqual([
+      "recommendation_item_shown",
       "recommendation_opened",
       "trailer_clicked",
       "recommendation_saved",
@@ -168,6 +173,19 @@ describe("Issue #33 analytics tracker", () => {
     }
 
     expect(captureMock).toHaveBeenCalledWith(
+      "recommendation_item_shown",
+      expect.objectContaining({
+        recommendation_item_id: item.recommendationItemId,
+        batch_sequence: 1,
+        impression_sequence: 1,
+        candidate_age_code: "established",
+        rating_confidence_code: "strong",
+        provider_claim_status: "not-claimed",
+        repeat_status: "first-shown",
+      }),
+    );
+
+    expect(captureMock).toHaveBeenCalledWith(
       "recommendation_opened",
       expect.objectContaining({
         recommendation_item_id: item.recommendationItemId,
@@ -184,6 +202,35 @@ describe("Issue #33 analytics tracker", () => {
         batch_sequence: 1,
       }),
     );
+  });
+
+  it("derives provider claims only from usable availability evidence", () => {
+    const recommendation = INITIAL_PREVIEW_RECOMMENDATIONS[0];
+    const claimedItem = createRecommendationItemAnalyticsReference(
+      {
+        ...recommendation,
+        providerAvailability: {
+          source: "justwatch",
+          watchRegion: "US",
+          providerNames: ["Example provider"],
+        },
+      },
+      1,
+    );
+    const blankProviderItem = createRecommendationItemAnalyticsReference(
+      {
+        ...recommendation,
+        providerAvailability: {
+          source: "justwatch",
+          watchRegion: "US",
+          providerNames: ["   "],
+        },
+      },
+      1,
+    );
+
+    expect(claimedItem?.providerClaimStatus).toBe("claimed");
+    expect(blankProviderItem?.providerClaimStatus).toBe("not-claimed");
   });
 
   it("maps request failures to bounded analytics error categories", () => {

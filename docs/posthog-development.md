@@ -84,13 +84,16 @@ Text and element attributes are masked defensively.
 
 Common automatic URL, pathname, referrer, title, search-engine, and keyword properties are denylisted.
 
-Issue #32 originally used a `before_send` gate around its infrastructure verification event. Issue #34 now restricts provider delivery to the reviewed 16-event product taxonomy and applies an exact property allowlist before transmission.
+Issue #32 originally used a `before_send` gate around its infrastructure
+verification event. Issues #34–#36 now restrict provider delivery to the
+reviewed 17-event product taxonomy and apply an exact property allowlist before
+transmission.
 
 ## Retired Issue #32 verification event
 
 > Historical record: Issue #34 retired this infrastructure-only event after
 > Issue #32 live verification was complete. It is no longer emitted by the
-> application. The reviewed 15-event taxonomy is the active analytics
+> application. The reviewed 17-event taxonomy is the active analytics
 > vocabulary.
 
 Issue #32 may emit exactly one deliberate development infrastructure event during a page lifetime:
@@ -202,3 +205,13 @@ Issue #35 adds the first pilot-facing picker funnel dashboard.
 Its metric definitions, audience filters, denominator semantics, guardrails,
 breakdowns, and validation procedure are documented in
 [`picker-funnel-dashboard.md`](./picker-funnel-dashboard.md).
+
+## Recommendation decision dashboard
+
+Issue #36 adds the pilot-facing recommendation decision dashboard and the
+privacy-safe item-exposure denominator required by its rates.
+
+Its action counts, unique-item reach denominators, structured negative signals,
+rank/algorithm/evidence breakdowns, guardrails, privacy boundary, and
+small-sample interpretation are documented in
+[`recommendation-decision-dashboard.md`](./recommendation-decision-dashboard.md).

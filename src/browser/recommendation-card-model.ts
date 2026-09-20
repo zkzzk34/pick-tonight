@@ -1,3 +1,5 @@
+import type { RecommendationDecisionEvidence } from "../shared/recommendation-evidence";
+
 export const RECOMMENDATION_CARD_COUNT = 3;
 
 export type RecommendationRatingConfidence =
@@ -21,6 +23,7 @@ export interface RecommendationCardData {
   readonly title: string;
   readonly year: number | null;
   readonly mediaType: "movie" | "tv";
+  readonly decisionEvidence: RecommendationDecisionEvidence;
   readonly overview: string | null;
   readonly posterUrl: string | null;
   readonly genres: readonly string[];
