@@ -155,6 +155,7 @@ export function SavedTitles({
       )}
 
       <p
+        aria-atomic="true"
         aria-label="Saved titles status"
         aria-live="polite"
         className="saved-titles__status"

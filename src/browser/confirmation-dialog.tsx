@@ -29,6 +29,7 @@ export function ConfirmationDialog({
   const descriptionId = useId();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
   const invokingElementRef = useRef<HTMLElement | null>(null);
   const confirmedRef = useRef(false);
 
@@ -76,13 +77,48 @@ export function ConfirmationDialog({
   }, [getConfirmedFocus, returnFocusRef]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
-    if (event.key !== "Escape") {
+    if (event.key === "Tab") {
+      const firstFocusable = cancelRef.current;
+      const lastFocusable = confirmRef.current;
+      const activeElement = document.activeElement;
+
+      if (firstFocusable === null || lastFocusable === null) {
+        return;
+      }
+
+      if (event.shiftKey && activeElement === firstFocusable) {
+        event.preventDefault();
+        lastFocusable.focus();
+        return;
+      }
+
+      if (!event.shiftKey && activeElement === lastFocusable) {
+        event.preventDefault();
+        firstFocusable.focus();
+        return;
+      }
+
+      if (
+        activeElement instanceof HTMLElement &&
+        !dialogRef.current?.contains(activeElement)
+      ) {
+        event.preventDefault();
+
+        if (event.shiftKey) {
+          lastFocusable.focus();
+        } else {
+          firstFocusable.focus();
+        }
+      }
+
       return;
     }
 
-    event.preventDefault();
-    event.stopPropagation();
-    onCancel();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      onCancel();
+    }
   };
 
   const confirm = () => {
@@ -115,6 +151,7 @@ export function ConfirmationDialog({
         <button
           className="confirmation-dialog__confirm"
           onClick={confirm}
+          ref={confirmRef}
           type="button"
         >
           {confirmLabel}

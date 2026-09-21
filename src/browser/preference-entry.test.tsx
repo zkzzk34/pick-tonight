@@ -191,6 +191,13 @@ describe("PreferenceEntryFlow", () => {
     expect(detail).toBeInTheDocument();
 
     expect(
+      within(detail).getByRole("heading", {
+        level: 2,
+        name: "Preview movie A",
+      }),
+    ).toHaveFocus();
+
+    expect(
       screen.queryByRole("region", {
         name: "3 picks for tonight",
       }),
@@ -237,6 +244,128 @@ describe("PreferenceEntryFlow", () => {
     expect(
       screen.getByLabelText(/Tell PickTonight what you want/i),
     ).toHaveValue("funny movie");
+  });
+
+  it("keeps partial release-year typing render-safe and blocks review until valid", () => {
+    render(<PreferenceEntryFlow />);
+
+    fireEvent.click(screen.getByText("More preferences"));
+
+    const releaseYear = screen.getByRole("spinbutton", {
+      name: "Released since year",
+    });
+
+    for (const value of ["2", "20", "202"]) {
+      fireEvent.change(releaseYear, {
+        target: { value },
+      });
+
+      expect(
+        screen.getByRole("heading", {
+          name: "What would feel right to watch?",
+        }),
+      ).toBeInTheDocument();
+
+      expect(releaseYear).toHaveAttribute("aria-invalid", "true");
+    }
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Review preferences",
+      }),
+    );
+
+    expect(releaseYear).toHaveFocus();
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Review what we understood",
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(releaseYear, {
+      target: { value: "2023" },
+    });
+
+    expect(releaseYear).not.toHaveAttribute("aria-invalid");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Review preferences",
+      }),
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Review what we understood",
+      }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Released since 2023")).toBeInTheDocument();
+  });
+
+  it("associates visible preference instructions with their controls and groups", () => {
+    render(<PreferenceEntryFlow />);
+
+    const typedRequest = screen.getByLabelText(
+      /Tell PickTonight what you want/i,
+    );
+
+    expect(typedRequest).toHaveAttribute(
+      "aria-describedby",
+      "preference-text-help",
+    );
+
+    expect(document.getElementById("preference-text-help")).toHaveTextContent(
+      "not written to PickTonight local storage or analytics",
+    );
+
+    const genreGroup = screen.getByRole("group", {
+      name: "Genre",
+    });
+
+    expect(genreGroup).toHaveAttribute(
+      "aria-describedby",
+      "preference-genre-help",
+    );
+
+    fireEvent.click(screen.getByText("More preferences"));
+
+    const releaseYear = screen.getByRole("spinbutton", {
+      name: "Released since year",
+    });
+
+    expect(releaseYear).toHaveAttribute(
+      "aria-describedby",
+      "preference-release-year-help",
+    );
+
+    const watchRegion = screen.getByRole("combobox", {
+      name: "Watch region",
+    });
+
+    expect(watchRegion).toHaveAttribute(
+      "aria-describedby",
+      "preference-watch-region-help",
+    );
+
+    const providerGroup = screen.getByRole("group", {
+      name: "Streaming providers",
+    });
+
+    expect(providerGroup).toHaveAttribute(
+      "aria-describedby",
+      "preference-provider-help preference-provider-selection-help",
+    );
+
+    fireEvent.change(watchRegion, {
+      target: { value: "GB" },
+    });
+
+    expect(providerGroup).toHaveAttribute(
+      "aria-describedby",
+      "preference-provider-help preference-provider-region-notice",
+    );
   });
 
   it("allows a completely broad request to continue", () => {

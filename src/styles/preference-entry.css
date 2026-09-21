@@ -172,7 +172,8 @@
   gap: 1rem;
 }
 
-.preference-fields label {
+.preference-fields label,
+.preference-field {
   display: grid;
   gap: 0.5rem;
 }
@@ -369,4 +370,9 @@
   .preference-review button {
     transition: none;
   }
+}
+
+.preference-fields small {
+  color: #aaa2ba;
+  line-height: 1.45;
 }

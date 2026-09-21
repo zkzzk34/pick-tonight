@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import {
   formatRuntime,
@@ -157,6 +157,12 @@ export function TitleDetail({
   onTrailerClick,
 }: TitleDetailProps) {
   const headingId = useId();
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [detail.mediaKey]);
+
   const runtime = formatRuntime(detail.runtime);
   const trailerUrl = safeHttpsUrl(detail.trailerUrl);
   const genres = detail.genres
@@ -181,7 +187,9 @@ export function TitleDetail({
         <article aria-labelledby={headingId} className="title-detail__content">
           <header className="title-detail__header">
             <p className="eyebrow">Title details</p>
-            <h2 id={headingId}>{detail.title}</h2>
+            <h2 id={headingId} ref={headingRef} tabIndex={-1}>
+              {detail.title}
+            </h2>
             <p className="title-detail__identity">
               <span>{detail.year ?? "Year unavailable"}</span>
               <span aria-hidden="true"> · </span>
@@ -324,7 +332,11 @@ export function TitleDetail({
             </div>
 
             {isChosenTonight ? (
-              <p className="title-detail__watch-intent" role="status">
+              <p
+                aria-atomic="true"
+                className="title-detail__watch-intent"
+                role="status"
+              >
                 Watch intent set for this title.
               </p>
             ) : null}

@@ -199,3 +199,43 @@ h1 {
     min-height: auto;
   }
 }
+
+/*
+ * Issue #37 accessibility baseline.
+ *
+ * Component-specific focus rules remain in place. This rule guarantees that
+ * any future native interactive control does not silently ship without a
+ * visible keyboard-focus indicator.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #ffd18a;
+  outline-offset: 3px;
+  scroll-margin-block: 1rem;
+}
+
+@media (forced-colors: active) {
+  :where(
+    a,
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]
+  ):focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

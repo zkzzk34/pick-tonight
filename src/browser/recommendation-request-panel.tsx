@@ -254,6 +254,12 @@ export function RecommendationRequestPanel({
             </p>
           </div>
         ) : null}
+
+        {viewState.status === "complete" ? (
+          <p className="sr-only">
+            {viewState.recommendations.length} recommendations ready below.
+          </p>
+        ) : null}
       </div>
 
       <div

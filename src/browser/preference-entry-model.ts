@@ -988,9 +988,19 @@ export function interpretPreferences(
     ? undefined
     : (draft.companion ?? parsed.companion);
 
-  const freshnessYear = isSuppressed(suppressed, "soft.freshness")
+  const freshnessYearCandidate = isSuppressed(suppressed, "soft.freshness")
     ? undefined
     : (draft.freshnessYear ?? parsed.freshnessYear);
+
+  const currentYear = new Date().getFullYear();
+
+  const freshnessYear =
+    freshnessYearCandidate !== undefined &&
+    Number.isInteger(freshnessYearCandidate) &&
+    freshnessYearCandidate >= 1870 &&
+    freshnessYearCandidate <= currentYear
+      ? freshnessYearCandidate
+      : undefined;
 
   const contentLanguage = isSuppressed(suppressed, "soft.language")
     ? undefined

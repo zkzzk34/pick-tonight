@@ -153,9 +153,22 @@
     align-items: flex-start;
   }
 
+  .site-header {
+    flex-direction: column;
+  }
+
   .site-header__identity {
     flex-direction: column;
     gap: 0.35rem;
+  }
+
+  .site-navigation {
+    width: 100%;
+  }
+
+  .site-navigation button {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .saved-title {
@@ -167,4 +180,24 @@
     width: 5.5rem;
     height: 8.25rem;
   }
+}
+
+/*
+ * Issue #37: saved content uses light card surfaces inside the otherwise dark
+ * application. Set the foreground explicitly so card text never inherits the
+ * app-shell's light-on-dark foreground onto a light surface.
+ */
+.saved-titles__warning,
+.saved-titles__empty,
+.saved-title {
+  color: #211942;
+}
+
+.saved-titles__warning h2,
+.saved-titles__warning h3,
+.saved-titles__empty h2,
+.saved-titles__empty h3,
+.saved-title h2,
+.saved-title h3 {
+  color: #211942;
 }
