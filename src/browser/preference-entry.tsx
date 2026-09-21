@@ -198,6 +198,15 @@ export function PreferenceEntryFlow({
   const [ignoredUnsupported, setIgnoredUnsupported] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const pickerStartedAttempt = useRef<number | null>(null);
+  const freshnessYearInputRef = useRef<HTMLInputElement | null>(null);
+
+  const currentYear = new Date().getFullYear();
+
+  const freshnessYearInvalid =
+    draft.freshnessYear !== null &&
+    (!Number.isInteger(draft.freshnessYear) ||
+      draft.freshnessYear < 1870 ||
+      draft.freshnessYear > currentYear);
 
   function markPickerStarted(): void {
     if (
@@ -276,6 +285,11 @@ export function PreferenceEntryFlow({
   }
 
   function handleReview(): void {
+    if (freshnessYearInvalid) {
+      freshnessYearInputRef.current?.focus();
+      return;
+    }
+
     markPickerStarted();
 
     if (analyticsSessionId !== null) {
@@ -334,6 +348,7 @@ export function PreferenceEntryFlow({
               Tell PickTonight what you want <span>(optional)</span>
             </label>
             <textarea
+              aria-describedby="preference-text-help"
               id="preference-text"
               maxLength={240}
               onChange={(event) =>
@@ -347,7 +362,7 @@ export function PreferenceEntryFlow({
               rows={3}
               value={draft.rawText}
             />
-            <small>
+            <small id="preference-text-help">
               Your typed request stays in this active decision. It is not
               written to PickTonight local storage or analytics.
             </small>
@@ -393,9 +408,12 @@ export function PreferenceEntryFlow({
             </div>
           </fieldset>
 
-          <fieldset className="preference-group">
+          <fieldset
+            aria-describedby="preference-genre-help"
+            className="preference-group"
+          >
             <legend>Genre</legend>
-            <p className="preference-group__help">
+            <p className="preference-group__help" id="preference-genre-help">
               Genre choices follow the selected media type. Either shows only
               genre IDs that map cleanly across movies and TV.
             </p>
@@ -467,9 +485,15 @@ export function PreferenceEntryFlow({
                 </fieldset>
               ) : null}
 
-              <fieldset className="preference-group">
+              <fieldset
+                aria-describedby="preference-excluded-genres-help"
+                className="preference-group"
+              >
                 <legend>Exclude genres</legend>
-                <p className="preference-group__help">
+                <p
+                  className="preference-group__help"
+                  id="preference-excluded-genres-help"
+                >
                   Exclusions are required restrictions, not soft preferences.
                 </p>
                 <div className="preference-chips preference-chips--danger">
@@ -487,7 +511,10 @@ export function PreferenceEntryFlow({
                 </div>
               </fieldset>
 
-              <fieldset className="preference-group">
+              <fieldset
+                aria-describedby="preference-companion-help"
+                className="preference-group"
+              >
                 <legend>Watching with</legend>
                 <div className="preference-chips">
                   {COMPANION_OPTIONS.map((option) => (
@@ -510,7 +537,10 @@ export function PreferenceEntryFlow({
                     </button>
                   ))}
                 </div>
-                <p className="preference-group__help">
+                <p
+                  className="preference-group__help"
+                  id="preference-companion-help"
+                >
                   Companion context is reviewable in Issue #27 but is not yet
                   sent to the recommendation API because the current engine has
                   no supported companion-fit field.
@@ -518,14 +548,24 @@ export function PreferenceEntryFlow({
               </fieldset>
 
               <div className="preference-fields">
-                <label>
-                  <span>Released since year</span>
+                <div className="preference-field">
+                  <label htmlFor="preference-release-year">
+                    Released since year
+                  </label>
                   <input
+                    aria-describedby={
+                      freshnessYearInvalid
+                        ? "preference-release-year-help preference-release-year-error"
+                        : "preference-release-year-help"
+                    }
+                    aria-invalid={freshnessYearInvalid || undefined}
+                    id="preference-release-year"
                     inputMode="numeric"
-                    max={new Date().getFullYear()}
+                    max={currentYear}
                     min={1870}
                     onChange={(event) => {
                       const value = event.currentTarget.value;
+
                       setDraft((current) => ({
                         ...current,
                         freshnessYear: value === "" ? null : Number(value),
@@ -536,10 +576,21 @@ export function PreferenceEntryFlow({
                       }));
                     }}
                     placeholder="e.g. 2023"
+                    ref={freshnessYearInputRef}
                     type="number"
                     value={draft.freshnessYear ?? ""}
                   />
-                </label>
+                  <small id="preference-release-year-help">
+                    Optional. Enter a four-digit year from 1870 through the
+                    current year.
+                  </small>
+                  {freshnessYearInvalid ? (
+                    <small id="preference-release-year-error">
+                      Enter a four-digit year from 1870 through {currentYear}
+                      before reviewing preferences.
+                    </small>
+                  ) : null}
+                </div>
 
                 <label>
                   <span>Content language</span>
@@ -589,9 +640,11 @@ export function PreferenceEntryFlow({
                   </select>
                 </label>
 
-                <label>
-                  <span>Watch region</span>
+                <div className="preference-field">
+                  <label htmlFor="preference-watch-region">Watch region</label>
                   <select
+                    aria-describedby="preference-watch-region-help"
+                    id="preference-watch-region"
                     onChange={(event) =>
                       handleWatchRegion(event.currentTarget.value)
                     }
@@ -603,12 +656,26 @@ export function PreferenceEntryFlow({
                       </option>
                     ))}
                   </select>
-                </label>
+                  <small id="preference-watch-region-help">
+                    Changing region may change which provider restrictions are
+                    available.
+                  </small>
+                </div>
               </div>
 
-              <fieldset className="preference-group">
+              <fieldset
+                aria-describedby={
+                  draft.watchRegion === "US"
+                    ? "preference-provider-help preference-provider-selection-help"
+                    : "preference-provider-help preference-provider-region-notice"
+                }
+                className="preference-group"
+              >
                 <legend>Streaming providers</legend>
-                <p className="preference-group__help">
+                <p
+                  className="preference-group__help"
+                  id="preference-provider-help"
+                >
                   The current MVP provider shortlist is verified for the United
                   States only. Availability remains regional and may change.
                 </p>
@@ -628,13 +695,19 @@ export function PreferenceEntryFlow({
                   ))}
                 </div>
                 {draft.watchRegion !== "US" ? (
-                  <p className="preference-group__notice">
+                  <p
+                    className="preference-group__notice"
+                    id="preference-provider-region-notice"
+                  >
                     Provider restrictions are disabled for this region in the
                     current prototype. Choose United States to use the verified
                     MVP shortlist.
                   </p>
                 ) : (
-                  <p className="preference-group__help">
+                  <p
+                    className="preference-group__help"
+                    id="preference-provider-selection-help"
+                  >
                     Selecting multiple services means availability on at least
                     one selected provider.
                   </p>
@@ -643,7 +716,12 @@ export function PreferenceEntryFlow({
             </div>
           </details>
 
-          <div aria-live="polite" className="selectivity" role="status">
+          <div
+            aria-atomic="true"
+            aria-live="polite"
+            className="selectivity"
+            role="status"
+          >
             <strong>{liveInterpretation.selectivity.label}</strong>
             <span>{liveInterpretation.selectivity.explanation}</span>
             <small>
@@ -942,6 +1020,7 @@ export function PreferenceEntryFlow({
         </RecommendationRequestPanel>
 
         <p
+          aria-atomic="true"
           aria-label="Preview action status"
           aria-live="polite"
           className="action-status"

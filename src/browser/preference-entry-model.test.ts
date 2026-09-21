@@ -114,6 +114,34 @@ describe("preference entry model", () => {
     });
   });
 
+  it("ignores transient and future release-year values instead of throwing", () => {
+    const transient = interpretPreferences({
+      ...createDefaultPreferenceDraft(),
+      freshnessYear: 2,
+    });
+
+    expect(transient.resolved.freshnessYear).toBeUndefined();
+    expect(transient.request.softPreferences?.freshness).toBeUndefined();
+
+    const future = interpretPreferences({
+      ...createDefaultPreferenceDraft(),
+      freshnessYear: new Date().getFullYear() + 1,
+    });
+
+    expect(future.resolved.freshnessYear).toBeUndefined();
+    expect(future.request.softPreferences?.freshness).toBeUndefined();
+
+    const valid = interpretPreferences({
+      ...createDefaultPreferenceDraft(),
+      freshnessYear: 2023,
+    });
+
+    expect(valid.resolved.freshnessYear).toBe(2023);
+    expect(valid.request.softPreferences?.freshness).toEqual({
+      releasedSinceYear: 2023,
+    });
+  });
+
   it("does not send companion context into the current API request", () => {
     const interpretation = interpretPreferences({
       ...createDefaultPreferenceDraft(),

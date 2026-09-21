@@ -161,6 +161,7 @@ describe("RecommendationRequestPanel", () => {
     expect(
       screen.getByRole("list", { name: "Rendered recommendations" }),
     ).toBeInTheDocument();
+    expect(requestStatus).toHaveTextContent("3 recommendations ready below.");
     expect(resultsGroup).toHaveAttribute("aria-busy", "false");
     expect(
       screen.getByRole("button", { name: "Request recommendations" }),

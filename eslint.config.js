@@ -38,7 +38,11 @@ export default defineConfig([
   },
   {
     name: "pick-tonight/node-javascript",
-    files: ["eslint.config.js", "proofs/tmdb-server-only/**/*.mjs"],
+    files: [
+      "eslint.config.js",
+      "proofs/tmdb-server-only/**/*.mjs",
+      "proofs/accessibility-contrast.test.mjs",
+    ],
     languageOptions: {
       globals: globals.node,
     },
