@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   recordFeedbackReason,
@@ -30,6 +30,7 @@ import {
   createRecommendationItemAnalyticsReference,
   trackFeedbackSubmitted,
   trackRecommendationOpened,
+  trackRecommendationItemShown,
   trackRecommendationRejected,
   trackRecommendationSaved,
   trackRecommendationsRefreshed,
@@ -155,14 +156,38 @@ export function FeedbackRecommendationExperience({
 
   const detailReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const restoreDetailFocusRef = useRef(false);
-  const recommendationItemIds = useRef(new Map<string, string>());
+  const analyticsRecommendationSessionId = useRef<string | null>(null);
+  const recommendationItems = useRef(
+    new Map<string, RecommendationItemAnalyticsReference>(),
+  );
+  const visibleMediaKeysByPosition = useRef(new Map<number, string>());
+  const seenMediaKeys = useRef(new Set<string>());
+  const impressionSequence = useRef(0);
   const pendingFeedbackAnalyticsItem =
     useRef<RecommendationItemAnalyticsReference | null>(null);
+
+  const synchronizeAnalyticsJourney = useCallback(() => {
+    const recommendationSessionId =
+      analyticsContext?.recommendationSessionId ?? null;
+
+    if (analyticsRecommendationSessionId.current === recommendationSessionId) {
+      return;
+    }
+
+    analyticsRecommendationSessionId.current = recommendationSessionId;
+    recommendationItems.current.clear();
+    visibleMediaKeysByPosition.current.clear();
+    seenMediaKeys.current.clear();
+    impressionSequence.current = 0;
+    pendingFeedbackAnalyticsItem.current = null;
+  }, [analyticsContext]);
 
   function getAnalyticsItemReference(
     recommendation: RecommendationCardData,
     explicitIndex?: number,
   ): RecommendationItemAnalyticsReference | null {
+    synchronizeAnalyticsJourney();
+
     if (analyticsContext === null) {
       return null;
     }
@@ -177,32 +202,77 @@ export function FeedbackRecommendationExperience({
       return null;
     }
 
-    const existingItemId = recommendationItemIds.current.get(
+    const existingItem = recommendationItems.current.get(
       recommendation.mediaKey,
     );
 
-    if (existingItemId !== undefined) {
+    if (existingItem !== undefined) {
       return {
-        recommendationItemId: existingItemId,
-        mediaType: recommendation.mediaType,
+        ...existingItem,
         position: index + 1,
       };
     }
 
     const created = createRecommendationItemAnalyticsReference(
-      recommendation.mediaType,
+      recommendation,
       index + 1,
     );
 
     if (created !== null) {
-      recommendationItemIds.current.set(
-        recommendation.mediaKey,
-        created.recommendationItemId,
-      );
+      recommendationItems.current.set(recommendation.mediaKey, created);
     }
 
     return created;
   }
+
+  useEffect(() => {
+    synchronizeAnalyticsJourney();
+
+    if (analyticsContext === null) {
+      return;
+    }
+
+    recommendations.forEach((recommendation, index) => {
+      const position = index + 1;
+
+      if (
+        visibleMediaKeysByPosition.current.get(position) ===
+        recommendation.mediaKey
+      ) {
+        return;
+      }
+
+      const existingItem = recommendationItems.current.get(
+        recommendation.mediaKey,
+      );
+      const analyticsItem =
+        existingItem === undefined
+          ? createRecommendationItemAnalyticsReference(recommendation, position)
+          : { ...existingItem, position };
+
+      if (analyticsItem === null) {
+        return;
+      }
+
+      recommendationItems.current.set(recommendation.mediaKey, analyticsItem);
+
+      const repeatStatus = seenMediaKeys.current.has(recommendation.mediaKey)
+        ? "repeated"
+        : "first-shown";
+      const nextImpressionSequence = impressionSequence.current + 1;
+
+      trackRecommendationItemShown(
+        analyticsContext,
+        analyticsItem,
+        nextImpressionSequence,
+        repeatStatus,
+      );
+
+      impressionSequence.current = nextImpressionSequence;
+      seenMediaKeys.current.add(recommendation.mediaKey);
+      visibleMediaKeysByPosition.current.set(position, recommendation.mediaKey);
+    });
+  }, [analyticsContext, recommendations, synchronizeAnalyticsJourney]);
 
   useEffect(() => {
     if (selectedDetailMediaKey === null && restoreDetailFocusRef.current) {

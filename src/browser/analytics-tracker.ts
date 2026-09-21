@@ -6,6 +6,7 @@ import {
   type ContextSummaryProperties,
   type PickerAbandonmentReason,
   type RecommendationMediaType,
+  type RecommendationRepeatStatus,
   type RecommendationRejectionReason,
 } from "./analytics-events";
 import type {
@@ -14,6 +15,7 @@ import type {
 } from "./feedback-session";
 import { generateAnalyticsId } from "./analytics-identity-storage";
 import { captureDevelopmentAnalyticsEvent } from "./analytics-posthog";
+import type { RecommendationCardData } from "./recommendation-card-model";
 
 export interface RecommendationAnalyticsContext {
   readonly analyticsSessionId: string;
@@ -25,6 +27,9 @@ export interface RecommendationItemAnalyticsReference {
   readonly recommendationItemId: string;
   readonly mediaType: RecommendationMediaType;
   readonly position: number;
+  readonly candidateAgeCode: RecommendationCardData["decisionEvidence"]["candidateAgeCode"];
+  readonly ratingConfidenceCode: RecommendationCardData["decisionEvidence"]["ratingConfidenceCode"];
+  readonly providerClaimStatus: "claimed" | "not-claimed";
 }
 
 const capturedOnceKeys = new Set<string>();
@@ -215,7 +220,7 @@ function recommendationItemProperties(
 }
 
 export function createRecommendationItemAnalyticsReference(
-  mediaType: RecommendationMediaType,
+  recommendation: RecommendationCardData,
   position: number,
 ): RecommendationItemAnalyticsReference | null {
   if (!Number.isInteger(position) || position < 1) {
@@ -230,9 +235,40 @@ export function createRecommendationItemAnalyticsReference(
 
   return {
     recommendationItemId,
-    mediaType,
+    mediaType: recommendation.mediaType,
     position,
+    candidateAgeCode: recommendation.decisionEvidence.candidateAgeCode,
+    ratingConfidenceCode: recommendation.decisionEvidence.ratingConfidenceCode,
+    providerClaimStatus:
+      recommendation.providerAvailability !== null &&
+      recommendation.providerAvailability.watchRegion.trim() !== "" &&
+      recommendation.providerAvailability.providerNames.some(
+        (providerName) => providerName.trim() !== "",
+      )
+        ? "claimed"
+        : "not-claimed",
   };
+}
+
+export function trackRecommendationItemShown(
+  context: RecommendationAnalyticsContext,
+  item: RecommendationItemAnalyticsReference,
+  impressionSequence: number,
+  repeatStatus: RecommendationRepeatStatus,
+): boolean {
+  return captureOnce(
+    `recommendation_item_shown:${context.recommendationSessionId}:${item.recommendationItemId}:${impressionSequence}`,
+    () =>
+      captureDevelopmentAnalyticsEvent("recommendation_item_shown", {
+        ...recommendationItemProperties(context, item),
+        batch_sequence: context.batchSequence,
+        impression_sequence: impressionSequence,
+        candidate_age_code: item.candidateAgeCode,
+        rating_confidence_code: item.ratingConfidenceCode,
+        provider_claim_status: item.providerClaimStatus,
+        repeat_status: repeatStatus,
+      }),
+  );
 }
 
 export function trackRecommendationOpened(

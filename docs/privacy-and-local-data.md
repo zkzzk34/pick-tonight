@@ -1,6 +1,9 @@
 # PickTonight Privacy, Local Data, and Optional Analytics
 
-- **Status:** Implemented for active-session, watchlist, consent controls, consent-gated analytics identity/session identifiers, and development-only PostHog verification; personalization and reviewed product analytics remain planned
+- **Status:** Implemented for active-session, watchlist, consent controls,
+  consent-gated analytics identity/session identifiers, the reviewed product
+  event taxonomy, and development PostHog delivery; personalization and pilot
+  deployment remain planned
 - **Owner:** ZK Zhao
 - **Date:** September 17, 2026
 - **Related issue:** [#5 — Draft privacy, local-data, and analytics-consent language](https://github.com/zkzzk34/pick-tonight/issues/5)
@@ -33,7 +36,7 @@ This is a product-behavior specification, not legal advice or a final production
 | Active-session state | Complete one immediate viewing decision | Browser memory or other session-scoped state | When a recommendation session begins |
 | Local watchlist | Remember titles explicitly saved by the user | Persistent storage for the current browser, device, and site origin | When the user selects `Save` |
 | Optional local taste profile | Remember minimal normalized taste signals | Separate persistent local storage in the current browser | Only after the user enables personalization |
-| Optional product analytics | Measure whether the product flow works | Sent to a later-selected analytics service | Only after prior analytics consent |
+| Optional product analytics | Measure whether the product flow works | Dedicated PostHog project in the current development integration | Only after prior analytics consent |
 
 Declining analytics or personalization must not block recommendation, replacement, title-detail, or decision features.
 
@@ -176,7 +179,14 @@ The allow and decline choices must be presented with comparable prominence and u
 
 Analytics events must use explicit typed property allowlists.
 
-Only reviewed event names and normalized properties may be eligible. The final event schema will be defined and tested under the analytics-property verification work.
+Only reviewed event names and normalized properties may be eligible. The
+current taxonomy contains 17 events at `taxonomy_version=3` and is enforced by
+matching browser and PostHog storage allowlists.
+
+Recommendation exposure analysis uses an opaque in-memory item identifier and
+controlled age, rating-confidence, provider-claim, and repeat-status codes. It
+does not send a title, media key, TMDB ID, release date, rating value, vote
+count, provider name, or provider URL.
 
 The following must remain outside persistent analytics:
 
@@ -273,7 +283,9 @@ Issue #32 adds a development-only PostHog adapter for consent and network verifi
 
 The SDK is not initialized before affirmative analytics consent and ready PickTonight analytics identifiers. The development provider uses no durable PostHog persistence, receives the PickTonight browser identifier as an anonymous bootstrapped distinct ID, does not receive the PickTonight UUIDv4 session identifier as a native PostHog session ID, and disables automatic capture, session recording, surveys, feature-flag requests, person profiles, and unnecessary automatic collection.
 
-The Issue #34 `before_send` boundary rejects events outside the reviewed 15-event taxonomy and reconstructs approved events from an exact event-specific property allowlist before network delivery.
+The Issue #34 `before_send` boundary rejects events outside the reviewed
+17-event taxonomy and reconstructs approved events from an exact event-specific
+property allowlist before network delivery.
 
 The dedicated development PostHog project must be configured to discard client IP data before live verification. PickTonight does not intentionally add an IP address as an analytics property or derive an identifier from network metadata.
 
@@ -294,7 +306,11 @@ Product analytics must remain disabled for a pilot until the project verifies an
 - consent withdrawal behavior;
 - deletion and reset limitations.
 
-Issue #31 defines the consent-gated pseudonymous browser identity and page-session identifier. Issue #32 owns the development PostHog adapter and provider-boundary verification. Issue #33 owns the reviewed product event taxonomy, and Issue #34 will verify the final event-property allowlist.
+Issue #31 defines the consent-gated pseudonymous browser identity and
+page-session identifier. Issue #32 owns the development PostHog adapter and
+provider-boundary verification. Issue #33 owns the reviewed product event
+taxonomy, Issue #34 verifies the dual event-property allowlist, and Issue #36
+adds privacy-safe recommendation decision analysis.
 
 See [Development PostHog integration](./posthog-development.md) for the exact provider configuration and manual browser-network verification procedure.
 

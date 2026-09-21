@@ -196,8 +196,8 @@ export function buildDevelopmentPostHogConfig(
     // consent persistence.
     opt_out_capturing_by_default: false,
 
-    // Defense in depth: only the reviewed Issue #33 product taxonomy may
-    // leave the browser. Automatic/system PostHog events remain rejected.
+    // Defense in depth: only the current reviewed product taxonomy may leave
+    // the browser. Automatic/system PostHog events remain rejected.
     //
     // For approved events, rebuild the property object from the event-specific
     // PickTonight allowlist plus the minimum transport fields required for

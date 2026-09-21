@@ -1,7 +1,8 @@
 # PickTonight analytics event taxonomy
 
-Issue #33 defines PickTonight's explicit, consent-gated product analytics
-vocabulary and property contract.
+Issue #33 established PickTonight's explicit, consent-gated product analytics
+vocabulary and property contract. Issue #36 extends that contract with one
+privacy-safe recommendation-impression event for descriptive decision analysis.
 
 It does not enable PostHog autocapture or other automatic product collection.
 
@@ -14,7 +15,7 @@ It does not enable PostHog autocapture or other automatic product collection.
 - Declining analytics produces no provider event.
 - Events fire from explicit application transitions and user-action handlers,
   never merely because React rendered.
-- `taxonomy_version` is exactly `2`.
+- `taxonomy_version` is exactly `3`.
 - `ui_locale` is exactly `en-US` for the MVP.
 - `session_id` is PickTonight's page-session analytics UUID.
 - The persistent anonymous browser identifier remains PostHog's distinct ID and
@@ -23,8 +24,8 @@ It does not enable PostHog autocapture or other automatic product collection.
 - Recommendation-scoped events include the shared `algorithm_version`.
 - Recommendation-item events use an opaque, in-memory
   `recommendation_item_id`.
-- Exact titles, TMDB IDs, poster URLs, overview text, provider URLs, and raw
-  watchlist contents are excluded.
+- Exact titles, TMDB IDs, poster URLs, overview text, provider names, provider
+  URLs, and raw watchlist contents are excluded.
 - Free-form preference text and written feedback are excluded from analytics.
 - Content-language and origin-country selections use codes rather than
   translated labels.
@@ -36,7 +37,7 @@ Every product event requires:
 
 | Property | Contract |
 | --- | --- |
-| `taxonomy_version` | exactly `2` |
+| `taxonomy_version` | exactly `3` |
 | `ui_locale` | exactly `en-US` |
 | `analytics_environment` | `development` or `pilot` |
 | `traffic_class` | `internal` or `participant` |
@@ -56,6 +57,30 @@ Recommendation-item events additionally require:
 | `recommendation_item_id` | opaque UUID generated only for analytics |
 | `media_type` | `movie` or `tv` |
 | `position` | one-based integer position in the displayed recommendation set |
+
+## Taxonomy v3
+
+Issue #36 extends the reviewed taxonomy from 16 to 17 product events.
+
+Taxonomy version `3` adds `recommendation_item_shown`. It records a newly
+visible recommendation slot using an opaque item identifier and controlled
+analysis codes. It supplies the denominator for item-level reach rates without
+sending title identity.
+
+The event adds these controlled properties:
+
+- `candidate_age_code = recent | established | unknown`;
+- `rating_confidence_code = limited | medium | strong`;
+- `provider_claim_status = claimed | not-claimed`;
+- `repeat_status = first-shown | repeated`;
+- positive integer `batch_sequence` and `impression_sequence` values.
+
+Candidate age and rating confidence reuse the recommendation engine's
+canonical evidence states. Provider claim status says only whether the card
+displayed a usable regional provider claim; it does not include a provider
+name or assert that the provider is correct. Repeat status is computed in
+browser memory within one recommendation journey and does not persist title
+identity.
 
 ## Taxonomy v2
 
@@ -88,7 +113,7 @@ activation. Pre-consent activity is not replayed.
 
 **Optional properties:** none.
 
-**Allowed values:** `taxonomy_version=2`, `ui_locale=en-US`, and the current
+**Allowed values:** `taxonomy_version=3`, `ui_locale=en-US`, and the current
 PickTonight `session_id`. No event-specific values are allowed.
 
 ### `consent_responded`
@@ -234,6 +259,36 @@ rerenders do not create additional events.
 
 This event is intentionally distinct from `recommendation_batch_viewed`.
 An empty result does not claim that a recommendation batch was viewed.
+
+### `recommendation_item_shown`
+
+**Owner:** visible recommendation-item lifecycle.
+
+**Fires:** once for each card that becomes newly visible in a recommendation
+slot, including the initial three cards and successful replacements. An
+unchanged rerender does not fire it. If the same recommendation becomes newly
+visible again during the same journey, it reuses the journey-scoped opaque
+item identifier and records `repeat_status=repeated`.
+
+Nothing that became visible before analytics consent is replayed after later
+acceptance.
+
+**Required properties:** recommendation-item properties plus:
+
+- `batch_sequence`
+- `impression_sequence`
+- `candidate_age_code`
+- `rating_confidence_code`
+- `provider_claim_status`
+- `repeat_status`
+
+**Optional properties:** none.
+
+**Allowed values:** `batch_sequence` and `impression_sequence` are positive
+integers. Candidate-age, rating-confidence, provider-claim, and repeat codes
+use the controlled taxonomy-v3 values above. Exact title, media key, TMDB ID,
+provider name, provider URL, rating value, vote count, and release date are not
+sent.
 
 ### `recommendation_opened`
 
@@ -400,6 +455,10 @@ example, opening the same recommendation twice may produce two
 Duplicate suppression applies only to non-user duplication such as rerenders,
 React development behavior, repeated effects, or repeated processing of the
 same successful batch.
+
+`recommendation_item_shown` follows the visible-slot lifecycle: an unchanged
+slot is suppressed, while a title that leaves and later becomes newly visible
+is a new impression marked `repeated`.
 
 One-time lifecycle events therefore use explicit lifecycle, attempt, session, or
 batch keys rather than render occurrence as their firing condition.

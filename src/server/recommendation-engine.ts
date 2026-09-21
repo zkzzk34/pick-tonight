@@ -1,5 +1,9 @@
 import type { MediaSummary } from "../shared/media-contracts.ts";
 import type {
+  RecommendationCandidateAgeCode,
+  RecommendationRatingConfidenceCode,
+} from "../shared/recommendation-evidence.ts";
+import type {
   RecommendationExplanation,
   RecommendationRequest,
   SupportedMood,
@@ -32,8 +36,8 @@ export const RATING_CONFIDENCE_CONFIG = {
   establishedStrongVoteCount: 500,
 } as const;
 
-export type RatingConfidenceState = "limited" | "medium" | "strong";
-export type RatingAgeState = "recent" | "established" | "unknown";
+export type RatingConfidenceState = RecommendationRatingConfidenceCode;
+export type RatingAgeState = RecommendationCandidateAgeCode;
 
 export interface PreferredGenreScoreEvidence {
   readonly requestedGenreIds: readonly number[];

@@ -17,7 +17,9 @@ Dashboard URL:
 
 `https://us.posthog.com/project/614630/dashboard/2111781`
 
-The dashboard is configured against analytics taxonomy version `2`.
+The dashboard is configured against the current analytics taxonomy version
+`3`. Issue #36 changes the version filter only; it does not change the
+session-level funnel definitions below.
 
 ## Default audience
 
@@ -136,7 +138,9 @@ interpretation semantics next to the live metrics.
 
 ## Validation performed
 
-The dashboard was manually validated with taxonomy-v2 development traffic.
+The dashboard was originally manually validated with taxonomy-v2
+development/internal traffic. Issue #36 advances its eight query filters to
+taxonomy v3 so new product events remain in the same canonical funnel.
 
 A completed development/internal journey produced:
 
@@ -157,6 +161,18 @@ Filter behavior was then verified explicitly:
 
 This proves the dashboard audience is controlled through saved dashboard
 filters rather than by retaining development-only values as the final view.
+
+### Taxonomy-v3 migration verification — 2026-09-20
+
+Issue #36 changed the taxonomy predicate in all eight analytical queries from
+`2` to `3` without changing the funnel, timing, guardrail, or context-segment
+definitions.
+
+PostHog then re-ran all eight queries successfully. The saved dashboard still
+uses `Last 7 days`, `analytics_environment = pilot`, and
+`traffic_class = participant`; its empty/zero result is expected because no
+matching taxonomy-v3 participant traffic exists yet. Development/internal data
+was not relabeled to populate the pilot view.
 
 ## Small-sample interpretation
 

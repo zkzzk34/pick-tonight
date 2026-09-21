@@ -1,11 +1,11 @@
-// PickTonight Issue #34
+// PickTonight Issues #34–#36
 //
-// PostHog storage-side property allowlist for the 16 reviewed PickTonight
+// PostHog storage-side property allowlist for the 17 reviewed PickTonight
 // product events.
 //
 // Deployment contract:
 //
-// 1. Apply this transformation only to the 15 PickTonight taxonomy events.
+// 1. Apply this transformation only to the 17 PickTonight taxonomy events.
 // 2. Disable the GeoIP enrichment transformation for PickTonight.
 // 3. Keep project-level "Discard client IP data" enabled.
 // 4. Place this transformation last among transformations that can modify
@@ -163,6 +163,29 @@ if (event.event = 'recommendation_empty_shown') {
         'session_id': event.properties.session_id,
         'recommendation_session_id': event.properties.recommendation_session_id,
         'algorithm_version': event.properties.algorithm_version
+    }
+
+    return returnEvent
+}
+
+if (event.event = 'recommendation_item_shown') {
+    returnEvent.properties := {
+        'taxonomy_version': event.properties.taxonomy_version,
+        'ui_locale': event.properties.ui_locale,
+        'analytics_environment': event.properties.analytics_environment,
+        'traffic_class': event.properties.traffic_class,
+        'session_id': event.properties.session_id,
+        'recommendation_session_id': event.properties.recommendation_session_id,
+        'algorithm_version': event.properties.algorithm_version,
+        'recommendation_item_id': event.properties.recommendation_item_id,
+        'media_type': event.properties.media_type,
+        'position': event.properties.position,
+        'batch_sequence': event.properties.batch_sequence,
+        'impression_sequence': event.properties.impression_sequence,
+        'candidate_age_code': event.properties.candidate_age_code,
+        'rating_confidence_code': event.properties.rating_confidence_code,
+        'provider_claim_status': event.properties.provider_claim_status,
+        'repeat_status': event.properties.repeat_status
     }
 
     return returnEvent

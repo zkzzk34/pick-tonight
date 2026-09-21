@@ -18,6 +18,7 @@ Each `RecommendationCardData` value can provide:
 - movie runtime or television episode-length context;
 - rating value, vote count, and confidence tier;
 - freshness copy with an explicit date or current-title basis;
+- canonical decision-evidence codes for candidate age and rating confidence;
 - regional provider names with an explicit JustWatch source;
 - a complete absolute HTTPS trailer URL;
 - fit copy identified as structured recommendation evidence.
@@ -55,6 +56,20 @@ recommendation engine:
 
 Ratings remain supporting context. They are not presented as a guarantee of
 quality, enjoyment, or personal fit.
+
+## Decision-analysis evidence
+
+Each card carries `decisionEvidence` separately from display copy:
+
+- `candidateAgeCode = recent | established | unknown`;
+- `ratingConfidenceCode = limited | medium | strong`.
+
+These types are shared with the recommendation engine so browser analytics do
+not reclassify release dates, rating values, or vote counts independently.
+They are eligible only for the consent-gated `recommendation_item_shown` event.
+The browser does not send the title, media key, TMDB ID, release date, rating
+value, or vote count and does not persist the decision-evidence object in the
+watchlist.
 
 ## Interaction boundary
 
@@ -125,7 +140,7 @@ The application preview uses explicitly labeled sample titles and values. It
 does not claim that they are live recommendations.
 
 HTTP recommendation routing, mapping server-side title enrichment into
-browser-ready card data, structured explanation mapping, durable action
-semantics, watchlist persistence, analytics, and personalization remain owned
-by their later issues. No TMDB credential or direct TMDB request is added to
-browser code.
+browser-ready card data, structured explanation mapping, and personalization
+remain owned by their later issues. Watchlist persistence and consent-gated
+analytics now have separate implemented contracts. No TMDB credential or
+direct TMDB request is added to browser code.

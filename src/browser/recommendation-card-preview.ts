@@ -11,6 +11,10 @@ function previewCard(
     title: "Preview movie A",
     year: 2025,
     mediaType: "movie",
+    decisionEvidence: {
+      candidateAgeCode: "established",
+      ratingConfidenceCode: "strong",
+    },
     overview: "Sample overview showing the recommendation-card layout.",
     posterUrl: null,
     genres: ["Comedy", "Adventure"],
@@ -42,6 +46,10 @@ export const INITIAL_PREVIEW_RECOMMENDATIONS = [
       voteCount: 18,
       confidence: "low",
     },
+    decisionEvidence: {
+      candidateAgeCode: "established",
+      ratingConfidenceCode: "limited",
+    },
   }),
   previewCard({
     mediaKey: "preview:movie-c",
@@ -53,6 +61,10 @@ export const INITIAL_PREVIEW_RECOMMENDATIONS = [
       average: 0,
       voteCount: 0,
       confidence: "none",
+    },
+    decisionEvidence: {
+      candidateAgeCode: "unknown",
+      ratingConfidenceCode: "limited",
     },
   }),
 ] as const satisfies RecommendationCardSet;
@@ -67,6 +79,10 @@ const PREVIEW_MOVIE_D = previewCard({
     average: 7.4,
     voteCount: 132,
     confidence: "established",
+  },
+  decisionEvidence: {
+    candidateAgeCode: "established",
+    ratingConfidenceCode: "medium",
   },
 });
 
@@ -84,6 +100,10 @@ const PREVIEW_TELEVISION_E = previewCard({
     voteCount: 410,
     confidence: "high",
   },
+  decisionEvidence: {
+    candidateAgeCode: "established",
+    ratingConfidenceCode: "medium",
+  },
 });
 
 const PREVIEW_MOVIE_F = previewCard({
@@ -98,6 +118,10 @@ const PREVIEW_MOVIE_F = previewCard({
     average: 7.1,
     voteCount: 265,
     confidence: "established",
+  },
+  decisionEvidence: {
+    candidateAgeCode: "established",
+    ratingConfidenceCode: "medium",
   },
 });
 
