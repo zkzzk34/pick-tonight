@@ -16,9 +16,9 @@ const providerMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./analytics-posthog", () => ({
-  activateDevelopmentAnalytics: providerMocks.activate,
-  captureDevelopmentAnalyticsEvent: providerMocks.capture,
-  deactivateDevelopmentAnalytics: providerMocks.deactivate,
+  activateAnalytics: providerMocks.activate,
+  captureAnalyticsEvent: providerMocks.capture,
+  deactivateAnalytics: providerMocks.deactivate,
 }));
 
 import App from "./App";
@@ -29,7 +29,7 @@ import {
 } from "./analytics-identity-storage";
 import { ANALYTICS_CONSENT_STORAGE_KEY } from "./analytics-consent-storage";
 
-describe("App development analytics provider lifecycle", () => {
+describe("App analytics provider lifecycle", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -39,6 +39,39 @@ describe("App development analytics provider lifecycle", () => {
     providerMocks.capture.mockReturnValue(true);
     providerMocks.deactivate.mockReset();
     resetAnalyticsTrackerForTests();
+  });
+
+  it("keeps the internal-session marker out of storage until consent", async () => {
+    window.history.replaceState({}, "", "/?picktonight_internal=1");
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(providerMocks.deactivate).toHaveBeenCalled();
+    });
+
+    expect(window.location.search).toBe("");
+
+    expect(
+      window.sessionStorage.getItem("picktonight.analytics.internal.v1"),
+    ).toBeNull();
+
+    expect(providerMocks.activate).not.toHaveBeenCalled();
+    expect(providerMocks.capture).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Allow analytics",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(providerMocks.activate).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      window.sessionStorage.getItem("picktonight.analytics.internal.v1"),
+    ).toBe("1");
   });
 
   it("never activates the provider before consent", async () => {
@@ -183,6 +216,8 @@ describe("App development analytics provider lifecycle", () => {
   });
 
   it("deactivates immediately when analytics is reset", async () => {
+    window.sessionStorage.setItem("picktonight.analytics.internal.v1", "1");
+
     window.localStorage.setItem(
       ANALYTICS_CONSENT_STORAGE_KEY,
       '{"version":1,"choice":"accepted"}',
@@ -207,6 +242,10 @@ describe("App development analytics provider lifecycle", () => {
     );
 
     expect(providerMocks.deactivate).toHaveBeenCalled();
+
+    expect(
+      window.sessionStorage.getItem("picktonight.analytics.internal.v1"),
+    ).toBeNull();
 
     await waitFor(() => {
       expect(

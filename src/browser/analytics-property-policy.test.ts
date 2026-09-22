@@ -310,6 +310,29 @@ describe("Issue #34 analytics browser property policy", () => {
     });
   }
 
+  it("accepts every reviewed analytics environment code", () => {
+    for (const analyticsEnvironment of [
+      "development",
+      "test",
+      "preview",
+      "pilot",
+    ] as const) {
+      const filtered = filterPickTonightAnalyticsBrowserProperties(
+        "app_opened",
+        {
+          ...transportProperties(),
+          ...VALID_EVENT_PROPERTIES.app_opened,
+          analytics_environment: analyticsEnvironment,
+          traffic_class: "internal",
+        },
+      );
+
+      expect(filtered).not.toBeNull();
+      expect(filtered?.analytics_environment).toBe(analyticsEnvironment);
+      expect(filtered?.traffic_class).toBe("internal");
+    }
+  });
+
   it("rejects unreviewed environment and traffic-class codes", () => {
     expectEventToBeRejected("app_opened", {
       analytics_environment: "production",

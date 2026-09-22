@@ -9,7 +9,7 @@ const analyticsCapture = vi.hoisted(() =>
 );
 
 vi.mock("./analytics-posthog", () => ({
-  captureDevelopmentAnalyticsEvent: analyticsCapture,
+  captureAnalyticsEvent: analyticsCapture,
 }));
 
 import type { RecommendationAnalyticsContext } from "./analytics-tracker";
@@ -40,7 +40,7 @@ describe("Issue #35 picker-funnel analytics events", () => {
       {
         taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
         ui_locale: "en-US",
-        analytics_environment: "development",
+        analytics_environment: "test",
         traffic_class: "internal",
         session_id: CONTEXT.analyticsSessionId,
         recommendation_session_id: CONTEXT.recommendationSessionId,

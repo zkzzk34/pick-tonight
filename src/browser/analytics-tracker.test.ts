@@ -7,7 +7,7 @@ const captureMock = vi.hoisted(() =>
 );
 
 vi.mock("./analytics-posthog", () => ({
-  captureDevelopmentAnalyticsEvent: captureMock,
+  captureAnalyticsEvent: captureMock,
 }));
 
 import {

@@ -10,6 +10,11 @@ import {
   isPickTonightAnalyticsEventName,
 } from "./analytics-events";
 
+const TEST_RUNTIME = {
+  analyticsEnvironment: "test",
+  trafficClass: "internal",
+} as const;
+
 describe("PickTonight analytics event contract", () => {
   it("defines exactly the reviewed product event vocabulary", () => {
     expect(PICKTONIGHT_ANALYTICS_EVENT_NAMES).toEqual([
@@ -49,11 +54,13 @@ describe("PickTonight analytics event contract", () => {
     );
   });
 
-  it("creates the minimal shared base contract", () => {
-    expect(createAnalyticsBaseProperties("analytics-session")).toEqual({
+  it("creates the minimal shared base contract from the runtime policy", () => {
+    expect(
+      createAnalyticsBaseProperties("analytics-session", TEST_RUNTIME),
+    ).toEqual({
       taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
       ui_locale: ANALYTICS_UI_LOCALE,
-      analytics_environment: "development",
+      analytics_environment: "test",
       traffic_class: "internal",
       session_id: "analytics-session",
     });
@@ -64,11 +71,12 @@ describe("PickTonight analytics event contract", () => {
       createRecommendationScopedProperties(
         "analytics-session",
         "recommendation-session",
+        TEST_RUNTIME,
       ),
     ).toEqual({
       taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
       ui_locale: ANALYTICS_UI_LOCALE,
-      analytics_environment: "development",
+      analytics_environment: "test",
       traffic_class: "internal",
       session_id: "analytics-session",
       recommendation_session_id: "recommendation-session",

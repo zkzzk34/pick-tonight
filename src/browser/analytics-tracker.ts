@@ -14,7 +14,7 @@ import type {
   ReplacementFeedbackAction,
 } from "./feedback-session";
 import { generateAnalyticsId } from "./analytics-identity-storage";
-import { captureDevelopmentAnalyticsEvent } from "./analytics-posthog";
+import { captureAnalyticsEvent } from "./analytics-posthog";
 import type { RecommendationCardData } from "./recommendation-card-model";
 
 export interface RecommendationAnalyticsContext {
@@ -50,7 +50,7 @@ function captureOnce(key: string, capture: () => boolean): boolean {
 
 export function trackAppOpened(sessionId: string): boolean {
   return captureOnce(`app_opened:${sessionId}`, () =>
-    captureDevelopmentAnalyticsEvent(
+    captureAnalyticsEvent(
       "app_opened",
       createAnalyticsBaseProperties(sessionId),
     ),
@@ -59,7 +59,7 @@ export function trackAppOpened(sessionId: string): boolean {
 
 export function trackConsentResponded(sessionId: string): boolean {
   return captureOnce(`consent_responded:${sessionId}`, () =>
-    captureDevelopmentAnalyticsEvent("consent_responded", {
+    captureAnalyticsEvent("consent_responded", {
       ...createAnalyticsBaseProperties(sessionId),
       response: "accepted",
     }),
@@ -71,7 +71,7 @@ export function trackPickerStarted(
   attemptKey: number,
 ): boolean {
   return captureOnce(`picker_started:${sessionId}:${attemptKey}`, () =>
-    captureDevelopmentAnalyticsEvent(
+    captureAnalyticsEvent(
       "picker_started",
       createAnalyticsBaseProperties(sessionId),
     ),
@@ -85,7 +85,7 @@ export function trackPickerStepCompleted(
   return captureOnce(
     `picker_step_completed:${sessionId}:${attemptKey}:preferences_reviewed`,
     () =>
-      captureDevelopmentAnalyticsEvent("picker_step_completed", {
+      captureAnalyticsEvent("picker_step_completed", {
         ...createAnalyticsBaseProperties(sessionId),
         step: "preferences_reviewed",
       }),
@@ -98,7 +98,7 @@ export function trackPickerAbandoned(
   reason: PickerAbandonmentReason,
 ): boolean {
   return captureOnce(`picker_abandoned:${sessionId}:${attemptKey}`, () =>
-    captureDevelopmentAnalyticsEvent("picker_abandoned", {
+    captureAnalyticsEvent("picker_abandoned", {
       ...createAnalyticsBaseProperties(sessionId),
       reason,
     }),
@@ -137,7 +137,7 @@ export function trackContextSubmitted(
   return captureOnce(
     `context_submitted:${context.recommendationSessionId}`,
     () =>
-      captureDevelopmentAnalyticsEvent("context_submitted", {
+      captureAnalyticsEvent("context_submitted", {
         ...createRecommendationScopedProperties(
           context.analyticsSessionId,
           context.recommendationSessionId,
@@ -154,7 +154,7 @@ export function trackRecommendationBatchViewed(
   return captureOnce(
     `recommendation_batch_viewed:${context.recommendationSessionId}:${context.batchSequence}`,
     () =>
-      captureDevelopmentAnalyticsEvent("recommendation_batch_viewed", {
+      captureAnalyticsEvent("recommendation_batch_viewed", {
         ...createRecommendationScopedProperties(
           context.analyticsSessionId,
           context.recommendationSessionId,
@@ -168,7 +168,7 @@ export function trackRecommendationBatchViewed(
 export function trackRecommendationEmptyShown(
   context: RecommendationAnalyticsContext,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent(
+  return captureAnalyticsEvent(
     "recommendation_empty_shown",
     createRecommendationScopedProperties(
       context.analyticsSessionId,
@@ -195,7 +195,7 @@ export function trackApiErrorShown(
   context: RecommendationAnalyticsContext,
   errorKind: ApiErrorKind,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent("api_error_shown", {
+  return captureAnalyticsEvent("api_error_shown", {
     ...createRecommendationScopedProperties(
       context.analyticsSessionId,
       context.recommendationSessionId,
@@ -259,7 +259,7 @@ export function trackRecommendationItemShown(
   return captureOnce(
     `recommendation_item_shown:${context.recommendationSessionId}:${item.recommendationItemId}:${impressionSequence}`,
     () =>
-      captureDevelopmentAnalyticsEvent("recommendation_item_shown", {
+      captureAnalyticsEvent("recommendation_item_shown", {
         ...recommendationItemProperties(context, item),
         batch_sequence: context.batchSequence,
         impression_sequence: impressionSequence,
@@ -275,7 +275,7 @@ export function trackRecommendationOpened(
   context: RecommendationAnalyticsContext,
   item: RecommendationItemAnalyticsReference,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent(
+  return captureAnalyticsEvent(
     "recommendation_opened",
     recommendationItemProperties(context, item),
   );
@@ -285,7 +285,7 @@ export function trackTrailerClicked(
   context: RecommendationAnalyticsContext,
   item: RecommendationItemAnalyticsReference,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent(
+  return captureAnalyticsEvent(
     "trailer_clicked",
     recommendationItemProperties(context, item),
   );
@@ -296,7 +296,7 @@ export function trackRecommendationSaved(
   item: RecommendationItemAnalyticsReference,
   persistence: "persistent" | "session-only",
 ): boolean {
-  return captureDevelopmentAnalyticsEvent("recommendation_saved", {
+  return captureAnalyticsEvent("recommendation_saved", {
     ...recommendationItemProperties(context, item),
     persistence,
   });
@@ -307,7 +307,7 @@ export function trackRecommendationRejected(
   item: RecommendationItemAnalyticsReference,
   rejectionReason: RecommendationRejectionReason,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent("recommendation_rejected", {
+  return captureAnalyticsEvent("recommendation_rejected", {
     ...recommendationItemProperties(context, item),
     rejection_reason: rejectionReason,
   });
@@ -317,7 +317,7 @@ export function trackRecommendationsRefreshed(
   context: RecommendationAnalyticsContext,
   item: RecommendationItemAnalyticsReference,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent("recommendations_refreshed", {
+  return captureAnalyticsEvent("recommendations_refreshed", {
     ...createRecommendationScopedProperties(
       context.analyticsSessionId,
       context.recommendationSessionId,
@@ -332,7 +332,7 @@ export function trackWatchIntentConfirmed(
   context: RecommendationAnalyticsContext,
   item: RecommendationItemAnalyticsReference,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent(
+  return captureAnalyticsEvent(
     "watch_intent_confirmed",
     recommendationItemProperties(context, item),
   );
@@ -344,7 +344,7 @@ export function trackFeedbackSubmitted(
   feedbackReason: FeedbackReasonCode,
   originatingAction: ReplacementFeedbackAction,
 ): boolean {
-  return captureDevelopmentAnalyticsEvent("feedback_submitted", {
+  return captureAnalyticsEvent("feedback_submitted", {
     ...createRecommendationScopedProperties(
       context.analyticsSessionId,
       context.recommendationSessionId,

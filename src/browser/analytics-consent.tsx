@@ -203,10 +203,9 @@ export function PrivacySection({
               descriptions, or local taste information.
             </p>
             <p>
-              A configured development build can send one deliberate provider
-              reviewed product events only after you allow analytics. Automatic
-              collection remains disabled, and the reviewed product event
-              taxonomy is separate follow-up work.
+              A configured analytics environment can send reviewed product
+              events only after you allow analytics. Automated-test runtime is
+              provider-disabled, and automatic collection remains disabled.
             </p>
           </div>
 
