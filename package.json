@@ -20,7 +20,9 @@
     "test:watch": "vitest",
     "test:tmdb": "node --test proofs/tmdb-server-only/client.test.mjs proofs/tmdb-server-only/server.test.mjs",
     "preview": "vite preview",
-    "test:a11y": "vitest run src/browser/accessibility.test.tsx src/browser/confirmation-dialog.test.tsx && node --test proofs/accessibility-contrast.test.mjs"
+    "test:a11y": "vitest run src/browser/accessibility.test.tsx src/browser/confirmation-dialog.test.tsx && node --test proofs/accessibility-contrast.test.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "posthog-js": "1.430.3",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

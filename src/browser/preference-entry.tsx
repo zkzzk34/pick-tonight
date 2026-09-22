@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 
-import type { RecommendationRequester } from "./recommendation-request-state";
+import { requestConfiguredRecommendations } from "./recommendation-requester";
 import {
   COMPANION_OPTIONS,
   LANGUAGE_OPTIONS,
@@ -25,7 +25,6 @@ import {
   type PreferenceInterpretation,
   type PreferenceMediaType,
 } from "./preference-entry-model";
-import { INITIAL_PREVIEW_RECOMMENDATIONS } from "./recommendation-card-preview";
 import { FeedbackRecommendationExperience } from "./feedback-recommendation-experience";
 import { RecommendationRequestPanel } from "./recommendation-request-panel";
 import type { SaveToWatchlist } from "./local-watchlist";
@@ -157,12 +156,6 @@ function removePreferenceFromDraft(
 
   return { ...draft, suppressedKeys };
 }
-
-const requestPreviewRecommendations: RecommendationRequester = () =>
-  Promise.resolve({
-    status: "complete",
-    recommendations: INITIAL_PREVIEW_RECOMMENDATIONS,
-  });
 
 interface PreferenceEntryFlowProps {
   readonly analyticsPickerAttemptKey?: number;
@@ -999,7 +992,7 @@ export function PreferenceEntryFlow({
           key={JSON.stringify(reviewed.request)}
           onBeforeContextSubmit={markPickerStarted}
           onContextSubmitted={onContextSubmitted}
-          requestRecommendations={requestPreviewRecommendations}
+          requestRecommendations={requestConfiguredRecommendations}
           submitLabel="Show 3 picks"
           submittedPreferences={reviewed.request}
         >
