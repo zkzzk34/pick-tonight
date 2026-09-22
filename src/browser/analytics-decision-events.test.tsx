@@ -9,7 +9,7 @@ const analyticsCapture = vi.hoisted(() =>
 );
 
 vi.mock("./analytics-posthog", () => ({
-  captureDevelopmentAnalyticsEvent: analyticsCapture,
+  captureAnalyticsEvent: analyticsCapture,
 }));
 
 import type { RecommendationAnalyticsContext } from "./analytics-tracker";

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
 import { AnalyticsConsentPanel, PrivacySection } from "./analytics-consent";
+import { activateAnalytics, deactivateAnalytics } from "./analytics-posthog";
 import {
-  activateDevelopmentAnalytics,
-  deactivateDevelopmentAnalytics,
-} from "./analytics-posthog";
+  initializeAnalyticsRuntime,
+  prepareAnalyticsRuntime,
+  resetAnalyticsRuntimeSessionMarker,
+} from "./analytics-runtime";
 import {
   trackAppOpened,
   trackConsentResponded,
@@ -67,6 +69,8 @@ interface AnalyticsAppState {
 }
 
 function getInitialAnalyticsAppState(): AnalyticsAppState {
+  prepareAnalyticsRuntime();
+
   const consent = readAnalyticsConsent(getAnalyticsConsentStorage());
 
   if (consent !== "accepted") {
@@ -121,7 +125,8 @@ function App() {
     ) {
       const identifiers = analyticsState.identity.identifiers;
 
-      activateDevelopmentAnalytics(identifiers);
+      initializeAnalyticsRuntime();
+      activateAnalytics(identifiers);
 
       if (pendingAcceptedConsentSessionId.current === identifiers.sessionId) {
         trackConsentResponded(identifiers.sessionId);
@@ -132,7 +137,7 @@ function App() {
       return;
     }
 
-    deactivateDevelopmentAnalytics();
+    deactivateAnalytics();
   }, [analyticsState]);
 
   const abandonActivePicker = (
@@ -187,7 +192,7 @@ function App() {
       return;
     }
 
-    deactivateDevelopmentAnalytics();
+    deactivateAnalytics();
 
     resetAnalyticsIdentifiers(
       getAnalyticsIdentityStorage(),
@@ -206,13 +211,14 @@ function App() {
   const clearAnalyticsConsent = () => {
     abandonActivePicker("analytics_reset");
     pendingAcceptedConsentSessionId.current = null;
-    deactivateDevelopmentAnalytics();
+    deactivateAnalytics();
 
     const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
     const identifierReset = resetAnalyticsIdentifiers(
       getAnalyticsIdentityStorage(),
       getAnalyticsSessionStorage(),
     );
+    const runtimeMarkerReset = resetAnalyticsRuntimeSessionMarker();
 
     setAnalyticsState({
       consent: null,
@@ -225,7 +231,8 @@ function App() {
     return (
       consentCleared &&
       identifierReset.browserCleared &&
-      identifierReset.sessionCleared
+      identifierReset.sessionCleared &&
+      runtimeMarkerReset
     );
   };
 
@@ -235,18 +242,20 @@ function App() {
   const resetAllPickTonightData = () => {
     abandonActivePicker("all_data_reset");
     pendingAcceptedConsentSessionId.current = null;
-    deactivateDevelopmentAnalytics();
+    deactivateAnalytics();
 
     const consentCleared = resetAnalyticsConsent(getAnalyticsConsentStorage());
     const identifierReset = resetAnalyticsIdentifiers(
       getAnalyticsIdentityStorage(),
       getAnalyticsSessionStorage(),
     );
+    const runtimeMarkerReset = resetAnalyticsRuntimeSessionMarker();
 
     const analyticsStorageCleared =
       consentCleared &&
       identifierReset.browserCleared &&
-      identifierReset.sessionCleared;
+      identifierReset.sessionCleared &&
+      runtimeMarkerReset;
 
     const watchlistStorageCleared =
       watchlist.clearTitles().persistence === "persistent";

@@ -1,29 +1,32 @@
 import posthog, { type PostHogConfig } from "posthog-js";
 
-import { filterPickTonightAnalyticsBrowserProperties } from "./analytics-property-policy";
-
 import {
   isPickTonightAnalyticsEventName,
   type AnalyticsEventProperties,
   type PickTonightAnalyticsEventName,
 } from "./analytics-events";
 import type { AnalyticsIdentifiers } from "./analytics-identity-storage";
-export interface DevelopmentAnalyticsEnvironment {
-  readonly isDevelopment: boolean;
+import { filterPickTonightAnalyticsBrowserProperties } from "./analytics-property-policy";
+import {
+  getAnalyticsRuntimeClassification,
+  type AnalyticsRuntimeClassification,
+} from "./analytics-runtime";
+
+export interface AnalyticsProviderEnvironment {
+  readonly runtime: AnalyticsRuntimeClassification;
   readonly projectToken?: string;
   readonly apiHost?: string;
 }
 
-export interface DevelopmentPostHogConfiguration {
+export interface AnalyticsPostHogConfiguration {
   readonly projectToken: string;
   readonly apiHost: string;
 }
 
-export type DevelopmentAnalyticsActivationStatus =
-  "active" | "not-development" | "not-configured" | "failed";
+export type AnalyticsActivationStatus =
+  "active" | "disabled-test" | "not-configured" | "failed";
 
-export interface DevelopmentAnalyticsClient {
-  captureVerificationEvent(): void;
+export interface AnalyticsClient {
   captureEvent(
     eventName: PickTonightAnalyticsEventName,
     properties: Record<string, unknown>,
@@ -31,15 +34,15 @@ export interface DevelopmentAnalyticsClient {
   disableCapture(): void;
 }
 
-export type DevelopmentAnalyticsClientFactory = (
+export type AnalyticsClientFactory = (
   projectToken: string,
   config: Partial<PostHogConfig>,
   instanceName: string,
-) => DevelopmentAnalyticsClient;
+) => AnalyticsClient;
 
 interface ActivationOptions {
-  readonly environment?: DevelopmentAnalyticsEnvironment;
-  readonly createClient?: DevelopmentAnalyticsClientFactory;
+  readonly environment?: AnalyticsProviderEnvironment;
+  readonly createClient?: AnalyticsClientFactory;
   readonly warn?: (message: string) => void;
 }
 
@@ -57,14 +60,18 @@ const UNSAFE_AUTOMATIC_PROPERTIES = [
   "$keyword",
 ] as const;
 
-let activeClient: DevelopmentAnalyticsClient | null = null;
+let activeClient: AnalyticsClient | null = null;
 let activeIdentityKey: string | null = null;
-let verificationEventCaptured = false;
+let activeRuntime: AnalyticsRuntimeClassification | null = null;
 let instanceCounter = 0;
 
-function readDevelopmentAnalyticsEnvironment(): DevelopmentAnalyticsEnvironment {
+function readAnalyticsProviderEnvironment(): AnalyticsProviderEnvironment {
   return {
-    isDevelopment: import.meta.env.DEV,
+    runtime: getAnalyticsRuntimeClassification(),
+
+    // Issue #38 uses one PostHog project because the current account supports
+    // one project. The legacy DEV-named variables remain for local-config
+    // compatibility; environment/traffic event properties provide partitioning.
     projectToken: import.meta.env.VITE_POSTHOG_DEV_PROJECT_TOKEN,
     apiHost: import.meta.env.VITE_POSTHOG_DEV_HOST,
   };
@@ -113,10 +120,10 @@ function normalizeApiHost(value: string | undefined): string | null {
   }
 }
 
-export function resolveDevelopmentPostHogConfiguration(
-  environment: DevelopmentAnalyticsEnvironment,
-): DevelopmentPostHogConfiguration | null {
-  if (!environment.isDevelopment) {
+export function resolveAnalyticsPostHogConfiguration(
+  environment: AnalyticsProviderEnvironment,
+): AnalyticsPostHogConfiguration | null {
+  if (environment.runtime.analyticsEnvironment === "test") {
     return null;
   }
 
@@ -133,7 +140,7 @@ export function resolveDevelopmentPostHogConfiguration(
   };
 }
 
-export function buildDevelopmentPostHogConfig(
+export function buildAnalyticsPostHogConfig(
   apiHost: string,
   browserId: string,
 ): Partial<PostHogConfig> {
@@ -151,7 +158,7 @@ export function buildDevelopmentPostHogConfig(
     disable_persistence: true,
     person_profiles: "never",
 
-    // Automatic product collection is outside Issue #32.
+    // Automatic product collection remains outside the reviewed taxonomy.
     autocapture: false,
     capture_pageview: false,
     capture_pageleave: false,
@@ -167,8 +174,6 @@ export function buildDevelopmentPostHogConfig(
     disable_external_dependency_loading: true,
     disable_web_experiments: true,
 
-    // Issue #32 does not use flags, experiments, remote configuration, or
-    // survey targeting. This prevents the normal /flags startup request.
     advanced_disable_flags: true,
     advanced_disable_decide: true,
     advanced_disable_feature_flags: true,
@@ -191,18 +196,10 @@ export function buildDevelopmentPostHogConfig(
 
     property_denylist: [...UNSAFE_AUTOMATIC_PROPERTIES],
 
-    // The provider is initialized only after PickTonight consent. We do not
-    // call PostHog opt-in/out APIs because those APIs maintain provider-owned
-    // consent persistence.
     opt_out_capturing_by_default: false,
 
-    // Defense in depth: only the current reviewed product taxonomy may leave
-    // the browser. Automatic/system PostHog events remain rejected.
-    //
-    // For approved events, rebuild the property object from the event-specific
-    // PickTonight allowlist plus the minimum transport fields required for
-    // anonymous delivery. SDK-added URL, browser, device, session-entry,
-    // referrer, screen, viewport, and other provider metadata are not copied.
+    // Defense in depth: only the reviewed PickTonight event vocabulary and
+    // exact event-property allowlist may cross the provider boundary.
     before_send: (event) => {
       if (
         !event ||
@@ -227,9 +224,8 @@ export function buildDevelopmentPostHogConfig(
       };
     },
 
-    // This prevents an explicit event property containing an IP address.
-    // Network-level IP handling still requires the development PostHog project
-    // to be configured to discard client IP data before live verification.
+    // PickTonight does not intentionally add IP data as an event property.
+    // Project-level IP-discard configuration remains required operationally.
     ip: false,
   };
 }
@@ -242,7 +238,7 @@ function makeClientCaptureInert(client: {
   });
 }
 
-const defaultClientFactory: DevelopmentAnalyticsClientFactory = (
+const defaultClientFactory: AnalyticsClientFactory = (
   projectToken,
   config,
   instanceName,
@@ -250,8 +246,6 @@ const defaultClientFactory: DevelopmentAnalyticsClientFactory = (
   const client = posthog.init(projectToken, config, instanceName);
 
   return {
-    captureVerificationEvent() {},
-
     captureEvent(eventName, properties) {
       client.capture(eventName, properties, {
         send_instantly: true,
@@ -269,6 +263,7 @@ function disableActiveClient(): void {
 
   activeClient = null;
   activeIdentityKey = null;
+  activeRuntime = null;
 
   if (!client) {
     return;
@@ -281,26 +276,30 @@ function disableActiveClient(): void {
   }
 }
 
-export function activateDevelopmentAnalytics(
+export function activateAnalytics(
   identifiers: AnalyticsIdentifiers,
   options: ActivationOptions = {},
-): DevelopmentAnalyticsActivationStatus {
-  const environment =
-    options.environment ?? readDevelopmentAnalyticsEnvironment();
+): AnalyticsActivationStatus {
+  const environment = options.environment ?? readAnalyticsProviderEnvironment();
 
-  if (!environment.isDevelopment) {
+  if (environment.runtime.analyticsEnvironment === "test") {
     disableActiveClient();
-    return "not-development";
+    return "disabled-test";
   }
 
-  const configuration = resolveDevelopmentPostHogConfiguration(environment);
+  const configuration = resolveAnalyticsPostHogConfiguration(environment);
 
   if (!configuration) {
     disableActiveClient();
     return "not-configured";
   }
 
-  const identityKey = `${identifiers.browserId}:${identifiers.sessionId}`;
+  const identityKey = [
+    identifiers.browserId,
+    identifiers.sessionId,
+    environment.runtime.analyticsEnvironment,
+    environment.runtime.trafficClass,
+  ].join(":");
 
   if (activeClient && activeIdentityKey === identityKey) {
     return "active";
@@ -315,27 +314,20 @@ export function activateDevelopmentAnalytics(
       console.warn(message);
     });
 
-  let client: DevelopmentAnalyticsClient | null = null;
+  let client: AnalyticsClient | null = null;
 
   try {
     instanceCounter += 1;
 
     client = createClient(
       configuration.projectToken,
-      buildDevelopmentPostHogConfig(
-        configuration.apiHost,
-        identifiers.browserId,
-      ),
-      `picktonight_development_${instanceCounter}`,
+      buildAnalyticsPostHogConfig(configuration.apiHost, identifiers.browserId),
+      `picktonight_analytics_${instanceCounter}`,
     );
 
     activeClient = client;
     activeIdentityKey = identityKey;
-
-    if (!verificationEventCaptured) {
-      client.captureVerificationEvent();
-      verificationEventCaptured = true;
-    }
+    activeRuntime = environment.runtime;
 
     return "active";
   } catch {
@@ -347,24 +339,35 @@ export function activateDevelopmentAnalytics(
 
     activeClient = null;
     activeIdentityKey = null;
+    activeRuntime = null;
 
     warn(
-      "PickTonight development analytics could not start. Core product features remain available.",
+      "PickTonight analytics could not start. Core product features remain available.",
     );
 
     return "failed";
   }
 }
 
-export function captureDevelopmentAnalyticsEvent<
+export function captureAnalyticsEvent<
   TEventName extends PickTonightAnalyticsEventName,
 >(
   eventName: TEventName,
   properties: AnalyticsEventProperties<TEventName>,
 ): boolean {
   const client = activeClient;
+  const runtime = activeRuntime;
 
-  if (!client) {
+  if (!client || !runtime) {
+    return false;
+  }
+
+  // An active provider can send only events classified for exactly the
+  // environment and traffic class used when that provider was activated.
+  if (
+    properties.analytics_environment !== runtime.analyticsEnvironment ||
+    properties.traffic_class !== runtime.trafficClass
+  ) {
     return false;
   }
 
@@ -380,12 +383,11 @@ export function captureDevelopmentAnalyticsEvent<
   }
 }
 
-export function deactivateDevelopmentAnalytics(): void {
+export function deactivateAnalytics(): void {
   disableActiveClient();
 }
 
-export function resetDevelopmentAnalyticsForTests(): void {
+export function resetAnalyticsProviderForTests(): void {
   disableActiveClient();
-  verificationEventCaptured = false;
   instanceCounter = 0;
 }

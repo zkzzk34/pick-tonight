@@ -215,3 +215,38 @@ Its action counts, unique-item reach denominators, structured negative signals,
 rank/algorithm/evidence breakdowns, guardrails, privacy boundary, and
 small-sample interpretation are documented in
 [`recommendation-decision-dashboard.md`](./recommendation-decision-dashboard.md).
+
+## Issue #38 single-project traffic partition
+
+The current PostHog account supports one physical project.
+
+PickTonight therefore uses the existing project for consented development,
+preview, and pilot traffic while retaining a hard no-delivery boundary for
+automated tests.
+
+Analysis is partitioned with the reviewed event properties
+`analytics_environment` and `traffic_class`.
+
+Pilot-facing analysis requires `pilot / participant`.
+
+Development/internal analysis uses `development / internal`.
+
+The existing `VITE_POSTHOG_DEV_PROJECT_TOKEN` and
+`VITE_POSTHOG_DEV_HOST` names remain for compatibility with the current local
+configuration.
+
+### Internal Analytics QA dashboard
+
+Issue #38 added a saved PostHog dashboard named:
+
+`PickTonight — Internal Analytics QA`
+
+Its dashboard-level event-property filters are:
+
+- `analytics_environment = development`;
+- `traffic_class = internal`.
+
+The initial insight is `Internal event volume`.
+
+This view preserves useful development/internal analytics while the two
+pilot-facing dashboards remain scoped to pilot/participant traffic.

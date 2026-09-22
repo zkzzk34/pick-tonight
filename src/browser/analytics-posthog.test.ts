@@ -1,128 +1,152 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  activateDevelopmentAnalytics,
-  buildDevelopmentPostHogConfig,
-  captureDevelopmentAnalyticsEvent,
-  deactivateDevelopmentAnalytics,
-  resetDevelopmentAnalyticsForTests,
-  resolveDevelopmentPostHogConfiguration,
-  type DevelopmentAnalyticsClient,
-  type DevelopmentAnalyticsClientFactory,
-} from "./analytics-posthog";
-import type { AnalyticsIdentifiers } from "./analytics-identity-storage";
 import { createAnalyticsBaseProperties } from "./analytics-events";
+import type { AnalyticsIdentifiers } from "./analytics-identity-storage";
+import {
+  activateAnalytics,
+  buildAnalyticsPostHogConfig,
+  captureAnalyticsEvent,
+  deactivateAnalytics,
+  resetAnalyticsProviderForTests,
+  resolveAnalyticsPostHogConfiguration,
+  type AnalyticsClient,
+  type AnalyticsClientFactory,
+  type AnalyticsProviderEnvironment,
+} from "./analytics-posthog";
 
 const IDENTIFIERS: AnalyticsIdentifiers = {
   browserId: "11111111-1111-4111-8111-111111111111",
   sessionId: "22222222-2222-4222-8222-222222222222",
 };
-const CONFIGURED_ENVIRONMENT = {
-  isDevelopment: true,
-  projectToken: "phc_development_project_token",
-  apiHost: "https://us.i.posthog.com",
+
+const DEVELOPMENT_RUNTIME = {
+  analyticsEnvironment: "development",
+  trafficClass: "internal",
 } as const;
 
+const TEST_RUNTIME = {
+  analyticsEnvironment: "test",
+  trafficClass: "internal",
+} as const;
+
+const PREVIEW_RUNTIME = {
+  analyticsEnvironment: "preview",
+  trafficClass: "internal",
+} as const;
+
+const PILOT_PARTICIPANT_RUNTIME = {
+  analyticsEnvironment: "pilot",
+  trafficClass: "participant",
+} as const;
+
+const PILOT_INTERNAL_RUNTIME = {
+  analyticsEnvironment: "pilot",
+  trafficClass: "internal",
+} as const;
+
+const CONFIGURED_ENVIRONMENT: AnalyticsProviderEnvironment = {
+  runtime: DEVELOPMENT_RUNTIME,
+  projectToken: "phc_shared_project_token",
+  apiHost: "https://us.i.posthog.com",
+};
+
 function makeClient() {
-  const captureVerificationEvent = vi.fn(() => undefined);
-  const captureEvent = vi.fn<DevelopmentAnalyticsClient["captureEvent"]>(
-    () => undefined,
-  );
+  const captureEvent = vi.fn<AnalyticsClient["captureEvent"]>(() => undefined);
   const disableCapture = vi.fn(() => undefined);
 
   return {
-    captureVerificationEvent,
     captureEvent,
     disableCapture,
-  } satisfies DevelopmentAnalyticsClient;
+  } satisfies AnalyticsClient;
 }
 
-describe("development PostHog adapter", () => {
+describe("Issue #38 PostHog traffic boundary", () => {
   beforeEach(() => {
-    resetDevelopmentAnalyticsForTests();
+    resetAnalyticsProviderForTests();
   });
 
-  it("requires development mode and both documented configuration values", () => {
+  it("uses one configured PostHog project across development, preview, and pilot", () => {
     expect(
-      resolveDevelopmentPostHogConfiguration({
-        ...CONFIGURED_ENVIRONMENT,
-        isDevelopment: false,
-      }),
-    ).toBeNull();
-
-    expect(
-      resolveDevelopmentPostHogConfiguration({
-        isDevelopment: true,
-        projectToken: undefined,
-        apiHost: CONFIGURED_ENVIRONMENT.apiHost,
-      }),
-    ).toBeNull();
-
-    expect(
-      resolveDevelopmentPostHogConfiguration({
-        isDevelopment: true,
-        projectToken: CONFIGURED_ENVIRONMENT.projectToken,
-        apiHost: undefined,
-      }),
-    ).toBeNull();
-
-    expect(
-      resolveDevelopmentPostHogConfiguration({
-        isDevelopment: true,
-        projectToken: "replace_with_your_posthog_development_project_token",
-        apiHost: CONFIGURED_ENVIRONMENT.apiHost,
-      }),
-    ).toBeNull();
-
-    expect(
-      resolveDevelopmentPostHogConfiguration(CONFIGURED_ENVIRONMENT),
+      resolveAnalyticsPostHogConfiguration(CONFIGURED_ENVIRONMENT),
     ).toEqual({
-      projectToken: CONFIGURED_ENVIRONMENT.projectToken,
-      apiHost: CONFIGURED_ENVIRONMENT.apiHost,
+      projectToken: "phc_shared_project_token",
+      apiHost: "https://us.i.posthog.com",
+    });
+
+    expect(
+      resolveAnalyticsPostHogConfiguration({
+        ...CONFIGURED_ENVIRONMENT,
+        runtime: PREVIEW_RUNTIME,
+      }),
+    ).toEqual({
+      projectToken: "phc_shared_project_token",
+      apiHost: "https://us.i.posthog.com",
+    });
+
+    expect(
+      resolveAnalyticsPostHogConfiguration({
+        ...CONFIGURED_ENVIRONMENT,
+        runtime: PILOT_PARTICIPANT_RUNTIME,
+      }),
+    ).toEqual({
+      projectToken: "phc_shared_project_token",
+      apiHost: "https://us.i.posthog.com",
     });
   });
 
+  it("prevents automated-test runtime from resolving a provider", () => {
+    expect(
+      resolveAnalyticsPostHogConfiguration({
+        ...CONFIGURED_ENVIRONMENT,
+        runtime: TEST_RUNTIME,
+      }),
+    ).toBeNull();
+  });
+
+  it("requires the shared project configuration for deliverable environments", () => {
+    expect(
+      resolveAnalyticsPostHogConfiguration({
+        ...CONFIGURED_ENVIRONMENT,
+        runtime: PILOT_PARTICIPANT_RUNTIME,
+        projectToken: undefined,
+        apiHost: undefined,
+      }),
+    ).toBeNull();
+  });
+
   it("rejects unsafe or credential-bearing ingestion hosts", () => {
-    expect(
-      resolveDevelopmentPostHogConfiguration({
-        ...CONFIGURED_ENVIRONMENT,
-        apiHost: "http://example.com",
-      }),
-    ).toBeNull();
+    for (const apiHost of [
+      "http://example.com",
+      "https://user:password@example.com",
+      "https://example.com/ingest",
+    ]) {
+      expect(
+        resolveAnalyticsPostHogConfiguration({
+          ...CONFIGURED_ENVIRONMENT,
+          apiHost,
+        }),
+      ).toBeNull();
+    }
 
     expect(
-      resolveDevelopmentPostHogConfiguration({
-        ...CONFIGURED_ENVIRONMENT,
-        apiHost: "https://user:password@example.com",
-      }),
-    ).toBeNull();
-
-    expect(
-      resolveDevelopmentPostHogConfiguration({
-        ...CONFIGURED_ENVIRONMENT,
-        apiHost: "https://example.com/ingest",
-      }),
-    ).toBeNull();
-
-    expect(
-      resolveDevelopmentPostHogConfiguration({
+      resolveAnalyticsPostHogConfiguration({
         ...CONFIGURED_ENVIRONMENT,
         apiHost: "http://127.0.0.1:8000",
       }),
     ).toEqual({
-      projectToken: CONFIGURED_ENVIRONMENT.projectToken,
+      projectToken: "phc_shared_project_token",
       apiHost: "http://127.0.0.1:8000",
     });
   });
 
   it("builds the deliberately minimal provider configuration", () => {
-    const config = buildDevelopmentPostHogConfig(
-      CONFIGURED_ENVIRONMENT.apiHost,
+    const config = buildAnalyticsPostHogConfig(
+      "https://us.i.posthog.com",
       IDENTIFIERS.browserId,
     );
 
     expect(config).toMatchObject({
-      api_host: CONFIGURED_ENVIRONMENT.apiHost,
+      api_host: "https://us.i.posthog.com",
       bootstrap: {
         distinctID: IDENTIFIERS.browserId,
         isIdentifiedID: false,
@@ -155,23 +179,43 @@ describe("development PostHog adapter", () => {
 
     expect(config.bootstrap).not.toHaveProperty("sessionID");
   });
-  it("does not create a provider outside development or without configuration", () => {
-    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>();
+
+  it("hard-disables the actual Vitest runtime before provider routing", () => {
+    const createClient = vi.fn<AnalyticsClientFactory>();
 
     expect(
-      activateDevelopmentAnalytics(IDENTIFIERS, {
+      activateAnalytics(IDENTIFIERS, {
+        createClient,
+      }),
+    ).toBe("disabled-test");
+
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("hard-disables provider startup for automated tests", () => {
+    const createClient = vi.fn<AnalyticsClientFactory>();
+
+    expect(
+      activateAnalytics(IDENTIFIERS, {
         environment: {
           ...CONFIGURED_ENVIRONMENT,
-          isDevelopment: false,
+          runtime: TEST_RUNTIME,
         },
         createClient,
       }),
-    ).toBe("not-development");
+    ).toBe("disabled-test");
+
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("does not activate pilot analytics while the separate pilot project is unconfigured", () => {
+    const createClient = vi.fn<AnalyticsClientFactory>();
 
     expect(
-      activateDevelopmentAnalytics(IDENTIFIERS, {
+      activateAnalytics(IDENTIFIERS, {
         environment: {
-          isDevelopment: true,
+          ...CONFIGURED_ENVIRONMENT,
+          runtime: PILOT_PARTICIPANT_RUNTIME,
           projectToken: undefined,
           apiHost: undefined,
         },
@@ -181,33 +225,103 @@ describe("development PostHog adapter", () => {
 
     expect(createClient).not.toHaveBeenCalled();
   });
-  it("delivers reviewed product events only while the provider is active", () => {
-    const client = makeClient();
-    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
-    const properties = createAnalyticsBaseProperties(IDENTIFIERS.sessionId);
 
-    expect(captureDevelopmentAnalyticsEvent("app_opened", properties)).toBe(
+  it("delivers only events matching the active runtime classification", () => {
+    const client = makeClient();
+    const createClient = vi.fn<AnalyticsClientFactory>(() => client);
+
+    const developmentProperties = createAnalyticsBaseProperties(
+      IDENTIFIERS.sessionId,
+      DEVELOPMENT_RUNTIME,
+    );
+
+    const pilotProperties = createAnalyticsBaseProperties(
+      IDENTIFIERS.sessionId,
+      PILOT_PARTICIPANT_RUNTIME,
+    );
+
+    expect(captureAnalyticsEvent("app_opened", developmentProperties)).toBe(
       false,
     );
 
-    activateDevelopmentAnalytics(IDENTIFIERS, {
+    expect(
+      activateAnalytics(IDENTIFIERS, {
+        environment: CONFIGURED_ENVIRONMENT,
+        createClient,
+      }),
+    ).toBe("active");
+
+    expect(captureAnalyticsEvent("app_opened", developmentProperties)).toBe(
+      true,
+    );
+
+    expect(captureAnalyticsEvent("app_opened", pilotProperties)).toBe(false);
+
+    expect(client.captureEvent).toHaveBeenCalledTimes(1);
+    expect(client.captureEvent).toHaveBeenCalledWith(
+      "app_opened",
+      developmentProperties,
+    );
+
+    deactivateAnalytics();
+
+    expect(captureAnalyticsEvent("app_opened", developmentProperties)).toBe(
+      false,
+    );
+  });
+
+  it("allows controlled pilot/internal verification without relabeling it participant", () => {
+    const client = makeClient();
+    const createClient = vi.fn<AnalyticsClientFactory>(() => client);
+
+    expect(
+      activateAnalytics(IDENTIFIERS, {
+        environment: {
+          ...CONFIGURED_ENVIRONMENT,
+          runtime: PILOT_INTERNAL_RUNTIME,
+        },
+        createClient,
+      }),
+    ).toBe("active");
+
+    expect(createClient).toHaveBeenCalledWith(
+      "phc_shared_project_token",
+      expect.any(Object),
+      "picktonight_analytics_1",
+    );
+
+    const internalProperties = createAnalyticsBaseProperties(
+      IDENTIFIERS.sessionId,
+      PILOT_INTERNAL_RUNTIME,
+    );
+
+    const participantProperties = createAnalyticsBaseProperties(
+      IDENTIFIERS.sessionId,
+      PILOT_PARTICIPANT_RUNTIME,
+    );
+
+    expect(captureAnalyticsEvent("app_opened", internalProperties)).toBe(true);
+
+    expect(captureAnalyticsEvent("app_opened", participantProperties)).toBe(
+      false,
+    );
+  });
+
+  it("does not initialize twice for duplicate React synchronization", () => {
+    const client = makeClient();
+    const createClient = vi.fn<AnalyticsClientFactory>(() => client);
+
+    activateAnalytics(IDENTIFIERS, {
       environment: CONFIGURED_ENVIRONMENT,
       createClient,
     });
 
-    expect(captureDevelopmentAnalyticsEvent("app_opened", properties)).toBe(
-      true,
-    );
+    activateAnalytics(IDENTIFIERS, {
+      environment: CONFIGURED_ENVIRONMENT,
+      createClient,
+    });
 
-    expect(client.captureEvent).toHaveBeenCalledTimes(1);
-    expect(client.captureEvent).toHaveBeenCalledWith("app_opened", properties);
-
-    deactivateDevelopmentAnalytics();
-
-    expect(captureDevelopmentAnalyticsEvent("app_opened", properties)).toBe(
-      false,
-    );
-    expect(client.captureEvent).toHaveBeenCalledTimes(1);
+    expect(createClient).toHaveBeenCalledTimes(1);
   });
 
   it("isolates provider capture failure from core product behavior", () => {
@@ -217,63 +331,47 @@ describe("development PostHog adapter", () => {
       throw new Error("capture failure");
     });
 
-    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
+    const createClient = vi.fn<AnalyticsClientFactory>(() => client);
 
-    activateDevelopmentAnalytics(IDENTIFIERS, {
+    activateAnalytics(IDENTIFIERS, {
       environment: CONFIGURED_ENVIRONMENT,
       createClient,
     });
 
     expect(
-      captureDevelopmentAnalyticsEvent(
+      captureAnalyticsEvent(
         "app_opened",
-        createAnalyticsBaseProperties(IDENTIFIERS.sessionId),
+        createAnalyticsBaseProperties(
+          IDENTIFIERS.sessionId,
+          DEVELOPMENT_RUNTIME,
+        ),
       ),
     ).toBe(false);
   });
 
-  it("does not initialize or capture again for duplicate React synchronization", () => {
-    const client = makeClient();
-
-    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
-
-    activateDevelopmentAnalytics(IDENTIFIERS, {
-      environment: CONFIGURED_ENVIRONMENT,
-      createClient,
-    });
-
-    activateDevelopmentAnalytics(IDENTIFIERS, {
-      environment: CONFIGURED_ENVIRONMENT,
-      createClient,
-    });
-
-    expect(createClient).toHaveBeenCalledTimes(1);
-    expect(client.captureVerificationEvent).toHaveBeenCalledTimes(1);
-  });
-
   it("makes the active client capture-inert when analytics is withdrawn", () => {
     const client = makeClient();
+    const createClient = vi.fn<AnalyticsClientFactory>(() => client);
 
-    const createClient = vi.fn<DevelopmentAnalyticsClientFactory>(() => client);
-
-    activateDevelopmentAnalytics(IDENTIFIERS, {
+    activateAnalytics(IDENTIFIERS, {
       environment: CONFIGURED_ENVIRONMENT,
       createClient,
     });
 
-    deactivateDevelopmentAnalytics();
+    deactivateAnalytics();
 
     expect(client.disableCapture).toHaveBeenCalledTimes(1);
   });
+
   it("fails safely when provider startup fails", () => {
     const warn = vi.fn();
 
-    const createClient: DevelopmentAnalyticsClientFactory = () => {
+    const createClient: AnalyticsClientFactory = () => {
       throw new Error("provider startup failure");
     };
 
     expect(
-      activateDevelopmentAnalytics(IDENTIFIERS, {
+      activateAnalytics(IDENTIFIERS, {
         environment: CONFIGURED_ENVIRONMENT,
         createClient,
         warn,
@@ -281,7 +379,7 @@ describe("development PostHog adapter", () => {
     ).toBe("failed");
 
     expect(warn).toHaveBeenCalledWith(
-      "PickTonight development analytics could not start. Core product features remain available.",
+      "PickTonight analytics could not start. Core product features remain available.",
     );
   });
 });

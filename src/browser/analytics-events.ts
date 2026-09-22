@@ -4,6 +4,12 @@ import type {
   RecommendationRatingConfidenceCode,
 } from "../shared/recommendation-evidence";
 import { RECOMMENDATION_HEURISTIC_VERSION } from "../shared/recommendation-version";
+import {
+  getAnalyticsRuntimeClassification,
+  type AnalyticsEnvironmentCode,
+  type AnalyticsRuntimeClassification,
+  type AnalyticsTrafficClass,
+} from "./analytics-runtime";
 import type {
   FeedbackReasonCode,
   ReplacementFeedbackAction,
@@ -45,9 +51,10 @@ export function isPickTonightAnalyticsEventName(
   return PICKTONIGHT_ANALYTICS_EVENT_NAME_SET.has(value);
 }
 
-export type AnalyticsEnvironmentCode = "development" | "pilot";
-
-export type AnalyticsTrafficClass = "internal" | "participant";
+export type {
+  AnalyticsEnvironmentCode,
+  AnalyticsTrafficClass,
+} from "./analytics-runtime";
 
 export interface AnalyticsBaseProperties {
   readonly taxonomy_version: typeof ANALYTICS_TAXONOMY_VERSION;
@@ -170,14 +177,13 @@ export type AnalyticsEventProperties<
 
 export function createAnalyticsBaseProperties(
   sessionId: string,
+  runtime: AnalyticsRuntimeClassification = getAnalyticsRuntimeClassification(),
 ): AnalyticsBaseProperties {
-  const isDevelopment = import.meta.env.DEV;
-
   return {
     taxonomy_version: ANALYTICS_TAXONOMY_VERSION,
     ui_locale: ANALYTICS_UI_LOCALE,
-    analytics_environment: isDevelopment ? "development" : "pilot",
-    traffic_class: isDevelopment ? "internal" : "participant",
+    analytics_environment: runtime.analyticsEnvironment,
+    traffic_class: runtime.trafficClass,
     session_id: sessionId,
   };
 }
@@ -185,9 +191,10 @@ export function createAnalyticsBaseProperties(
 export function createRecommendationScopedProperties(
   sessionId: string,
   recommendationSessionId: string,
+  runtime: AnalyticsRuntimeClassification = getAnalyticsRuntimeClassification(),
 ): RecommendationScopedProperties {
   return {
-    ...createAnalyticsBaseProperties(sessionId),
+    ...createAnalyticsBaseProperties(sessionId, runtime),
     recommendation_session_id: recommendationSessionId,
     algorithm_version: RECOMMENDATION_HEURISTIC_VERSION,
   };

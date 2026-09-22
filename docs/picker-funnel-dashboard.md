@@ -185,3 +185,41 @@ volume exists.
 A zero on the saved pilot-facing dashboard means no matching pilot participant
 traffic exists in the selected period; it must not be interpreted as evidence
 of either successful or unsuccessful picker performance by itself.
+
+## Issue #38 traffic filtering
+
+The current PostHog account uses one physical analytics project. Issue #38
+therefore enforces the pilot audience through reviewed event properties rather
+than through a separate PostHog project.
+
+
+Issue #38 keeps this dashboard's saved pilot audience unchanged:
+
+- `analytics_environment = pilot`;
+- `traffic_class = participant`.
+
+Development, automated-test, preview, and explicitly marked internal pilot
+traffic are excluded by these reviewed event properties. The exclusion does
+not use browser, operating-system, provider, region, network, IP, or device
+fingerprint properties.
+
+Controlled synthetic verification must remain internal/test traffic and must
+not be relabeled as participant traffic.
+
+The detailed runtime, reset, and synthetic-verification policy is documented in
+[`analytics-traffic-filtering.md`](./analytics-traffic-filtering.md).
+
+### Issue #38 live filter verification
+
+The saved Picker Funnel dashboard was verified on September 22, 2026 with:
+
+- `analytics_environment = pilot`;
+- `traffic_class = participant`;
+- `session_id` doesn't equal either known synthetic participant-contamination
+  session:
+  - `832deb6a-737e-466c-8aaa-385ade410b97`;
+  - `d3536285-87c5-43c3-9d5e-fab01efb87c6`.
+
+The session exclusions quarantine only known controlled-test contamination.
+They are not a replacement for the canonical pilot/participant audience and do
+not use identifying or fingerprint-derived attributes.

@@ -11,6 +11,10 @@ import {
   type PickTonightAnalyticsEventName,
   type PickTonightAnalyticsEventProperties,
 } from "./analytics-events";
+import {
+  ANALYTICS_ENVIRONMENT_CODES,
+  ANALYTICS_TRAFFIC_CLASSES,
+} from "./analytics-runtime";
 
 type PropertyRecord = Record<string, unknown>;
 
@@ -381,11 +385,8 @@ function hasValidBaseProperties(properties: PropertyRecord): boolean {
   return (
     properties.taxonomy_version === ANALYTICS_TAXONOMY_VERSION &&
     properties.ui_locale === ANALYTICS_UI_LOCALE &&
-    isOneOf(properties.analytics_environment, [
-      "development",
-      "pilot",
-    ] as const) &&
-    isOneOf(properties.traffic_class, ["internal", "participant"] as const) &&
+    isOneOf(properties.analytics_environment, ANALYTICS_ENVIRONMENT_CODES) &&
+    isOneOf(properties.traffic_class, ANALYTICS_TRAFFIC_CLASSES) &&
     isUuidV4(properties.session_id)
   );
 }
