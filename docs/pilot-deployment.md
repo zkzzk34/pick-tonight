@@ -118,10 +118,55 @@ Protected Preview API testing:
 Production promotion occurs only after the Preview deployment passes the
 deployed smoke tests.
 
-Public pilot URL: pending Issue #41 production promotion
+Public pilot URL: https://pick-tonight.vercel.app
+
+Verified Preview URL: https://pick-tonight-nbtfvqmpz-pick-tonight.vercel.app
+
+Production deployment ID: dpl_4nkc7Pphdyv3QyA9Cc5xvoDc1GF9
+
+Release source commit: d0a4a069e7c6c5116b598682411277b36b2743c0
+
+The Production build uses
+`VITE_PICKTONIGHT_ANALYTICS_ENVIRONMENT=pilot`.
 
 Issue #41 does not purchase a custom domain and does not make final branding
 claims for the PickTonight working title.
+
+## Verified pilot release
+
+The Issue #41 pilot release was validated on September 23, 2026.
+
+Deployment verification confirmed:
+
+- the public pilot domain resolves to the verified Production deployment;
+- the Production browser bundle uses the `pilot` analytics environment;
+- HTTPS and `GET /api/health` succeed;
+- standardized API errors are returned for unsupported methods;
+- live TMDB-backed recommendations return three unique titles with posters;
+- live title-detail enrichment succeeds;
+- rejection returns an unseen replacement;
+- save, reject/replacement, and watch-intent browser flows succeed;
+- the TMDB API Read Access Token is absent from the public browser bundle,
+  recommendation responses, and title-detail responses;
+- declining analytics sends zero PostHog requests;
+- accepting analytics sends reviewed events successfully to the configured
+  PostHog ingestion host;
+- PostHog ingestion independently contains `consent_responded`, `app_opened`,
+  `picker_started`, and `picker_step_completed` with
+  `analytics_environment=pilot` and `traffic_class=internal`;
+- no Production runtime errors were found during the release smoke test.
+
+### Automated analytics verification
+
+PostHog intentionally filters browser automation such as headless browsers and
+sessions exposing `navigator.webdriver=true`.
+
+The controlled deployment smoke therefore uses a normal Chrome user agent and
+`navigator.webdriver=false` only inside the verification browser. The
+PickTonight application does not disable PostHog bot filtering.
+
+The verification session also uses `picktonight_internal=1` so release testing
+is classified as internal traffic rather than participant traffic.
 
 ## Rollback
 
