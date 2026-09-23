@@ -49,7 +49,13 @@
 
 .title-detail__poster-placeholder {
   display: grid;
-  place-content: center;
+  /*
+   * Center placeholder content when it fits, but keep oversized text anchored
+   * to the block-start edge. This prevents enlarged or translated text from
+   * overflowing upward over the preceding Back control.
+   */
+  align-content: safe center;
+  justify-content: center;
   gap: 0.75rem;
   padding: 1rem;
   color: #aaa2ba;

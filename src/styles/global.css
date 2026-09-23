@@ -57,6 +57,7 @@ select {
 
 .app-shell {
   display: grid;
+  overflow-wrap: anywhere;
   grid-template-rows: auto 1fr auto;
   width: min(calc(100% - 2.5rem), 72rem);
   min-height: 100vh;
