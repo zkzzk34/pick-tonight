@@ -1,41 +1,75 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { HEALTH_API_PATH } from "../shared/api-paths.ts";
+import { writeJsonResponse } from "./api-response.ts";
 import {
-  API_ERRORS,
-  writeApiError,
-  writeJsonResponse,
-} from "./api-response.ts";
+  handleProductApiRequest,
+  MAX_PRODUCT_API_BODY_BYTES,
+} from "./product-api-handler.ts";
 
-const HEALTH_RESPONSE = {
-  data: {
-    status: "ok",
-  },
-} as const;
+const MAX_LOCAL_REQUEST_BODY_BYTES = MAX_PRODUCT_API_BODY_BYTES + 1;
 
-function readPathname(requestTarget: string | undefined): string {
-  try {
-    return new URL(requestTarget ?? "/", "http://localhost").pathname;
-  } catch {
-    return "";
+class RequestBodyTooLargeError extends Error {}
+
+async function readRequestBody(
+  request: IncomingMessage,
+): Promise<string | undefined> {
+  if (request.method === "GET" || request.method === "HEAD") {
+    return undefined;
   }
+
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+
+    totalBytes += buffer.length;
+
+    if (totalBytes > MAX_LOCAL_REQUEST_BODY_BYTES) {
+      throw new RequestBodyTooLargeError();
+    }
+
+    chunks.push(buffer);
+  }
+
+  return Buffer.concat(chunks).toString("utf8");
 }
 
-export function apiHandler(
+export async function apiHandler(
   request: IncomingMessage,
   response: ServerResponse,
-): void {
-  if (readPathname(request.url) !== HEALTH_API_PATH) {
-    writeApiError(response, API_ERRORS.ROUTE_NOT_FOUND);
-    return;
-  }
+): Promise<void> {
+  try {
+    const body = await readRequestBody(request);
 
-  if (request.method !== "GET") {
-    writeApiError(response, API_ERRORS.METHOD_NOT_ALLOWED, {
-      Allow: "GET",
+    const result = await handleProductApiRequest({
+      method: request.method,
+      requestTarget: request.url,
+      body,
     });
-    return;
-  }
 
-  writeJsonResponse(response, 200, HEALTH_RESPONSE);
+    writeJsonResponse(
+      response,
+      result.statusCode,
+      result.body,
+      result.headers ?? {},
+    );
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      writeJsonResponse(response, 413, {
+        error: {
+          code: "REQUEST_TOO_LARGE",
+          message: "The API request is too large.",
+        },
+      });
+      return;
+    }
+
+    writeJsonResponse(response, 500, {
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "PickTonight could not complete the request.",
+      },
+    });
+  }
 }

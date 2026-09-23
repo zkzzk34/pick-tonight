@@ -47,6 +47,11 @@ export interface RecommendationCardData {
   readonly fitExplanation: {
     readonly source: "structured-recommendation-evidence";
     readonly text: string;
+    readonly reasons?: readonly {
+      readonly kind: "verified" | "soft-match";
+      readonly label: string;
+      readonly text: string;
+    }[];
   } | null;
 }
 

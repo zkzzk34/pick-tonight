@@ -15,7 +15,9 @@ export async function startLocalApiServer({
   host?: string;
   port?: number;
 } = {}): Promise<Server> {
-  const server = createServer(apiHandler);
+  const server = createServer((request, response) => {
+    void apiHandler(request, response);
+  });
 
   await new Promise<void>((resolveListening, rejectListening) => {
     server.once("error", rejectListening);

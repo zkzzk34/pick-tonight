@@ -978,11 +978,11 @@ export function PreferenceEntryFlow({
       <section aria-labelledby="preview-heading" className="preference-results">
         <div className="preview-introduction">
           <p className="eyebrow">Recommendation interface</p>
-          <h2 id="preview-heading">Reviewed request preview</h2>
+          <h2 id="preview-heading">Your reviewed request</h2>
           <p>
-            The reviewed structured request now feeds the existing request
-            controller. The requester still returns the fixed local sample; it
-            does not call TMDB or another live recommendation service.
+            PickTonight uses these reviewed preferences to request three
+            recommendations. TMDB credentials remain on the server and are never
+            sent to the browser.
           </p>
         </div>
 
@@ -1007,6 +1007,7 @@ export function PreferenceEntryFlow({
               }}
               onStatusMessage={setStatusMessage}
               recommendations={recommendations}
+              submittedPreferences={reviewed.request}
               updateRecommendations={updateRecommendations}
             />
           )}
