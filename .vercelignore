@@ -1,0 +1,11 @@
+# PickTonight local environment and credential files.
+# Deployment values come from Vercel Environment Variables instead.
+.env
+.env.*
+.vercel/
+
+# Local/private/test-only output.
+research-private/
+coverage/
+playwright-report/
+test-results/

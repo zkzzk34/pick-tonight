@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { RecommendationRequest } from "../shared/recommendation-contracts";
 import {
   recordFeedbackReason,
   recordReplacementAttempt,
@@ -20,8 +21,14 @@ import {
   type RecommendationCardData,
   type RecommendationCardSet,
 } from "./recommendation-card-model";
+import { usesDeterministicBrowserFixtures } from "./browser-data-mode";
 import { PREVIEW_REPLACEMENT_POOL } from "./recommendation-card-preview";
 import { RecommendationCards } from "./recommendation-cards";
+import {
+  recommendationFailureMessage,
+  requestProductRecommendationBatch,
+  requestProductTitleDetail,
+} from "./product-api-client";
 import { TitleDetail } from "./title-detail";
 import type { TitleDetailAction, TitleDetailData } from "./title-detail-model";
 import { getPreviewTitleDetail } from "./title-detail-preview";
@@ -50,6 +57,7 @@ interface FeedbackRecommendationExperienceProps {
   ) => void;
   readonly onStatusMessage: (message: string) => void;
   readonly onEditRequiredRestrictions: () => void;
+  readonly submittedPreferences?: RecommendationRequest;
   readonly personalizationEnabled?: boolean;
   readonly recordTasteSignal?: TasteSignalRecorder;
   readonly replacementPool?: readonly RecommendationCardData[];
@@ -57,6 +65,7 @@ interface FeedbackRecommendationExperienceProps {
 
 function fallbackTitleDetail(
   recommendation: RecommendationCardData,
+  watchRegion: string,
 ): TitleDetailData {
   const provider = recommendation.providerAvailability;
 
@@ -71,7 +80,7 @@ function fallbackTitleDetail(
     runtime: recommendation.runtime,
     rating: recommendation.rating,
     freshness: recommendation.freshness,
-    watchRegion: provider?.watchRegion ?? "US",
+    watchRegion: provider?.watchRegion ?? watchRegion,
     providerAvailability:
       provider === null
         ? null
@@ -91,7 +100,7 @@ function fallbackTitleDetail(
         ? null
         : {
             summary: recommendation.fitExplanation.text,
-            reasons: [],
+            reasons: recommendation.fitExplanation.reasons ?? [],
           },
   };
 }
@@ -136,9 +145,12 @@ export function FeedbackRecommendationExperience({
   updateRecommendations,
   onStatusMessage,
   onEditRequiredRestrictions,
+  submittedPreferences = { watchRegion: "US" },
   personalizationEnabled = false,
   recordTasteSignal,
-  replacementPool = PREVIEW_REPLACEMENT_POOL,
+  replacementPool = usesDeterministicBrowserFixtures()
+    ? PREVIEW_REPLACEMENT_POOL
+    : undefined,
 }: FeedbackRecommendationExperienceProps) {
   const [session, setSession] = useState<FeedbackSessionState>(() =>
     createFeedbackSessionState(recommendations),
@@ -153,8 +165,12 @@ export function FeedbackRecommendationExperience({
   const [chosenTonightMediaKey, setChosenTonightMediaKey] = useState<
     string | null
   >(null);
+  const [loadedTitleDetail, setLoadedTitleDetail] =
+    useState<TitleDetailData | null>(null);
 
   const detailReturnFocusRef = useRef<HTMLButtonElement | null>(null);
+  const replacementRequestInFlight = useRef(false);
+  const titleDetailRequestSequence = useRef(0);
   const restoreDetailFocusRef = useRef(false);
   const analyticsRecommendationSessionId = useRef<string | null>(null);
   const recommendationItems = useRef(
@@ -288,11 +304,20 @@ export function FeedbackRecommendationExperience({
           ({ mediaKey }) => mediaKey === selectedDetailMediaKey,
         ) ?? null);
 
+  const selectedWatchRegion =
+    submittedPreferences.watchRegion ??
+    selectedRecommendation?.providerAvailability?.watchRegion ??
+    "US";
+
   const activeDetail =
     selectedRecommendation === null
       ? null
-      : (getPreviewTitleDetail(selectedRecommendation.mediaKey) ??
-        fallbackTitleDetail(selectedRecommendation));
+      : loadedTitleDetail?.mediaKey === selectedRecommendation.mediaKey
+        ? loadedTitleDetail
+        : usesDeterministicBrowserFixtures()
+          ? (getPreviewTitleDetail(selectedRecommendation.mediaKey) ??
+            fallbackTitleDetail(selectedRecommendation, selectedWatchRegion))
+          : fallbackTitleDetail(selectedRecommendation, selectedWatchRegion);
 
   function emitTasteSignal(
     kind: TasteSignalKind,
@@ -323,20 +348,59 @@ export function FeedbackRecommendationExperience({
       activeElement instanceof HTMLButtonElement ? activeElement : null;
 
     restoreDetailFocusRef.current = false;
+    setLoadedTitleDetail(null);
     setSelectedDetailMediaKey(recommendation.mediaKey);
-    onStatusMessage("");
+
+    if (usesDeterministicBrowserFixtures()) {
+      onStatusMessage("");
+      return;
+    }
+
+    const requestSequence = titleDetailRequestSequence.current + 1;
+    titleDetailRequestSequence.current = requestSequence;
+
+    const watchRegion =
+      submittedPreferences.watchRegion ??
+      recommendation.providerAvailability?.watchRegion ??
+      "US";
+
+    onStatusMessage(`Loading current details for ${recommendation.title}…`);
+
+    void requestProductTitleDetail(recommendation, watchRegion).then(
+      (result) => {
+        if (titleDetailRequestSequence.current !== requestSequence) {
+          return;
+        }
+
+        if (result.status === "complete") {
+          setLoadedTitleDetail(result.detail);
+          onStatusMessage("");
+          return;
+        }
+
+        onStatusMessage(
+          `${recommendationFailureMessage(result.failure)} Showing the recommendation information already available for ${recommendation.title}.`,
+        );
+      },
+    );
   }
 
   function closeTitleDetail(): void {
+    titleDetailRequestSequence.current += 1;
     restoreDetailFocusRef.current = true;
+    setLoadedTitleDetail(null);
     setSelectedDetailMediaKey(null);
   }
 
-  function performReplacement(
+  async function performReplacement(
     action: ReplacementFeedbackAction,
     recommendation: RecommendationCardData,
     index: number,
-  ): void {
+  ): Promise<void> {
+    if (replacementRequestInFlight.current) {
+      return;
+    }
+
     const analyticsItem = getAnalyticsItemReference(recommendation, index);
 
     if (
@@ -349,16 +413,65 @@ export function FeedbackRecommendationExperience({
 
     pendingFeedbackAnalyticsItem.current = analyticsItem;
 
-    const replacement = selectNextReplacement(
-      replacementPool,
-      session,
-      recommendations,
-    );
+    setPendingFeedback({
+      action,
+      mediaKey: recommendation.mediaKey,
+      title: recommendation.title,
+    });
+
+    titleDetailRequestSequence.current += 1;
+    restoreDetailFocusRef.current = false;
+    detailReturnFocusRef.current = null;
+    setLoadedTitleDetail(null);
+    setSelectedDetailMediaKey(null);
+
+    let replacement: RecommendationCardData | null = null;
+
+    if (replacementPool !== undefined) {
+      replacement = selectNextReplacement(
+        replacementPool,
+        session,
+        recommendations,
+      );
+    } else {
+      replacementRequestInFlight.current = true;
+      onStatusMessage(`Finding another option for ${recommendation.title}…`);
+
+      try {
+        const result = await requestProductRecommendationBatch(
+          submittedPreferences,
+          1,
+          {
+            shownMediaKeys: [
+              ...new Set([
+                ...session.shownMediaKeys,
+                ...recommendations.map(({ mediaKey }) => mediaKey),
+              ]),
+            ],
+            removedMediaKeys: session.removedMediaKeys,
+          },
+        );
+
+        if (result.status === "error") {
+          onStatusMessage(
+            `${recommendationFailureMessage(result.failure)} ${recommendation.title} was not replaced.`,
+          );
+          return;
+        }
+
+        replacement =
+          result.status === "complete"
+            ? (result.recommendations[0] ?? null)
+            : null;
+      } finally {
+        replacementRequestInFlight.current = false;
+      }
+    }
 
     const removeFromSession = action !== "replace";
 
-    setSession(
-      recordReplacementAttempt(session, {
+    setSession((current) =>
+      recordReplacementAttempt(current, {
         action,
         index,
         previousMediaKey: recommendation.mediaKey,
@@ -366,16 +479,6 @@ export function FeedbackRecommendationExperience({
         removeFromSession,
       }),
     );
-
-    setPendingFeedback({
-      action,
-      mediaKey: recommendation.mediaKey,
-      title: recommendation.title,
-    });
-
-    restoreDetailFocusRef.current = false;
-    detailReturnFocusRef.current = null;
-    setSelectedDetailMediaKey(null);
 
     if (replacement === null) {
       setReplacementUnavailableIndexes((current) =>
@@ -506,17 +609,17 @@ export function FeedbackRecommendationExperience({
 
     if (action === "not-my-taste") {
       emitTasteSignal("negative", "not-my-taste", recommendation);
-      performReplacement("not-my-taste", recommendation, index);
+      void performReplacement("not-my-taste", recommendation, index);
       return;
     }
 
     if (action === "already-watched") {
       emitTasteSignal("watched", "already-watched", recommendation);
-      performReplacement("already-watched", recommendation, index);
+      void performReplacement("already-watched", recommendation, index);
       return;
     }
 
-    performReplacement("not-tonight", recommendation, index);
+    void performReplacement("not-tonight", recommendation, index);
   }
 
   function handleTrailerClick(recommendation: RecommendationCardData): void {
@@ -559,7 +662,7 @@ export function FeedbackRecommendationExperience({
     recommendation: RecommendationCardData,
     index: number,
   ): void {
-    performReplacement("replace", recommendation, index);
+    void performReplacement("replace", recommendation, index);
   }
 
   function handleFeedbackReason(

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:4173";
+const baseURL = "http://127.0.0.1:4175";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -41,9 +41,12 @@ export default defineConfig({
   ],
   webServer: {
     command:
-      "VITE_PICKTONIGHT_ANALYTICS_ENVIRONMENT=test VITE_PICKTONIGHT_E2E_API=1 npm run dev -- --host 127.0.0.1 --port 4173 --strictPort",
+      "VITE_PICKTONIGHT_ANALYTICS_ENVIRONMENT=test VITE_PICKTONIGHT_E2E_API=1 npm run dev -- --host 127.0.0.1 --port 4175 --strictPort",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // The critical flow requires the explicit deterministic E2E mode.
+    // Never reuse an unrelated local Vite server because that could run the
+    // live recommendation path instead of the checked-in fixture seam.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

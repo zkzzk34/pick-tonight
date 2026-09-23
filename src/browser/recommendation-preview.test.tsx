@@ -20,9 +20,7 @@ describe("App recommendation preview", () => {
     );
 
     expect(
-      screen.getByText(
-        /does not call TMDB or another live recommendation service/i,
-      ),
+      screen.getByText(/TMDB credentials remain on the server/i),
     ).toBeInTheDocument();
 
     const requestRegion = screen.getByRole("region", {

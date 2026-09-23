@@ -1,5 +1,7 @@
 import type { RecommendationRequest } from "../shared/recommendation-contracts";
+import { usesDeterministicBrowserFixtures } from "./browser-data-mode";
 import { INITIAL_PREVIEW_RECOMMENDATIONS } from "./recommendation-card-preview";
+import { requestProductRecommendationBatch } from "./product-api-client";
 import {
   isRecommendationCardSet,
   type RecommendationCardData,
@@ -100,6 +102,31 @@ function failureForHttpStatus(status: number): RecommendationFailureKind {
   return "upstream";
 }
 
+async function requestLiveRecommendations(
+  submittedPreferences: RecommendationRequest,
+): Promise<RecommendationRequestResult> {
+  const result = await requestProductRecommendationBatch(
+    submittedPreferences,
+    3,
+  );
+
+  if (result.status !== "complete") {
+    return result;
+  }
+
+  if (!isRecommendationCardSet(result.recommendations)) {
+    return {
+      status: "error",
+      failure: "upstream",
+    };
+  }
+
+  return {
+    status: "complete",
+    recommendations: result.recommendations,
+  };
+}
+
 async function requestE2eRecommendations(
   submittedPreferences: RecommendationRequest,
 ): Promise<RecommendationRequestResult> {
@@ -136,15 +163,22 @@ async function requestE2eRecommendations(
 }
 
 /**
- * Normal application behavior remains the existing deterministic local preview.
+ * Normal development, Preview, and pilot execution use the real same-origin
+ * product API.
  *
- * Only an explicitly configured E2E browser process uses the HTTP-shaped
- * recommendation seam. Playwright fulfills that request with checked-in fixed
- * fixtures, so no live TMDB or recommendation service is involved.
+ * Vitest keeps the deterministic local preview, while the explicit Playwright
+ * E2E mode keeps its checked-in HTTP fixture seam.
  */
 export const requestConfiguredRecommendations: RecommendationRequester = (
   submittedPreferences,
-) =>
-  import.meta.env.VITE_PICKTONIGHT_E2E_API === "1"
-    ? requestE2eRecommendations(submittedPreferences)
-    : requestPreviewRecommendations();
+) => {
+  if (import.meta.env.VITE_PICKTONIGHT_E2E_API === "1") {
+    return requestE2eRecommendations(submittedPreferences);
+  }
+
+  if (usesDeterministicBrowserFixtures()) {
+    return requestPreviewRecommendations();
+  }
+
+  return requestLiveRecommendations(submittedPreferences);
+};
