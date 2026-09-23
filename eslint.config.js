@@ -41,6 +41,7 @@ export default defineConfig([
     name: "pick-tonight/node-javascript",
     files: [
       "eslint.config.js",
+      "e2e/report-browser-versions.mjs",
       "proofs/tmdb-server-only/**/*.mjs",
       "proofs/accessibility-contrast.test.mjs",
     ],

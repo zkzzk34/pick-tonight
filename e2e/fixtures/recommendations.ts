@@ -78,3 +78,25 @@ export const RECOMMENDATION_SUCCESS_FIXTURE = {
     },
   ],
 } as const;
+
+export const LONG_CONTENT_TITLE =
+  "An Extraordinarily Long International Recommendation Title for an Evening When Everyone Wants Something Different";
+
+export const LONG_CONTENT_RECOMMENDATION_FIXTURE = {
+  ...RECOMMENDATION_SUCCESS_FIXTURE,
+  recommendations: [
+    {
+      ...RECOMMENDATION_SUCCESS_FIXTURE.recommendations[0],
+      mediaKey: "compatibility:long-movie-a",
+      title: LONG_CONTENT_TITLE,
+      overview:
+        "A deliberately long translated-content-ready overview verifies that recommendation copy can wrap naturally across narrow and wide layouts without relying on short English text.",
+      genres: [
+        "International comedy and adventure",
+        "Character-driven ensemble storytelling",
+      ],
+    },
+    RECOMMENDATION_SUCCESS_FIXTURE.recommendations[1],
+    RECOMMENDATION_SUCCESS_FIXTURE.recommendations[2],
+  ],
+} as const;

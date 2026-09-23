@@ -111,7 +111,7 @@
 .preference-chips button,
 .preference-entry__review,
 .preference-review button {
-  min-height: 2.7rem;
+  min-height: 2.75rem;
   border: 1px solid rgba(197, 181, 255, 0.34);
   border-radius: 999px;
   color: #eee9f8;
