@@ -99,7 +99,11 @@ Dry-run command:
 
 Preview deployment command:
 
-    npx --yes vercel@latest deploy --yes
+    npx --yes vercel@latest deploy --target=preview --yes
+
+The explicit Preview target is intentional. Vercel automatically assigns the
+first deployment of a newly created project to Production, so release
+automation must not rely on the implicit target during project bootstrap.
 
 Deployment inspection:
 

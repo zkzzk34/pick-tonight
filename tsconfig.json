@@ -1,5 +1,10 @@
 {
   "files": [],
+  "compilerOptions": {
+    "types": ["node"],
+    "rewriteRelativeImportExtensions": true,
+    "skipLibCheck": true
+  },
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
