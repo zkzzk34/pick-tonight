@@ -126,6 +126,38 @@ describe("App", () => {
     ).toBeEnabled();
   });
 
+  it("keeps conversational typing render-safe after analytics consent", () => {
+    render(<App />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Allow analytics",
+      }),
+    );
+
+    const typedRequest = screen.getByLabelText(
+      /Tell PickTonight what you want/i,
+    );
+
+    fireEvent.change(typedRequest, {
+      target: { value: "d" },
+    });
+
+    expect(typedRequest).toHaveValue("d");
+
+    fireEvent.change(typedRequest, {
+      target: { value: "dd" },
+    });
+
+    expect(typedRequest).toHaveValue("dd");
+
+    expect(
+      screen.getByRole("heading", {
+        name: "What would feel right to watch?",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("stores an accepted analytics choice and creates consent-gated identifiers", () => {
     render(<App />);
 
