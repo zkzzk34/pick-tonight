@@ -103,7 +103,7 @@ relevant position row; rows therefore should not be summed into a deduplicated
 overall denominator.
 
 Algorithm tables group by the shared `algorithm_version`. The current value is
-`recommendation-v3`, but the query does not rewrite historical versions.
+`recommendation-v4`, but the query does not rewrite historical versions.
 
 Both tables report shown items, raw action counts, and unique-item reach. They
 describe observed associations and are not randomized comparisons.

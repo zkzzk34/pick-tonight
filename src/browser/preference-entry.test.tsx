@@ -252,7 +252,7 @@ describe("PreferenceEntryFlow", () => {
     fireEvent.click(screen.getByText("More preferences"));
 
     const releaseYear = screen.getByRole("spinbutton", {
-      name: "Released since year",
+      name: "Prefer titles released since",
     });
 
     for (const value of ["2", "20", "202"]) {
@@ -301,7 +301,9 @@ describe("PreferenceEntryFlow", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getByText("Released since 2023")).toBeInTheDocument();
+    expect(
+      screen.getByText("Prefer titles released since 2023"),
+    ).toBeInTheDocument();
   });
 
   it("associates visible preference instructions with their controls and groups", () => {
@@ -332,13 +334,17 @@ describe("PreferenceEntryFlow", () => {
     fireEvent.click(screen.getByText("More preferences"));
 
     const releaseYear = screen.getByRole("spinbutton", {
-      name: "Released since year",
+      name: "Prefer titles released since",
     });
 
     expect(releaseYear).toHaveAttribute(
       "aria-describedby",
       "preference-release-year-help",
     );
+
+    expect(
+      document.getElementById("preference-release-year-help"),
+    ).toHaveTextContent(/soft preference.*older titles can still appear/i);
 
     const watchRegion = screen.getByRole("combobox", {
       name: "Watch region",

@@ -44,7 +44,7 @@ describe("Issue #35 picker-funnel analytics events", () => {
         traffic_class: "internal",
         session_id: CONTEXT.analyticsSessionId,
         recommendation_session_id: CONTEXT.recommendationSessionId,
-        algorithm_version: "recommendation-v3",
+        algorithm_version: "recommendation-v4",
       },
     );
 

@@ -83,6 +83,6 @@ describe("PickTonight analytics event contract", () => {
       algorithm_version: RECOMMENDATION_HEURISTIC_VERSION,
     });
 
-    expect(RECOMMENDATION_HEURISTIC_VERSION).toBe("recommendation-v3");
+    expect(RECOMMENDATION_HEURISTIC_VERSION).toBe("recommendation-v4");
   });
 });

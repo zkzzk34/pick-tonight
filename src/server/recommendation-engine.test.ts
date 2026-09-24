@@ -4,6 +4,7 @@ import test from "node:test";
 import type { MediaSummary } from "../shared/media-contracts.ts";
 import type { RecommendationRequest } from "../shared/recommendation-contracts.ts";
 import {
+  RECOMMENDATION_WEIGHTS,
   candidateSatisfiesHardRestrictions,
   scoreRecommendationCandidate,
 } from "./recommendation-engine.ts";
@@ -175,7 +176,7 @@ test("produces the documented fixed scoring breakdown and caps genres", () => {
   });
 
   assert.deepEqual(score, {
-    version: "recommendation-v3",
+    version: "recommendation-v4",
     preferredGenres: {
       requestedGenreIds: [35, 28, 12],
       matchedGenreIds: [35, 28, 12],
@@ -208,6 +209,60 @@ test("produces the documented fixed scoring breakdown and caps genres", () => {
     },
     total: 111,
   });
+});
+
+test("scores an explicit freshness match strongly without excluding older titles", () => {
+  const request: RecommendationRequest = {
+    softPreferences: {
+      freshness: {
+        releasedSinceYear: 2020,
+      },
+    },
+  };
+
+  const newer = scoreRecommendationCandidate(
+    candidate(
+      media("movie", 30, {
+        releaseDate: "2024-05-01",
+      }),
+    ),
+    request,
+  );
+
+  const older = scoreRecommendationCandidate(
+    candidate(
+      media("movie", 31, {
+        releaseDate: "2005-05-01",
+      }),
+    ),
+    request,
+  );
+
+  const unknownDate = scoreRecommendationCandidate(
+    candidate(media("movie", 32)),
+    request,
+  );
+
+  assert.equal(RECOMMENDATION_WEIGHTS.freshnessMatch, 24);
+
+  assert.deepEqual(newer.releaseContext, {
+    releaseYear: 2024,
+    points: 24,
+  });
+
+  assert.deepEqual(older.releaseContext, {
+    releaseYear: 2005,
+    points: 0,
+  });
+
+  assert.deepEqual(unknownDate.releaseContext, {
+    releaseYear: null,
+    points: 0,
+  });
+
+  assert.equal(newer.total, 24);
+  assert.equal(older.total, 0);
+  assert.equal(unknownDate.total, 0);
 });
 
 test("preserves surprised as zero-point cross-genre selection evidence", () => {

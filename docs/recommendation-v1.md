@@ -2,11 +2,11 @@
 
 ## Status and purpose
 
-`recommendation-v3` is PickTonight's current, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, selection, and evidence-backed explanation generation.
+`recommendation-v4` is PickTonight's current, reviewable recommendation heuristic. It combines the seven supported mood mappings with deterministic server-side hard filtering, soft scoring, reranking, selection, and evidence-backed explanation generation.
 
 The configuration is an explicit product hypothesis, not a validated emotional-classification model. TMDB genres describe catalog categories; they do not guarantee tone, intensity, humor, romance, fear, or an ending. PickTonight must not present these mappings as promises about how a title will make someone feel.
 
-The typed sources are `src/shared/recommendation-contracts.ts`, `src/server/mood-mapping.ts`, `src/server/recommendation-engine.ts`, and `src/server/recommendation-explanations.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings remain versioned as `recommendation-v1` because the Issue #24 diversity pass does not change mood-signal semantics. Scoring and selection evidence use the `recommendation-v3` heuristic identifier.
+The typed sources are `src/shared/recommendation-contracts.ts`, `src/server/mood-mapping.ts`, `src/server/recommendation-engine.ts`, and `src/server/recommendation-explanations.ts`. Supported mood values remain defined by `SUPPORTED_MOODS` in `src/shared/recommendation-contracts.ts`. Mood mappings remain versioned as `recommendation-v1` because the Issue #24 diversity pass does not change mood-signal semantics. Scoring and selection evidence use the `recommendation-v4` heuristic identifier.
 
 ## Initial mapping assumptions
 
@@ -65,7 +65,7 @@ Only eligible candidates are scored. Every contribution is retained in the struc
 | Mood genre | `+18` for the first unique match, then `+4` per additional match, capped at `26` |
 | Requested content language | `+12` for an exact match |
 | Rating | `round(voteAverage x 2 x confidenceFactor)`, capped at `20` |
-| Release year | `0`; retained as selection context; release date separately informs rating age |
+| Explicit freshness match | `+24` when a known release year is at or after the requested soft cutoff; otherwise `0` |
 | Popularity and discovery source | `0`; deliberately ignored |
 
 The `surprised` mood's `cross-genre-variety` signal adds zero points. It is a bounded set-selection instruction, so it cannot inflate relevance or override hard restrictions.
@@ -123,10 +123,17 @@ upstream values. `ageState`, `meaningfulEvidence`, `confidenceState`,
 `confidenceFactor`, and rating `points` are internal recommendation evidence
 for later explanation logic.
 
-Release year still contributes zero direct points. Age changes only the
-interpretation of rating confidence. Older titles, including titles from the
-1980s and 1990s, remain eligible and continue to compete on present-session
-fit.
+An explicit freshness preference contributes `+24` when the candidate has a
+known release year at or after the requested cutoff. This is deliberately a
+strong soft preference: it is stronger than the maximum rating-only
+contribution (`20`), slightly below the maximum mood contribution (`26`), and
+below one explicit preferred-genre match (`30`).
+
+Candidates before the requested year, or candidates with an unknown date,
+receive zero freshness points rather than being excluded. Older titles,
+including titles from the 1980s and 1990s, therefore remain eligible and may
+still rank ahead of a newer title when their other current-session fit is
+substantially stronger.
 
 `originCountry` shapes supported TMDB discovery requests but is not scored because normalized `MediaSummary` objects contain no origin-country field. The engine makes no unsupported per-title origin claim.
 
@@ -138,7 +145,7 @@ Shown and removed session identities are excluded by media type and TMDB ID befo
 
 Base ranking uses total score, combined current-request preference points, preferred-genre points, mood points, content-language points, rating-confidence factor, meaningful rating value, movie before television, and finally ascending TMDB ID. A raw rating value without meaningful vote evidence is not used as a quality tie-break. The current heuristic has no historical input or adjustment.
 
-For each slot, the engine considers candidates within five points of the score leader, keeps the strongest combined current-request preference evidence, applies temporal cohesion, applies deterministic genre diversity, applies the stronger `surprised` variety rule when requested, and then uses the base ranking to resolve any remaining tie.
+For each slot, the engine considers candidates within five points of the score leader, keeps the strongest combined current-request preference evidence including explicit freshness, applies temporal cohesion, applies deterministic genre diversity, applies the stronger `surprised` variety rule when requested, and then uses the base ranking to resolve any remaining tie.
 
 The first selected title supplies the release-year anchor. A later title more than 50 years away is deferred only while a comparably fitting non-extreme or unknown-date title remains. Release year never changes score, and older titles remain eligible.
 
@@ -183,7 +190,7 @@ Each result retains its score breakdown, position, temporal evidence, general ge
 
 ## Structured recommendation explanations
 
-`src/server/recommendation-explanations.ts` converts the validated request, `RecommendationScoreBreakdown`, and exact `TmdbHardRestrictionEvidence` into a strict `RecommendationExplanation`. It does not inspect raw upstream responses or free-form user text. Explanation generation does not change eligibility, scores, ranking, temporal cohesion, or diversity selection, so Issue #25 does not change the `recommendation-v3` heuristic identifier.
+`src/server/recommendation-explanations.ts` converts the validated request, `RecommendationScoreBreakdown`, and exact `TmdbHardRestrictionEvidence` into a strict `RecommendationExplanation`. It does not inspect raw upstream responses or free-form user text. Explanation generation does not itself change eligibility, scores, ranking, temporal cohesion, or diversity selection. The current `recommendation-v4` identifier reflects the later explicit-freshness scoring change, not explanation generation.
 
 Each explanation contains one concise summary and zero through two ordered reasons. Every reason includes a stable code, user-facing text, and one of two kinds:
 

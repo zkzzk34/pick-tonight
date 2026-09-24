@@ -96,7 +96,7 @@ describe("Issue #36 analytics tracker", () => {
       "context_submitted",
       expect.objectContaining({
         recommendation_session_id: context.recommendationSessionId,
-        algorithm_version: "recommendation-v3",
+        algorithm_version: "recommendation-v4",
         used_typed_input: true,
       }),
     );
