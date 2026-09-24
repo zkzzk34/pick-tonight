@@ -344,13 +344,15 @@ export function PreferenceEntryFlow({
               aria-describedby="preference-text-help"
               id="preference-text"
               maxLength={240}
-              onChange={(event) =>
+              onChange={(event) => {
+                const rawText = event.currentTarget.value;
+
                 setDraft((current) => ({
                   ...current,
-                  rawText: event.currentTarget.value,
+                  rawText,
                   suppressedKeys: [],
-                }))
-              }
+                }));
+              }}
               placeholder='For example: "funny Korean movie under two hours"'
               rows={3}
               value={draft.rawText}
@@ -588,16 +590,18 @@ export function PreferenceEntryFlow({
                 <label>
                   <span>Content language</span>
                   <select
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const contentLanguage = event.currentTarget.value || null;
+
                       setDraft((current) => ({
                         ...current,
-                        contentLanguage: event.currentTarget.value || null,
+                        contentLanguage,
                         suppressedKeys: clearSuppression(
                           current.suppressedKeys,
                           ["soft.language"],
                         ),
-                      }))
-                    }
+                      }));
+                    }}
                     value={draft.contentLanguage ?? ""}
                   >
                     <option value="">Any language</option>
@@ -612,16 +616,18 @@ export function PreferenceEntryFlow({
                 <label>
                   <span>Origin country</span>
                   <select
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const originCountry = event.currentTarget.value || null;
+
                       setDraft((current) => ({
                         ...current,
-                        originCountry: event.currentTarget.value || null,
+                        originCountry,
                         suppressedKeys: clearSuppression(
                           current.suppressedKeys,
                           ["soft.origin"],
                         ),
-                      }))
-                    }
+                      }));
+                    }}
                     value={draft.originCountry ?? ""}
                   >
                     <option value="">Any origin</option>
