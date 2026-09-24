@@ -25,6 +25,7 @@ export const RECOMMENDATION_WEIGHTS = {
   moodFirstMatch: 18,
   moodAdditionalMatch: 4,
   moodMaximum: 26,
+  freshnessMatch: 24,
   contentLanguageMatch: 12,
   ratingMaximum: 20,
 } as const;
@@ -71,7 +72,7 @@ export interface RatingScoreEvidence {
 
 export interface ReleaseContextEvidence {
   readonly releaseYear: number | null;
-  readonly points: 0;
+  readonly points: number;
 }
 
 export interface RecommendationScoreBreakdown {
@@ -394,6 +395,18 @@ export function scoreRecommendationCandidate(
   const contentLanguage = contentLanguageEvidence(candidate.media, request);
   const asOfDate = resolveAsOfDate(scoringOptions.asOfDate);
   const rating = ratingEvidence(candidate.media, asOfDate);
+  const candidateReleaseYear = releaseYear(candidate.media.releaseDate);
+  const requestedFreshnessYear =
+    request.softPreferences?.freshness?.releasedSinceYear;
+  const releaseContext: ReleaseContextEvidence = {
+    releaseYear: candidateReleaseYear,
+    points:
+      requestedFreshnessYear !== undefined &&
+      candidateReleaseYear !== null &&
+      candidateReleaseYear >= requestedFreshnessYear
+        ? RECOMMENDATION_WEIGHTS.freshnessMatch
+        : 0,
+  };
 
   return {
     version: RECOMMENDATION_HEURISTIC_VERSION,
@@ -401,13 +414,11 @@ export function scoreRecommendationCandidate(
     mood,
     contentLanguage,
     rating,
-    releaseContext: {
-      releaseYear: releaseYear(candidate.media.releaseDate),
-      points: 0,
-    },
+    releaseContext,
     total:
       preferredGenres.points +
       mood.points +
+      releaseContext.points +
       contentLanguage.points +
       rating.points,
   };
@@ -472,6 +483,7 @@ function sessionPreferencePoints(score: RecommendationScoreBreakdown): number {
   return (
     score.preferredGenres.points +
     score.mood.points +
+    score.releaseContext.points +
     score.contentLanguage.points
   );
 }
@@ -505,6 +517,13 @@ function compareRankedCandidates(
 
   if (moodDifference !== 0) {
     return moodDifference;
+  }
+
+  const freshnessDifference =
+    second.score.releaseContext.points - first.score.releaseContext.points;
+
+  if (freshnessDifference !== 0) {
+    return freshnessDifference;
   }
 
   const languageDifference =

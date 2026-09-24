@@ -853,3 +853,79 @@ test("applies surprised variety after fit and temporal cohesion", () => {
     [["cross-genre-variety"], ["cross-genre-variety"], ["cross-genre-variety"]],
   );
 });
+
+test("prefers titles inside an explicit freshness window while keeping older fallback candidates eligible", () => {
+  const request: RecommendationRequest = {
+    softPreferences: {
+      freshness: {
+        releasedSinceYear: 2020,
+      },
+    },
+  };
+
+  const result = selectRecommendations(
+    [
+      candidate(movie(1, { releaseDate: "2005-01-01" })),
+      candidate(movie(2, { releaseDate: "2024-01-01" })),
+      candidate(movie(3, { releaseDate: "2021-01-01" })),
+      candidate(movie(4, { releaseDate: "2010-01-01" })),
+    ],
+    request,
+  );
+
+  assert.equal(result.status, "complete");
+  assert.equal(result.eligibleCount, 4);
+
+  assert.deepEqual(
+    result.recommendations.map(({ candidate: selected }) => selected.media.id),
+    [2, 3, 1],
+  );
+
+  assert.deepEqual(
+    result.recommendations.map(({ score }) => score.releaseContext.points),
+    [24, 24, 0],
+  );
+});
+
+test("allows a substantially stronger older fit to beat a freshness-only match", () => {
+  const request: RecommendationRequest = {
+    softPreferences: {
+      preferredGenreIds: [35],
+      freshness: {
+        releasedSinceYear: 2020,
+      },
+    },
+  };
+
+  const result = selectRecommendations(
+    [
+      candidate(
+        movie(1, {
+          releaseDate: "2005-01-01",
+          genreIds: [35],
+        }),
+      ),
+      candidate(
+        movie(2, {
+          releaseDate: "2024-01-01",
+          genreIds: [],
+        }),
+      ),
+    ],
+    request,
+  );
+
+  assert.equal(result.status, "limited");
+  assert.equal(result.eligibleCount, 2);
+
+  assert.deepEqual(
+    result.recommendations.map(({ candidate: selected }) => selected.media.id),
+    [1, 2],
+  );
+
+  assert.equal(result.recommendations[0]?.score.preferredGenres.points, 30);
+  assert.equal(result.recommendations[0]?.score.releaseContext.points, 0);
+
+  assert.equal(result.recommendations[1]?.score.preferredGenres.points, 0);
+  assert.equal(result.recommendations[1]?.score.releaseContext.points, 24);
+});

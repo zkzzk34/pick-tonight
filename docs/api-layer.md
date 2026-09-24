@@ -45,7 +45,7 @@ The contract keeps hard restrictions separate from soft ranking preferences. Fre
 
 `recommendationExplanationSchema` validates one concise summary and zero through two strict reasons. Each reason carries a stable code, user-facing text, and either the `verified-constraint` or `soft-match` kind. These schemas are environment-neutral, but `SelectedRecommendation` remains server-owned and no recommendation product endpoint exposes it yet.
 
-The explicit freshness field supplies structured fit evidence for explanation generation. It does not add a release-year score or create a default recency bias in `recommendation-v3`.
+The explicit freshness field supplies structured fit evidence and a strong soft-ranking contribution in `recommendation-v4`. Older titles remain eligible, and omitting the field creates no default recency bias.
 
 ### Normalized media summaries
 

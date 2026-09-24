@@ -545,7 +545,7 @@ export function PreferenceEntryFlow({
               <div className="preference-fields">
                 <div className="preference-field">
                   <label htmlFor="preference-release-year">
-                    Released since year
+                    Prefer titles released since
                   </label>
                   <input
                     aria-describedby={
@@ -576,8 +576,10 @@ export function PreferenceEntryFlow({
                     value={draft.freshnessYear ?? ""}
                   />
                   <small id="preference-release-year-help">
-                    Optional. Enter a four-digit year from 1870 through the
-                    current year.
+                    Soft preference. Matching newer titles rank higher, but
+                    older titles can still appear when they fit better or newer
+                    options are limited. Enter a four-digit year from 1870
+                    through the current year.
                   </small>
                   {freshnessYearInvalid ? (
                     <small id="preference-release-year-error">
@@ -883,7 +885,8 @@ export function PreferenceEntryFlow({
                   label="Freshness"
                   onRemove={handleRemovePreference}
                   removeKey="soft.freshness"
-                  value={`Released since ${resolved.freshnessYear}`}
+                  note="Older titles remain eligible when they are a stronger fit or newer options are limited."
+                  value={`Prefer titles released since ${resolved.freshnessYear}`}
                 />
               ) : null}
 

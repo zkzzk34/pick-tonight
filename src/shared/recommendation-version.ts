@@ -1,1 +1,1 @@
-export const RECOMMENDATION_HEURISTIC_VERSION = "recommendation-v3" as const;
+export const RECOMMENDATION_HEURISTIC_VERSION = "recommendation-v4" as const;

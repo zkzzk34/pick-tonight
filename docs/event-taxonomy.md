@@ -48,7 +48,7 @@ Recommendation-scoped events additionally require:
 | Property | Contract |
 | --- | --- |
 | `recommendation_session_id` | opaque identifier for one submitted recommendation journey |
-| `algorithm_version` | shared recommendation heuristic version; currently `recommendation-v3` |
+| `algorithm_version` | shared recommendation heuristic version; currently `recommendation-v4` |
 
 Recommendation-item events additionally require:
 
