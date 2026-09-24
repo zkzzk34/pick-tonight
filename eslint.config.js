@@ -20,6 +20,7 @@ export default defineConfig([
       "dist/**",
       "coverage/**",
       ".vite/**",
+      ".vercel/**",
       "playwright-report/**",
       "test-results/**",
     ],
