@@ -43,5 +43,11 @@ Thumbs.db
 
 # Private user-research data
 research-private/
+
+# Local Snowflake warehouse extracts (TMDB snapshots and PostHog exports)
+warehouse/data/
+
+# Python bytecode from running the Snowpark model tests locally
+__pycache__/
 .vercel
 .env*
