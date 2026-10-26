@@ -9,7 +9,11 @@ import tseslint from "typescript-eslint";
 const javascriptFiles = ["**/*.{js,mjs,cjs}"];
 const typescriptFiles = ["**/*.{ts,tsx}"];
 const browserFiles = ["src/browser/**/*.{ts,tsx}", "src/main.tsx"];
-const serverFiles = ["src/server/**/*.ts", "vite.config.ts"];
+const serverFiles = [
+  "src/server/**/*.ts",
+  "vite.config.ts",
+  "warehouse/**/*.ts",
+];
 const playwrightFiles = ["e2e/**/*.ts", "playwright.config.ts"];
 const sharedFiles = ["src/shared/**/*.ts"];
 
