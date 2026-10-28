@@ -1,0 +1,7 @@
+# One group for the whole project: the PickTonight analytics data product.
+# The group names the owner that dbt docs show for every model in it.
+
+groups:
+  - name: picktonight_analytics
+    owner:
+      name: ZK Zhao

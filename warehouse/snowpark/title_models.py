@@ -4,8 +4,9 @@ This module runs inside Snowflake. You upload it to the RAW stage, and
 05_snowpark_ml.sql creates two Snowflake objects that import it:
 
 * ``AI.TRAIN_TITLE_MODELS()`` is a Python stored procedure. It reads
-  ``MARTS.DIM_TITLE`` and ``MARTS.TITLE_RULE_MOODS``, trains two models with
-  scikit-learn on the warehouse, and writes the results back as tables.
+  ``DBT_MARTS.TITLE_CATALOG_CURRENT`` and ``DBT_MARTS.TITLE_RULE_MOODS``, the
+  dbt marts built for AI consumers, trains two models with scikit-learn on
+  the warehouse, and writes the results back as tables.
 * ``AI.EMBED_TEXT(text)`` is a Python UDF. It loads the saved embedding
   pipeline and turns any text, such as a search query, into the same vector
   space as the titles, so SQL can rank titles with VECTOR_COSINE_SIMILARITY.
@@ -293,13 +294,13 @@ def train_procedure(session: Any) -> dict[str, Any]:
     import joblib
 
     title_rows = (
-        session.table(_table("MARTS.DIM_TITLE"))
+        session.table(_table("DBT_MARTS.TITLE_CATALOG_CURRENT"))
         .select("TITLE_KEY", "MEDIA_TYPE", "TITLE", "OVERVIEW", "SEARCH_DOCUMENT")
         .sort("TITLE_KEY")
         .collect()
     )
     rule_rows = (
-        session.table(_table("MARTS.TITLE_RULE_MOODS")).select("TITLE_KEY", "MOOD").collect()
+        session.table(_table("DBT_MARTS.TITLE_RULE_MOODS")).select("TITLE_KEY", "MOOD").collect()
     )
 
     # Model 1: embeddings for every title -------------------------------------

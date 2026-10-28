@@ -7,7 +7,8 @@
 --   AI.SEARCH_EVAL         genre precision@10 for a fixed set of test queries
 --
 -- The embeddings come from 05_snowpark_ml.sql. Similarity is cosine, computed
--- by Snowflake's VECTOR_COSINE_SIMILARITY.
+-- by Snowflake's VECTOR_COSINE_SIMILARITY. Title details come from
+-- DBT_MARTS.TITLE_CATALOG_CURRENT, built by the dbt project in warehouse/dbt.
 -- =============================================================================
 
 USE ROLE ACCOUNTADMIN;
@@ -37,8 +38,8 @@ SELECT
   d.genre_names_text,
   ROUND(s.similarity, 3)       AS similarity
 FROM PICKTONIGHT.AI.SIMILAR_TITLES AS s
-JOIN PICKTONIGHT.MARTS.DIM_TITLE AS seed ON seed.title_key = s.title_key
-JOIN PICKTONIGHT.MARTS.DIM_TITLE AS d    ON d.title_key = s.similar_title_key
+JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS seed ON seed.title_key = s.title_key
+JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS d    ON d.title_key = s.similar_title_key
 WHERE seed.media_type = 'movie'
   AND seed.popularity_rank <= 5
 ORDER BY seed.popularity_rank, s.similarity DESC;
@@ -74,7 +75,7 @@ $$
     d.genre_names_text,
     VECTOR_COSINE_SIMILARITY(e.embedding, q.v) AS score
   FROM PICKTONIGHT.AI.TITLE_EMBEDDINGS AS e
-  JOIN PICKTONIGHT.MARTS.DIM_TITLE AS d
+  JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS d
     ON d.title_key = e.title_key
   CROSS JOIN query_vector AS q
   WHERE media_type_filter IS NULL
@@ -92,36 +93,39 @@ ORDER BY score DESC;
 -- Each test query describes a plot without naming its genre. A hit is a top-10
 -- movie whose TMDB genres include the expected genre. This is a rough
 -- relevance check, not a full benchmark, but it is repeatable after retraining.
+--
+-- Step 1 embeds each test query once, into a temporary table. Inside one big
+-- join, Snowflake's planner may call the Python UDF once per joined row
+-- (8 queries x every title) instead of once per query. That wastes work and
+-- exhausted the UDF's memory on an X-Small warehouse, so the join in step 2
+-- is plain SQL over vectors that already exist.
+CREATE OR REPLACE TEMPORARY TABLE PICKTONIGHT.AI.SEARCH_EVAL_QUERIES AS
+SELECT
+  column1                                                  AS search_text,
+  column2                                                  AS expected_genre,
+  PICKTONIGHT.AI.EMBED_TEXT(column1)::VECTOR(FLOAT, 128)   AS v
+FROM VALUES
+  ('a ghost haunts a family after they move into an old house', 'Horror'),
+  ('two strangers slowly fall in love over one summer', 'Romance'),
+  ('a detective hunts a killer through the city', 'Crime'),
+  ('astronauts travel to a distant planet to save humanity', 'Science Fiction'),
+  ('a talking animal and its friends go on a colorful journey', 'Animation'),
+  ('soldiers fight to survive on the front lines', 'War'),
+  ('friends get into ridiculous trouble during a wild weekend', 'Comedy'),
+  ('a superhero battles a villain to save the world', 'Action');
+
+-- Step 2: compare every embedded query with every movie and keep the top ten.
 CREATE OR REPLACE TABLE PICKTONIGHT.AI.SEARCH_EVAL AS
-WITH test_queries AS (
-  SELECT column1 AS search_text, column2 AS expected_genre
-  FROM VALUES
-    ('a ghost haunts a family after they move into an old house', 'Horror'),
-    ('two strangers slowly fall in love over one summer', 'Romance'),
-    ('a detective hunts a killer through the city', 'Crime'),
-    ('astronauts travel to a distant planet to save humanity', 'Science Fiction'),
-    ('a talking animal and its friends go on a colorful journey', 'Animation'),
-    ('soldiers fight to survive on the front lines', 'War'),
-    ('friends get into ridiculous trouble during a wild weekend', 'Comedy'),
-    ('a superhero battles a villain to save the world', 'Action')
-),
-query_vectors AS (
-  SELECT
-    search_text,
-    expected_genre,
-    PICKTONIGHT.AI.EMBED_TEXT(search_text)::VECTOR(FLOAT, 128) AS v
-  FROM test_queries
-),
-top_ten AS (
+WITH top_ten AS (
   SELECT
     q.search_text,
     q.expected_genre,
     d.title,
     d.genre_names,
     VECTOR_COSINE_SIMILARITY(e.embedding, q.v) AS score
-  FROM query_vectors AS q
+  FROM PICKTONIGHT.AI.SEARCH_EVAL_QUERIES AS q
   CROSS JOIN PICKTONIGHT.AI.TITLE_EMBEDDINGS AS e
-  JOIN PICKTONIGHT.MARTS.DIM_TITLE AS d
+  JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS d
     ON d.title_key = e.title_key
   WHERE d.media_type = 'movie'
   QUALIFY ROW_NUMBER() OVER (PARTITION BY q.search_text ORDER BY score DESC) <= 10

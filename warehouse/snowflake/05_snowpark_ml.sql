@@ -17,6 +17,9 @@
 --     @AI.MODEL_STAGE           the fitted embedding pipeline (joblib)
 --   AI.EMBED_TEXT(text)       UDF; embeds any text into the title vector space
 --
+-- Inputs: DBT_MARTS.TITLE_CATALOG_CURRENT and DBT_MARTS.TITLE_RULE_MOODS,
+-- built by the dbt project in warehouse/dbt. Run dbt build first.
+--
 -- Before running: upload warehouse/snowpark/title_models.py to
 -- PICKTONIGHT.RAW.PICKTONIGHT_STAGE (same upload step as the data files).
 -- =============================================================================
@@ -73,7 +76,7 @@ LIMIT 1;
 
 -- 1. Every title has a 128-dimension vector.
 SELECT
-  (SELECT COUNT(*) FROM PICKTONIGHT.MARTS.DIM_TITLE)  AS titles,
+  (SELECT COUNT(*) FROM PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT)  AS titles,
   COUNT(*)                                            AS embedded,
   ANY_VALUE(ARRAY_SIZE(embedding::ARRAY))             AS dimensions
 FROM PICKTONIGHT.AI.TITLE_EMBEDDINGS;
@@ -98,7 +101,7 @@ SELECT
   p.probability,
   LEFT(d.overview, 160) AS overview_start
 FROM PICKTONIGHT.AI.TITLE_MOODS_PREDICTED AS p
-JOIN PICKTONIGHT.MARTS.DIM_TITLE AS d
+JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS d
   ON d.title_key = p.title_key
 WHERE p.disagreement <> 'none'
 ORDER BY ABS(p.probability - 0.5) DESC

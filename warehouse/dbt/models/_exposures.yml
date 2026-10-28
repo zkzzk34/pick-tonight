@@ -1,0 +1,36 @@
+# Exposures record who uses the data product outside dbt. They appear in the
+# lineage graph, so a change to an upstream model shows which consumers it
+# could break. Run "dbt build --select +exposure:snowpark_title_models" to
+# rebuild and test everything a consumer depends on.
+
+exposures:
+  - name: snowpark_title_models
+    label: Snowpark title models
+    type: ml
+    maturity: medium
+    url: https://github.com/zkzzk34/pick-tonight/blob/main/warehouse/snowflake/05_snowpark_ml.sql
+    description: >
+      AI.TRAIN_TITLE_MODELS(), a Snowpark Python stored procedure, trains
+      TF-IDF and SVD title embeddings and a 5-fold cross-validated mood
+      classifier inside Snowflake. It writes AI.TITLE_EMBEDDINGS,
+      AI.MOOD_MODEL_METRICS, AI.TITLE_MOODS_PREDICTED, and AI.MODEL_RUNS.
+      The rule moods are its weak labels.
+    depends_on:
+      - ref('title_catalog_current')
+      - ref('title_rule_moods')
+    owner:
+      name: ZK Zhao
+
+  - name: title_vector_search
+    label: Title vector search
+    type: application
+    maturity: medium
+    url: https://github.com/zkzzk34/pick-tonight/blob/main/warehouse/snowflake/06_vector_search.sql
+    description: >
+      "More like this" and free-text search over the title embeddings with
+      VECTOR_COSINE_SIMILARITY, plus a fixed evaluation set that measures
+      genre precision@10. Title details come from title_catalog_current.
+    depends_on:
+      - ref('title_catalog_current')
+    owner:
+      name: ZK Zhao

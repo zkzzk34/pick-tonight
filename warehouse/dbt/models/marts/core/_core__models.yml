@@ -1,7 +1,14 @@
-# The star schema. Every dimension has a hashed surrogate key and at least
-# one default row, and every fact key falls back to a default row instead of
-# null. The tests below check each table's grain and that every fact key
-# finds its dimension row. The full set of quality checks comes in Phase 4.
+# The star schema: the data product's public output ports.
+#
+# Every model here has an enforced contract. dbt checks the column names and
+# types before it builds, and fails instead of silently changing a table that
+# a consumer depends on. The types match what Snowflake already stores,
+# including decimal precision, so the contract never rounds a value.
+#
+# Every dimension has a hashed surrogate key and at least one default row,
+# and every fact key falls back to a default row instead of null.
+# Columns holding pseudonymous IDs carry meta sensitivity, which the
+# governance layer uses to tag and mask them.
 
 models:
   - name: dim_title
@@ -9,82 +16,308 @@ models:
       Grain: one row per version of a title, plus one default row. Type 2
       history from the snap_title_attributes snapshot: a new version starts
       when a tracked attribute changes between catalog exports.
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [title_key, valid_from]
     columns:
       - name: title_version_key
-        description: Surrogate key. A hash of title_key and valid_from. "-1" is the default row.
+        description: "{{ doc('col_title_version_key') }}"
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: primary_key
+            warn_unenforced: false
         data_tests:
           - unique
           - not_null
       - name: title_key
-        description: Durable natural key that ties all versions of one title together.
+        description: "{{ doc('col_title_key') }}"
+        data_type: varchar
+        constraints:
+          - type: not_null
         data_tests:
           - not_null
           - unique:
               config:
                 where: "is_current"
-      - name: valid_from
-        description: Export time, in UTC, when this version was first seen.
-      - name: valid_to
-        description: Export time, in UTC, when a newer version replaced it. 9999-12-31 for the current version.
-      - name: is_current
-        description: True for the latest version of each title.
+      - name: tmdb_id
+        description: TMDB's ID. Unique only within a media type.
+        data_type: number(38,0)
+      - name: media_type
+        description: movie or tv. "unknown" on the default row.
+        data_type: varchar
+      - name: title
+        description: Display title in the export's language.
+        data_type: varchar
+      - name: original_title
+        description: Title in the original language.
+        data_type: varchar
+      - name: overview
+        description: TMDB's plot summary.
+        data_type: varchar
+      - name: release_date
+        description: Release date for movies, first air date for TV.
+        data_type: date
+      - name: release_year
+        description: Year of release_date.
+        data_type: number(4,0)
+      - name: original_language
+        description: ISO 639-1 code of the original language.
+        data_type: varchar
+      - name: genre_names
+        description: Genre names in TMDB's order.
+        data_type: array
+      - name: genre_names_text
+        description: Genre names joined with commas. Tracked for history.
+        data_type: varchar
+      - name: rating_confidence
+        description: "{{ doc('col_rating_confidence') }}"
+        data_type: varchar
+      - name: search_document
+        description: "{{ doc('col_search_document') }}"
+        data_type: varchar
       - name: version_number
         description: 1 for the first version seen, then 2, 3, and so on.
+        data_type: number(18,0)
+      - name: valid_from
+        description: Export time, in UTC, when this version was first seen.
+        data_type: timestamp_ntz
+      - name: valid_to
+        description: Export time, in UTC, when a newer version replaced it. 9999-12-31 for the current version.
+        data_type: timestamp_ntz
+      - name: is_current
+        description: True for the latest version of each title.
+        data_type: boolean
+      - name: is_default_row
+        description: "{{ doc('col_is_default_row') }}"
+        data_type: boolean
 
-  - name: dim_date
-    description: "Grain: one row per calendar day in 2026 and 2027, plus one default row."
+  - name: title_catalog_current
+    description: >
+      Grain: one row per title in the latest catalog export. The output port
+      for the AI consumers, rebuilt from dim_title and fct_title_popularity.
+      It has exactly the columns of the original MARTS.DIM_TITLE.
+    config:
+      contract:
+        enforced: true
     columns:
-      - name: date_key
-        description: Integer in YYYYMMDD form. -1 is the default row.
+      - name: title_key
+        description: "{{ doc('col_title_key') }}"
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: primary_key
+            warn_unenforced: false
         data_tests:
           - unique
           - not_null
+      - name: tmdb_id
+        description: TMDB's ID. Unique only within a media type.
+        data_type: number(38,0)
+      - name: media_type
+        description: movie or tv.
+        data_type: varchar
+      - name: title
+        description: Display title in the export's language.
+        data_type: varchar
+      - name: original_title
+        description: Title in the original language.
+        data_type: varchar
+      - name: overview
+        description: TMDB's plot summary.
+        data_type: varchar
+      - name: release_date
+        description: Release date for movies, first air date for TV.
+        data_type: date
+      - name: release_year
+        description: Year of release_date.
+        data_type: number(4,0)
+      - name: original_language
+        description: ISO 639-1 code of the original language.
+        data_type: varchar
+      - name: genre_names
+        description: Genre names in TMDB's order.
+        data_type: array
+      - name: genre_names_text
+        description: Genre names joined with commas.
+        data_type: varchar
+      - name: popularity
+        description: TMDB popularity score in the latest export.
+        data_type: float
+      - name: vote_average
+        description: TMDB's average user rating on a 0 to 10 scale, in the latest export.
+        data_type: float
+      - name: vote_count
+        description: Number of TMDB votes in the latest export.
+        data_type: number(38,0)
+      - name: rating_confidence
+        description: "{{ doc('col_rating_confidence') }}"
+        data_type: varchar
+      - name: popularity_rank
+        description: Rank within its media type in the latest export.
+        data_type: number(38,0)
+      - name: search_document
+        description: "{{ doc('col_search_document') }}"
+        data_type: varchar
+      - name: extracted_at
+        description: "{{ doc('col_extracted_at') }}"
+        data_type: timestamp_tz
+      - name: loaded_at
+        description: "{{ doc('col_loaded_at') }}"
+        data_type: timestamp_ltz
+
+  - name: dim_date
+    description: "Grain: one row per calendar day in 2026 and 2027, plus one default row."
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: date_key
+        description: Integer in YYYYMMDD form. -1 is the default row.
+        data_type: number(38,0)
+        constraints:
+          - type: not_null
+          - type: primary_key
+            warn_unenforced: false
+        data_tests:
+          - unique
+          - not_null
+      - name: date_day
+        description: The calendar day. Null on the default row.
+        data_type: date
+      - name: year_number
+        data_type: number(4,0)
+      - name: quarter_number
+        data_type: number(2,0)
+      - name: month_number
+        data_type: number(2,0)
+      - name: month_name
+        description: Three-letter month name, for example Oct.
+        data_type: varchar
+      - name: week_start_date
+        description: Monday of the day's week.
+        data_type: date
+      - name: day_of_week_iso
+        description: 1 for Monday through 7 for Sunday.
+        data_type: number(2,0)
+      - name: day_name
+        description: Three-letter day name, for example Mon.
+        data_type: varchar
+      - name: is_weekend
+        data_type: boolean
+      - name: is_default_row
+        description: "{{ doc('col_is_default_row') }}"
+        data_type: boolean
 
   - name: dim_event_type
     description: "Grain: one row per event in taxonomy v3, plus one default row. Built from the event_taxonomy seed."
+    config:
+      contract:
+        enforced: true
     columns:
       - name: event_type_key
         description: Surrogate key. A hash of event_name. "-1" is the default row.
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: primary_key
+            warn_unenforced: false
         data_tests:
           - unique
           - not_null
       - name: event_name
+        description: Event name exactly as the app sends it.
+        data_type: varchar
         data_tests:
           - unique
+      - name: event_group
+        description: Broad stage of the journey the event belongs to.
+        data_type: varchar
+      - name: funnel_step_order
+        description: Position in the picker funnel, 1 to 5. Null for events outside the funnel.
+        data_type: number(38,0)
+      - name: is_funnel_step
+        data_type: boolean
+      - name: requires_recommendation_scope
+        description: True when the event must carry recommendation_session_id and algorithm_version.
+        data_type: boolean
+      - name: requires_recommendation_item
+        description: True when the event must also carry recommendation_item_id, media_type, and position.
+        data_type: boolean
+      - name: description
+        description: What the event means, from docs/event-taxonomy.md.
+        data_type: varchar
+      - name: is_default_row
+        description: "{{ doc('col_is_default_row') }}"
+        data_type: boolean
 
   - name: dim_mood
     description: >
       Grain: one row per mood in the app's mood mapping, plus two default
       rows: "-1" for an unknown mood code and "-2" when no mood was given.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: mood_key
         description: Surrogate key. A hash of the mood code.
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: primary_key
+            warn_unenforced: false
         data_tests:
           - unique
           - not_null
       - name: mood_code
+        description: Mood code exactly as the app sends it, for example relaxed.
+        data_type: varchar
         data_tests:
           - unique
+      - name: mood_intent
+        description: What the mood mapping tries to favor, from src/server/mood-mapping.ts.
+        data_type: varchar
+      - name: uses_genre_signals
+        description: False only for surprised, which uses a discovery signal instead of genres.
+        data_type: boolean
+      - name: mood_mapping_version
+        description: Version label of the mood mapping when it was exported.
+        data_type: varchar
+      - name: is_default_row
+        description: "{{ doc('col_is_default_row') }}"
+        data_type: boolean
 
   - name: fct_events
     description: "Grain: one row per analytics event that parsed cleanly."
+    config:
+      contract:
+        enforced: true
     columns:
       - name: event_uuid
         description: Event ID from PostHog or the synthetic generator. The fact's primary key.
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: primary_key
+            warn_unenforced: false
         data_tests:
           - unique
           - not_null
       - name: date_key
+        description: "{{ doc('col_date_key') }}"
+        data_type: number(38,0)
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_date')
                 field: date_key
       - name: event_type_key
+        description: "{{ doc('col_event_type_key') }}"
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
@@ -92,80 +325,308 @@ models:
                 field: event_type_key
       - name: mood_key
         description: Points to the requested mood on context_submitted events. "-2" on every other event.
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_mood')
                 field: mood_key
+      - name: event_name
+        description: Event name, kept next to event_type_key for simple queries.
+        data_type: varchar
+      - name: event_at
+        description: When the event happened.
+        data_type: timestamp_tz
+      - name: event_date
+        description: Calendar date of event_at.
+        data_type: date
+      - name: data_origin
+        description: "{{ doc('col_data_origin') }}"
+        data_type: varchar
+      - name: distinct_id
+        description: "{{ doc('col_distinct_id') }}"
+        data_type: varchar
+        config:
+          meta:
+            sensitivity: pseudonymous_id
+      - name: session_id
+        description: "{{ doc('col_session_id') }}"
+        data_type: varchar
+        config:
+          meta:
+            sensitivity: pseudonymous_id
+      - name: recommendation_session_id
+        description: "{{ doc('col_recommendation_session_id') }}"
+        data_type: varchar
+        config:
+          meta:
+            sensitivity: pseudonymous_id
+      - name: recommendation_item_id
+        description: "{{ doc('col_recommendation_item_id') }}"
+        data_type: varchar
+        config:
+          meta:
+            sensitivity: pseudonymous_id
+      - name: algorithm_version
+        description: "{{ doc('col_algorithm_version') }}"
+        data_type: varchar
+      - name: analytics_environment
+        description: development or pilot.
+        data_type: varchar
+      - name: traffic_class
+        description: internal or participant.
+        data_type: varchar
+      - name: media_type
+        description: movie or tv, on recommendation item events.
+        data_type: varchar
+      - name: position
+        description: One-based position of the card in the displayed set.
+        data_type: number(38,0)
+      - name: batch_sequence
+        description: Positive sequence number of the recommendation batch.
+        data_type: number(38,0)
+      - name: mood_code
+        description: Requested mood code, on context_submitted events.
+        data_type: varchar
+      - name: media_type_code
+        description: Requested media type, on context_submitted events.
+        data_type: varchar
+      - name: companion_code
+        description: Who the user is watching with, on context_submitted events.
+        data_type: varchar
+      - name: used_typed_input
+        description: Whether the request used typed input.
+        data_type: boolean
+      - name: required_restriction_count
+        description: Number of hard restrictions in the request.
+        data_type: number(38,0)
+      - name: rejection_reason
+        description: Coded reason on recommendation_rejected events.
+        data_type: varchar
+      - name: feedback_reason
+        description: Coded reason on feedback_submitted events.
+        data_type: varchar
+      - name: error_kind
+        description: Coded failure kind on api_error_shown events.
+        data_type: varchar
+      - name: candidate_age_code
+        description: recent, established, or unknown, on recommendation_item_shown events.
+        data_type: varchar
+      - name: rating_confidence_code
+        description: limited, medium, or strong, on recommendation_item_shown events.
+        data_type: varchar
+      - name: properties
+        description: "{{ doc('col_properties') }}"
+        data_type: variant
+        config:
+          meta:
+            sensitivity: contains_pseudonymous_ids
+      - name: source_file
+        description: "{{ doc('col_source_file') }}"
+        data_type: varchar
+      - name: loaded_at
+        description: "{{ doc('col_loaded_at') }}"
+        data_type: timestamp_ltz
 
   - name: fct_recommendation_journeys
     description: >
       Grain: one row per recommendation journey, from context submission to a
       choice, an empty result, an error, or leaving. An accumulating snapshot fact.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: journey_key
         description: Surrogate key. A hash of recommendation_session_id.
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: primary_key
+            warn_unenforced: false
         data_tests:
           - unique
           - not_null
       - name: submitted_date_key
+        description: "{{ doc('col_date_key') }}"
+        data_type: number(38,0)
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_date')
                 field: date_key
       - name: mood_key
+        description: "{{ doc('col_mood_key') }}"
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_mood')
                 field: mood_key
+      - name: recommendation_session_id
+        description: "{{ doc('col_recommendation_session_id') }}"
+        data_type: varchar
+        config:
+          meta:
+            sensitivity: pseudonymous_id
+      - name: data_origin
+        description: "{{ doc('col_data_origin') }}"
+        data_type: varchar
+      - name: algorithm_version
+        description: "{{ doc('col_algorithm_version') }}"
+        data_type: varchar
+      - name: submitted_at
+        description: When the context was submitted. Null if the journey has no context_submitted event.
+        data_type: timestamp_tz
+      - name: mood_code
+        description: Requested mood code.
+        data_type: varchar
+      - name: media_type_code
+        description: Requested media type.
+        data_type: varchar
+      - name: companion_code
+        description: Who the user is watching with.
+        data_type: varchar
+      - name: used_typed_input
+        description: Whether the request used typed input.
+        data_type: boolean
+      - name: items_shown
+        description: Recommendation cards shown in the journey.
+        data_type: number(13,0)
+      - name: items_opened
+        description: Detail opens in the journey.
+        data_type: number(13,0)
+      - name: trailers_clicked
+        description: Trailer clicks in the journey.
+        data_type: number(13,0)
+      - name: items_saved
+        description: Titles saved to the watchlist in the journey.
+        data_type: number(13,0)
+      - name: items_rejected
+        description: Rejected recommendations in the journey.
+        data_type: number(13,0)
+      - name: items_refreshed
+        description: Neutral replacements in the journey.
+        data_type: number(13,0)
+      - name: ended_empty
+        description: True when the request returned no eligible recommendations.
+        data_type: boolean
+      - name: ended_with_error
+        description: True when a request failure was shown.
+        data_type: boolean
+      - name: chosen_at
+        description: When the user selected Choose Tonight. Null if no title was chosen.
+        data_type: timestamp_tz
+      - name: chose_title
+        description: True when the journey ended in a choice. This is intent, not a completed viewing.
+        data_type: boolean
       - name: seconds_to_decision
         description: Seconds from context submission to Choose Tonight. Null when no title was chosen.
+        data_type: number(18,0)
 
   - name: fct_title_popularity
     description: >
       Grain: one row per title per catalog export. A periodic snapshot fact for
-      the numbers that change on every export. Incremental, so older exports
-      stay after RAW is reloaded.
+      the numbers that change on every export. Incremental, and full refresh is
+      turned off, so older exports stay after RAW is reloaded.
+    config:
+      contract:
+        enforced: true
     columns:
       - name: title_popularity_key
         description: Surrogate key. A hash of title_key and extracted_at.
+        data_type: varchar
         data_tests:
           - unique
           - not_null
       - name: title_version_key
         description: The dim_title version that was true when this export was taken.
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_title')
                 field: title_version_key
       - name: export_date_key
+        description: "{{ doc('col_date_key') }}"
+        data_type: number(38,0)
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_date')
                 field: date_key
+      - name: title_key
+        description: "{{ doc('col_title_key') }}"
+        data_type: varchar
+      - name: extracted_at
+        description: "{{ doc('col_extracted_at') }}"
+        data_type: timestamp_tz
+      - name: popularity
+        description: TMDB popularity score in this export.
+        data_type: float
+      - name: popularity_rank
+        description: Rank within its media type in this export.
+        data_type: number(38,0)
+      - name: vote_average
+        description: TMDB's average user rating on a 0 to 10 scale, in this export.
+        data_type: float
+      - name: vote_count
+        description: Number of TMDB votes in this export.
+        data_type: number(38,0)
+      - name: loaded_at
+        description: "{{ doc('col_loaded_at') }}"
+        data_type: timestamp_ltz
 
   - name: bridge_title_genre
     description: "Grain: one row per title and genre. Links titles to their genres, many to many."
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [title_key, genre_id]
     columns:
+      - name: title_key
+        description: "{{ doc('col_title_key') }}"
+        data_type: varchar
+      - name: media_type
+        description: movie or tv. Genre IDs are scoped to a media type.
+        data_type: varchar
+      - name: genre_id
+        description: TMDB genre ID.
+        data_type: number(38,0)
       - name: genre_name
+        description: Genre name. Null when the ID is missing from TMDB's list for that media type.
+        data_type: varchar
         data_tests:
           - not_null:
               name: genre_names_resolve
               description: Every genre ID on a title matches the TMDB genre list for its media type.
               config:
                 severity: warn
+      - name: genre_position
+        description: Zero-based position of the genre in TMDB's list for the title.
+        data_type: number(38,0)
 
   - name: title_rule_moods
     description: "Grain: one row per title and mood that the app's genre rules give it."
+    config:
+      contract:
+        enforced: true
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [title_key, mood]
+    columns:
+      - name: title_key
+        description: "{{ doc('col_title_key') }}"
+        data_type: varchar
+      - name: mood
+        description: Mood code the rules give the title.
+        data_type: varchar
+      - name: mood_mapping_version
+        description: Version label of the mood mapping.
+        data_type: varchar
+      - name: matched_genres
+        description: The title's genres that triggered the mood, sorted by name.
+        data_type: array

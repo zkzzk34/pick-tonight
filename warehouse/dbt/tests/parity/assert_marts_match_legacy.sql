@@ -1,6 +1,8 @@
 -- Migration parity for the marts: each dbt model must hold the same rows as
 -- the table it replaces from 03_marts.sql, on the columns they share.
 --
+-- The old flat DIM_TITLE is compared with title_catalog_current, which is
+-- rebuilt from the star schema. That shows the star loses nothing.
 -- The dbt facts add surrogate keys, so the comparison lists the original
 -- columns explicitly. Two deliberate differences are left out:
 --   loaded_at       differs if RAW was reloaded after 03_marts.sql last ran
@@ -15,7 +17,7 @@
 {% set journey_columns = 'recommendation_session_id, data_origin, algorithm_version, submitted_at, mood_code, media_type_code, companion_code, used_typed_input, items_shown, items_opened, trailers_clicked, items_saved, items_rejected, items_refreshed, ended_empty, ended_with_error, chosen_at, chose_title, seconds_to_decision' %}
 
 {% set pairs = [
-    ('int_titles__enriched', 'dim_title', title_columns),
+    ('title_catalog_current', 'dim_title', title_columns),
     ('bridge_title_genre', 'bridge_title_genre', 'title_key, media_type, genre_id, genre_name, genre_position'),
     ('title_rule_moods', 'title_rule_moods', 'title_key, mood, mood_mapping_version, array_sort(matched_genres)'),
     ('fct_events', 'fct_events', event_columns),

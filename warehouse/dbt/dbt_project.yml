@@ -33,17 +33,29 @@ flags:
 
 models:
   picktonight:
+    # Every model belongs to one data product with one owner.
+    +group: picktonight_analytics
     staging:
       # Views cost nothing to store and always reflect the latest RAW load.
       +schema: staging
       +materialized: view
+      # Protected: building blocks for this project, not for other teams.
+      +access: protected
     intermediate:
       +schema: intermediate
       +materialized: view
+      +access: protected
     marts:
       # Tables, so analysts and the ML steps read precomputed results.
       +schema: marts
       +materialized: table
+      # Public: the data product's output ports, with enforced contracts.
+      +access: public
+      # Copy descriptions into Snowflake table and column comments, so they
+      # show up in Snowsight and for any tool that reads the catalog.
+      +persist_docs:
+        relation: true
+        columns: true
 
 snapshots:
   picktonight:

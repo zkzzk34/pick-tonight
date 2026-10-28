@@ -9,6 +9,9 @@
 -- the rows from any export newer than the newest one already stored. Older
 -- exports stay in this table even after RAW is reloaded.
 --
+-- full_refresh is off for the same reason: rebuilding from RAW would keep
+-- only the latest export and silently delete the rest of the history.
+--
 -- title_version_key points to the dim_title version that was true when the
 -- export was taken. That is a point-in-time join on the version's validity
 -- range, compared in UTC because dim_title stores its validity range in UTC.
@@ -17,7 +20,8 @@
     materialized='incremental',
     unique_key=['title_key', 'extracted_at'],
     incremental_strategy='merge',
-    on_schema_change='fail'
+    on_schema_change='fail',
+    full_refresh=false
 ) }}
 
 with exported as (
