@@ -1,0 +1,21 @@
+# Results of the scheduled data quality task in
+# warehouse/snowflake/09_data_metrics.sql. dbt does not build these tables.
+# It reads them to watch the watcher:
+#   - source freshness warns if the daily task has stopped adding rows
+#   - the test latest_data_metrics_pass reports any metric that failed
+
+sources:
+  - name: monitoring
+    description: Data quality measurements written by the MEASURE_DATA_METRICS_DAILY task.
+    schema: GOVERNANCE
+    tables:
+      - name: dq_metrics
+        description: Every measurement the task has taken, one row per metric per run.
+        config:
+          # The task runs every morning, so two days without a row means it stopped.
+          loaded_at_field: measured_at
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 7, period: day}
+      - name: dq_metrics_latest
+        description: The most recent measurement of each metric.

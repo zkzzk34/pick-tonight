@@ -1,0 +1,8 @@
+data_tests:
+  - name: latest_data_metrics_pass
+    description: >
+      The latest run of the scheduled data quality task passed every metric in
+      data_metric_definitions. A warning, not a build stop: it reports on the
+      last scheduled run, which may be older than the current build.
+    config:
+      severity: warn

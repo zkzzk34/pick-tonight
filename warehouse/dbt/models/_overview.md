@@ -31,6 +31,7 @@ The lineage graph shows the two consumers outside dbt as exposures.
 - **Schema:** every public model has an enforced contract. A rename, a dropped column, or a type change fails the build instead of reaching a consumer. A breaking change ships as a new model version with a deprecation date.
 - **Quality:** every build runs data tests on keys, required fields, value ranges, referential integrity, and privacy. Error-level failures stop the build. A unit test checks the rating confidence rules against the app's own logic.
 - **Freshness:** sources warn when the latest load is more than 7 days old and fail after 30.
+- **Monitoring:** a daily Snowflake task measures row counts, null counts, duplicate counts, and freshness on the key marts, from a reviewed list in the `data_metric_definitions` seed. dbt warns if the task stops running or if its latest run found a failure.
 - **History:** `dim_title` keeps every version of the tracked title attributes. `fct_title_popularity` keeps every export, and full refresh is turned off for it so a rebuild cannot erase that history.
 - **Privacy:** events never carry title identity. Any event property outside the reviewed allowlist fails the build. Pseudonymous ID columns are marked with `meta.sensitivity`, dbt sets the matching Snowflake tag after every build, and a test fails if any tag is missing.
 
@@ -49,6 +50,6 @@ Dimensions use hashed surrogate keys, so a rebuild always produces the same keys
 
 ## Known limits
 
-- Snowflake trial: Cortex AI functions and Data Metric Functions are not available, so the models use Snowpark Python and the quality checks run as dbt tests.
+- Snowflake trial: Cortex AI functions and data metric functions are not available. The models use Snowpark Python instead of Cortex. A scheduled task measures the same metrics the system data metric functions would, and `09_data_metric_functions_paid.sql` holds the real version for a paid account.
 - The catalog is a popularity window, so a title that drops out of an export still exists on TMDB. Its history stays open.
 {% enddocs %}

@@ -62,3 +62,52 @@ seeds:
                 values: ['taxonomy_v3', 'posthog_sdk']
       - name: is_pseudonymous_id
         description: True for identifiers that the masking policies hide from analysts.
+
+  - name: data_metric_definitions
+    description: >
+      Which data quality metric to measure on which mart column, and the range
+      it must stay in. The scheduled task in warehouse/snowflake/09_data_metrics.sql
+      reads this list, so adding a check is a reviewed one-line change. Metric
+      names follow Snowflake's system data metric functions.
+    config:
+      column_types:
+        metric_id: varchar
+        table_name: varchar
+        column_name: varchar
+        metric_name: varchar
+        min_expected: number
+        max_expected: number
+        description: varchar
+    data_tests:
+      - dbt_utils.expression_is_true:
+          name: data_metric_definitions__column_given_when_needed
+          arguments:
+            expression: "metric_name = 'ROW_COUNT' or column_name is not null"
+      - dbt_utils.expression_is_true:
+          name: data_metric_definitions__has_a_bound
+          arguments:
+            expression: "min_expected is not null or max_expected is not null"
+    columns:
+      - name: metric_id
+        description: Stable ID in the form table__column__metric.
+        data_tests:
+          - unique
+          - not_null
+      - name: table_name
+        description: Schema and table inside the PICKTONIGHT database, in uppercase.
+        data_tests:
+          - not_null
+      - name: column_name
+        description: Column to measure. Empty for ROW_COUNT.
+      - name: metric_name
+        description: >
+          ROW_COUNT, NULL_COUNT, DUPLICATE_COUNT (extra copies of non-null
+          values), or FRESHNESS (seconds since the column's newest timestamp).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ROW_COUNT', 'NULL_COUNT', 'DUPLICATE_COUNT', 'FRESHNESS']
+      - name: min_expected
+        description: Lowest passing value. Empty means no lower bound.
+      - name: max_expected
+        description: Highest passing value. Empty means no upper bound.
