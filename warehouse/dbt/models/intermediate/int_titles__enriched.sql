@@ -33,11 +33,13 @@ select
     t.popularity,
     t.vote_average,
     t.vote_count,
-    -- Mirrors RATING_CONFIDENCE_CONFIG in src/server/recommendation-engine.ts:
-    -- up to 24 votes is limited and up to 99 is medium. A title released in
-    -- the last 180 days is strong from 100 votes, while older titles need 500.
+    -- Mirrors ratingConfidence() in src/server/recommendation-engine.ts:
+    -- no rating or up to 24 votes is limited, and up to 99 votes is medium.
+    -- A title released 0 to 180 days ago is strong from 100 votes, while
+    -- older, future, or undated titles need 500. The unit test
+    -- rating_confidence_follows_app_rules checks every boundary.
     case
-        when coalesce(t.vote_count, 0) <= 24 then 'limited'
+        when t.vote_average is null or coalesce(t.vote_count, 0) <= 24 then 'limited'
         when t.vote_count <= 99 then 'medium'
         when datediff('day', t.release_date, to_date(t.extracted_at)) between 0 and 180 then 'strong'
         when t.vote_count < 500 then 'medium'

@@ -1,22 +1,67 @@
+# Data tests on the TMDB staging views. Each test keeps the name of the
+# check it replaces in warehouse/snowflake/04_data_quality.sql, so dbt's
+# output lines up with GOVERNANCE.DQ_RESULTS. Where one old check covered
+# several columns, each column gets its own test with a "__column" suffix.
+# Severity matches the old checks: error stops the pipeline, warn reports.
+
 models:
   - name: stg_tmdb__titles
     description: >
       One row per normalized TMDB title from the latest catalog export. Typed
       columns only: rating confidence, genre names, and the search document are
       derived later in the marts.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          name: overview_present
+          description: Titles without a real overview are skipped by AI mood classification.
+          arguments:
+            expression: "length(coalesce(overview, '')) >= 20"
+          config:
+            severity: warn
     columns:
       - name: title_key
         description: Natural key in the form media_type:tmdb_id, for example movie:603.
+        data_tests:
+          - unique:
+              name: title_key_unique
+              description: Each media type and TMDB ID pair appears once.
+          - not_null:
+              name: title_required_fields__title_key
       - name: tmdb_id
         description: TMDB's ID. Unique only within a media type.
+        data_tests:
+          - not_null:
+              name: title_required_fields__tmdb_id
       - name: media_type
         description: movie or tv.
+        data_tests:
+          - accepted_values:
+              name: title_required_fields__media_type
+              arguments:
+                values: ['movie', 'tv']
+      - name: title
+        data_tests:
+          - not_null:
+              name: title_required_fields__title
       - name: release_date
         description: Parsed release or first-air date. Null when TMDB has no usable date.
+        data_tests:
+          - not_null:
+              name: release_date_parses
+              description: Titles without a usable release date cannot use the freshness signal.
+              config:
+                severity: warn
       - name: genre_ids
         description: TMDB genre IDs as a JSON array, in TMDB's order.
       - name: vote_average
         description: TMDB's average user rating on a 0 to 10 scale.
+        data_tests:
+          - dbt_utils.accepted_range:
+              name: vote_average_in_range
+              description: TMDB ratings stay between 0 and 10.
+              arguments:
+                min_value: 0
+                max_value: 10
       - name: source_rank
         description: Rank within its media type in this export, by TMDB popularity.
       - name: extracted_at

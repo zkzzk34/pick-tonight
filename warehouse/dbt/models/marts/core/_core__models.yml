@@ -154,6 +154,14 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [title_key, genre_id]
+    columns:
+      - name: genre_name
+        data_tests:
+          - not_null:
+              name: genre_names_resolve
+              description: Every genre ID on a title matches the TMDB genre list for its media type.
+              config:
+                severity: warn
 
   - name: title_rule_moods
     description: "Grain: one row per title and mood that the app's genre rules give it."

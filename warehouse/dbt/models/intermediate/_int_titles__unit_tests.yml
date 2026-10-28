@@ -1,0 +1,45 @@
+# Unit tests check logic with fixed inputs, unlike data tests, which check
+# the real data. This one encodes the app's rating confidence rules from
+# ratingConfidence() in src/server/recommendation-engine.ts, one row per
+# boundary. The export date in every row is 2026-10-26.
+
+unit_tests:
+  - name: rating_confidence_follows_app_rules
+    description: >
+      The rating confidence band in the warehouse matches the app's rules at
+      every boundary: vote counts 24, 25, 99, 100, 499, and 500, release ages
+      of 180 and 181 days, a future release, a missing release date, and a
+      missing rating.
+    model: int_titles__enriched
+    given:
+      - input: ref('stg_tmdb__titles')
+        rows:
+          - {title_key: "movie:1", vote_average: 7.0, vote_count: null, release_date: "2026-09-26", extracted_at: "2026-10-26 12:00:00", source_rank: 1}
+          - {title_key: "movie:2", vote_average: 7.0, vote_count: 24, release_date: "2026-09-26", extracted_at: "2026-10-26 12:00:00", source_rank: 2}
+          - {title_key: "movie:3", vote_average: 7.0, vote_count: 25, release_date: "2026-09-26", extracted_at: "2026-10-26 12:00:00", source_rank: 3}
+          - {title_key: "movie:4", vote_average: 7.0, vote_count: 99, release_date: "2026-09-26", extracted_at: "2026-10-26 12:00:00", source_rank: 4}
+          - {title_key: "movie:5", vote_average: 7.0, vote_count: 100, release_date: "2026-09-26", extracted_at: "2026-10-26 12:00:00", source_rank: 5}
+          - {title_key: "movie:6", vote_average: 7.0, vote_count: 100, release_date: "2026-04-29", extracted_at: "2026-10-26 12:00:00", source_rank: 6}
+          - {title_key: "movie:7", vote_average: 7.0, vote_count: 100, release_date: "2026-04-28", extracted_at: "2026-10-26 12:00:00", source_rank: 7}
+          - {title_key: "movie:8", vote_average: 7.0, vote_count: 499, release_date: "2020-01-01", extracted_at: "2026-10-26 12:00:00", source_rank: 8}
+          - {title_key: "movie:9", vote_average: 7.0, vote_count: 500, release_date: "2020-01-01", extracted_at: "2026-10-26 12:00:00", source_rank: 9}
+          - {title_key: "movie:10", vote_average: 7.0, vote_count: 100, release_date: "2026-11-15", extracted_at: "2026-10-26 12:00:00", source_rank: 10}
+          - {title_key: "movie:11", vote_average: 7.0, vote_count: 200, release_date: null, extracted_at: "2026-10-26 12:00:00", source_rank: 11}
+          - {title_key: "movie:12", vote_average: null, vote_count: 200, release_date: "2026-09-26", extracted_at: "2026-10-26 12:00:00", source_rank: 12}
+      - input: ref('int_title_genres')
+        rows:
+          - {title_key: "movie:1", media_type: movie, genre_id: 18, genre_name: Drama, genre_position: 0}
+    expect:
+      rows:
+        - {title_key: "movie:1", rating_confidence: limited}   # no vote count
+        - {title_key: "movie:2", rating_confidence: limited}   # 24 votes, the limited maximum
+        - {title_key: "movie:3", rating_confidence: medium}    # 25 votes
+        - {title_key: "movie:4", rating_confidence: medium}    # 99 votes, the medium maximum
+        - {title_key: "movie:5", rating_confidence: strong}    # 100 votes, released 30 days ago
+        - {title_key: "movie:6", rating_confidence: strong}    # 100 votes, released exactly 180 days ago
+        - {title_key: "movie:7", rating_confidence: medium}    # 100 votes, released 181 days ago
+        - {title_key: "movie:8", rating_confidence: medium}    # older title, 499 votes
+        - {title_key: "movie:9", rating_confidence: strong}    # older title, 500 votes
+        - {title_key: "movie:10", rating_confidence: medium}   # future release date counts as not recent
+        - {title_key: "movie:11", rating_confidence: medium}   # no release date counts as not recent
+        - {title_key: "movie:12", rating_confidence: limited}  # no rating, even with 200 votes
