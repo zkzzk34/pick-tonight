@@ -1,0 +1,163 @@
+# The star schema. Every dimension has a hashed surrogate key and at least
+# one default row, and every fact key falls back to a default row instead of
+# null. The tests below check each table's grain and that every fact key
+# finds its dimension row. The full set of quality checks comes in Phase 4.
+
+models:
+  - name: dim_title
+    description: >
+      Grain: one row per version of a title, plus one default row. Type 2
+      history from the snap_title_attributes snapshot: a new version starts
+      when a tracked attribute changes between catalog exports.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [title_key, valid_from]
+    columns:
+      - name: title_version_key
+        description: Surrogate key. A hash of title_key and valid_from. "-1" is the default row.
+        data_tests:
+          - unique
+          - not_null
+      - name: title_key
+        description: Durable natural key that ties all versions of one title together.
+        data_tests:
+          - not_null
+          - unique:
+              config:
+                where: "is_current"
+      - name: valid_from
+        description: Export time, in UTC, when this version was first seen.
+      - name: valid_to
+        description: Export time, in UTC, when a newer version replaced it. 9999-12-31 for the current version.
+      - name: is_current
+        description: True for the latest version of each title.
+      - name: version_number
+        description: 1 for the first version seen, then 2, 3, and so on.
+
+  - name: dim_date
+    description: "Grain: one row per calendar day in 2026 and 2027, plus one default row."
+    columns:
+      - name: date_key
+        description: Integer in YYYYMMDD form. -1 is the default row.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_event_type
+    description: "Grain: one row per event in taxonomy v3, plus one default row. Built from the event_taxonomy seed."
+    columns:
+      - name: event_type_key
+        description: Surrogate key. A hash of event_name. "-1" is the default row.
+        data_tests:
+          - unique
+          - not_null
+      - name: event_name
+        data_tests:
+          - unique
+
+  - name: dim_mood
+    description: >
+      Grain: one row per mood in the app's mood mapping, plus two default
+      rows: "-1" for an unknown mood code and "-2" when no mood was given.
+    columns:
+      - name: mood_key
+        description: Surrogate key. A hash of the mood code.
+        data_tests:
+          - unique
+          - not_null
+      - name: mood_code
+        data_tests:
+          - unique
+
+  - name: fct_events
+    description: "Grain: one row per analytics event that parsed cleanly."
+    columns:
+      - name: event_uuid
+        description: Event ID from PostHog or the synthetic generator. The fact's primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: date_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: event_type_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_event_type')
+                field: event_type_key
+      - name: mood_key
+        description: Points to the requested mood on context_submitted events. "-2" on every other event.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_mood')
+                field: mood_key
+
+  - name: fct_recommendation_journeys
+    description: >
+      Grain: one row per recommendation journey, from context submission to a
+      choice, an empty result, an error, or leaving. An accumulating snapshot fact.
+    columns:
+      - name: journey_key
+        description: Surrogate key. A hash of recommendation_session_id.
+        data_tests:
+          - unique
+          - not_null
+      - name: submitted_date_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: mood_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_mood')
+                field: mood_key
+      - name: seconds_to_decision
+        description: Seconds from context submission to Choose Tonight. Null when no title was chosen.
+
+  - name: fct_title_popularity
+    description: >
+      Grain: one row per title per catalog export. A periodic snapshot fact for
+      the numbers that change on every export. Incremental, so older exports
+      stay after RAW is reloaded.
+    columns:
+      - name: title_popularity_key
+        description: Surrogate key. A hash of title_key and extracted_at.
+        data_tests:
+          - unique
+          - not_null
+      - name: title_version_key
+        description: The dim_title version that was true when this export was taken.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_title')
+                field: title_version_key
+      - name: export_date_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+
+  - name: bridge_title_genre
+    description: "Grain: one row per title and genre. Links titles to their genres, many to many."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [title_key, genre_id]
+
+  - name: title_rule_moods
+    description: "Grain: one row per title and mood that the app's genre rules give it."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [title_key, mood]

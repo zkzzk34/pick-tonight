@@ -4,8 +4,11 @@
 # documented models. It writes to its own schemas, so the original STAGING
 # and MARTS objects keep working while the two versions are compared:
 #
-#   DBT_STAGING    typed views over RAW, one per source table
-#   DBT_SEEDS      small reviewed reference lists kept in Git
+#   DBT_STAGING       typed views over RAW, one per source table
+#   DBT_INTERMEDIATE  views that join and derive, shared by several marts
+#   DBT_SNAPSHOTS     type 2 history of title attributes, kept across loads
+#   DBT_MARTS         the star schema: dimensions, facts, and aggregates
+#   DBT_SEEDS         small reviewed reference lists kept in Git
 #
 # The schema names come from the profile's base schema (DBT) plus each
 # folder's +schema, which is dbt's default naming behavior.
@@ -21,6 +24,7 @@ model-paths: ["models"]
 seed-paths: ["seeds"]
 test-paths: ["tests"]
 macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
 clean-targets: ["target", "dbt_packages"]
 
 flags:
@@ -33,6 +37,17 @@ models:
       # Views cost nothing to store and always reflect the latest RAW load.
       +schema: staging
       +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      # Tables, so analysts and the ML steps read precomputed results.
+      +schema: marts
+      +materialized: table
+
+snapshots:
+  picktonight:
+    +schema: snapshots
 
 seeds:
   picktonight:

@@ -1,7 +1,7 @@
-# The hand-written views from warehouse/snowflake/02_staging.sql.
-# dbt does not build these. They are declared only so the parity test can
-# compare them with the dbt views that replace them. Remove this file and
-# tests/parity/ once the old scripts are retired.
+# The hand-written objects from warehouse/snowflake/02_staging.sql and
+# 03_marts.sql. dbt does not build these. They are declared only so the
+# parity tests can compare them with the dbt models that replace them.
+# Remove this file and tests/parity/ once the old scripts are retired.
 
 sources:
   - name: legacy_staging
@@ -13,3 +13,15 @@ sources:
       - name: stg_genres
       - name: stg_mood_rules
       - name: stg_events
+
+  - name: legacy_marts
+    description: Original MARTS tables. The AI and governance scripts still read these.
+    schema: MARTS
+    tables:
+      - name: dim_title
+      - name: bridge_title_genre
+      - name: title_rule_moods
+      - name: fct_events
+      - name: fct_recommendation_journeys
+      - name: agg_picker_funnel_daily
+      - name: agg_mood_outcomes

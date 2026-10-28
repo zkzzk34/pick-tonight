@@ -1,0 +1,14 @@
+models:
+  - name: agg_picker_funnel_daily
+    description: "Grain: one row per event date and data origin. Distinct page sessions reaching each funnel step."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [event_date, data_origin]
+
+  - name: agg_mood_outcomes
+    description: "Grain: one row per data origin and requested mood. Journey outcomes by mood."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [data_origin, mood_code]

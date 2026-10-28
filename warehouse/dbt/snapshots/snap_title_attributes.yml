@@ -1,0 +1,33 @@
+# Type 2 history for title attributes.
+#
+# Each export reloads RAW from scratch, so the snapshot is the only place
+# that remembers what a title looked like before. When any tracked column
+# changes between exports, dbt closes the old row and adds a new one.
+#
+# Design choices:
+# - strategy check: TMDB gives no reliable "last updated" field, so dbt
+#   compares the tracked columns themselves.
+# - updated_at extracted_at_utc: a new version starts at the export time when
+#   the change was first seen, not at the time dbt happened to run. That lets
+#   a fact from any export join to the version that was true at that moment.
+#   It is UTC TIMESTAMP_NTZ to match dbt-snowflake's own snapshot clock.
+# - hard_deletes ignore: the export is a popularity window. A title that
+#   drops out of it still exists on TMDB, so its history stays open.
+
+snapshots:
+  - name: snap_title_attributes
+    relation: ref('int_title_attributes')
+    description: Every version of every title's slowly changing attributes, across all exports.
+    config:
+      unique_key: title_key
+      strategy: check
+      check_cols:
+        - title
+        - original_title
+        - overview
+        - release_date
+        - original_language
+        - genre_names_text
+        - rating_confidence
+      updated_at: extracted_at_utc
+      hard_deletes: ignore
