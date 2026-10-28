@@ -49,5 +49,10 @@ warehouse/data/
 
 # Python bytecode from running the Snowpark model tests locally
 __pycache__/
+
+# dbt build output, installed packages, and run logs
+warehouse/dbt/target/
+warehouse/dbt/dbt_packages/
+warehouse/dbt/logs/
 .vercel
 .env*

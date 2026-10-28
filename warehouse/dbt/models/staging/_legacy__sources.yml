@@ -1,0 +1,15 @@
+# The hand-written views from warehouse/snowflake/02_staging.sql.
+# dbt does not build these. They are declared only so the parity test can
+# compare them with the dbt views that replace them. Remove this file and
+# tests/parity/ once the old scripts are retired.
+
+sources:
+  - name: legacy_staging
+    description: Original STAGING views, kept during the move to dbt.
+    schema: STAGING
+    tables:
+      - name: stg_titles
+      - name: stg_title_genres
+      - name: stg_genres
+      - name: stg_mood_rules
+      - name: stg_events

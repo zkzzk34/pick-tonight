@@ -1,0 +1,64 @@
+# Seeds are small reviewed lists kept in Git. Changing one is a code change
+# with a pull request, which is the point: these lists define what the
+# warehouse accepts.
+
+seeds:
+  - name: event_taxonomy
+    description: >
+      The 17 product events in taxonomy v3 (docs/event-taxonomy.md), with the
+      funnel order and which events must carry recommendation identifiers.
+    config:
+      column_types:
+        event_name: varchar
+        event_group: varchar
+        funnel_step_order: integer
+        requires_recommendation_scope: boolean
+        requires_recommendation_item: boolean
+        description: varchar
+    columns:
+      - name: event_name
+        description: Event name exactly as the app sends it.
+        data_tests:
+          - unique
+          - not_null
+      - name: event_group
+        description: Broad stage of the journey the event belongs to.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['session', 'picker', 'recommendation', 'engagement', 'decision', 'feedback', 'error']
+      - name: funnel_step_order
+        description: Position in the picker funnel, 1 to 5. Null for events outside the funnel.
+        data_tests:
+          - unique
+      - name: requires_recommendation_scope
+        description: True when the event must carry recommendation_session_id and algorithm_version.
+      - name: requires_recommendation_item
+        description: True when the event must also carry recommendation_item_id, media_type, and position.
+
+  - name: analytics_property_allowlist
+    description: >
+      Every event property the warehouse accepts. It mirrors the app's reviewed
+      allowlist (docs/analytics-property-allowlist.md) plus two PostHog SDK
+      transport fields. Any other property on a stored event fails the privacy test.
+    config:
+      column_types:
+        property_name: varchar
+        property_source: varchar
+        is_pseudonymous_id: boolean
+        description: varchar
+    columns:
+      - name: property_name
+        description: Property key exactly as stored in the event JSON.
+        data_tests:
+          - unique
+          - not_null
+      - name: property_source
+        description: taxonomy_v3 for the app's own properties, posthog_sdk for SDK transport fields.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['taxonomy_v3', 'posthog_sdk']
+      - name: is_pseudonymous_id
+        description: True for identifiers that the masking policies hide from analysts.

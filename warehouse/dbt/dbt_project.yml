@@ -1,0 +1,41 @@
+# dbt project for the PickTonight Snowflake warehouse.
+#
+# dbt rebuilds the hand-written layers from warehouse/snowflake/ as tested,
+# documented models. It writes to its own schemas, so the original STAGING
+# and MARTS objects keep working while the two versions are compared:
+#
+#   DBT_STAGING    typed views over RAW, one per source table
+#   DBT_SEEDS      small reviewed reference lists kept in Git
+#
+# The schema names come from the profile's base schema (DBT) plus each
+# folder's +schema, which is dbt's default naming behavior.
+
+name: picktonight
+version: "1.0.0"
+profile: picktonight
+
+# Works on dbt Core 1.12 today and is ready for the planned move to dbt v2.
+require-dbt-version: [">=1.12.0", "<3.0.0"]
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+clean-targets: ["target", "dbt_packages"]
+
+flags:
+  # Matches the app's privacy stance: no usage telemetry leaves this project.
+  send_anonymous_usage_stats: false
+
+models:
+  picktonight:
+    staging:
+      # Views cost nothing to store and always reflect the latest RAW load.
+      +schema: staging
+      +materialized: view
+
+seeds:
+  picktonight:
+    +schema: seeds
+    # Keep seed column names unquoted, so they behave like every other column.
+    +quote_columns: false

@@ -1,0 +1,34 @@
+models:
+  - name: stg_tmdb__titles
+    description: >
+      One row per normalized TMDB title from the latest catalog export. Typed
+      columns only: rating confidence, genre names, and the search document are
+      derived later in the marts.
+    columns:
+      - name: title_key
+        description: Natural key in the form media_type:tmdb_id, for example movie:603.
+      - name: tmdb_id
+        description: TMDB's ID. Unique only within a media type.
+      - name: media_type
+        description: movie or tv.
+      - name: release_date
+        description: Parsed release or first-air date. Null when TMDB has no usable date.
+      - name: genre_ids
+        description: TMDB genre IDs as a JSON array, in TMDB's order.
+      - name: vote_average
+        description: TMDB's average user rating on a 0 to 10 scale.
+      - name: source_rank
+        description: Rank within its media type in this export, by TMDB popularity.
+      - name: extracted_at
+        description: When the export script pulled this title from TMDB.
+      - name: loaded_at
+        description: When 01_load_raw.sql loaded the row into RAW.
+
+  - name: stg_tmdb__title_genres
+    description: One row per title and genre ID, flattened from stg_tmdb__titles.
+    columns:
+      - name: genre_position
+        description: Zero-based position of the genre in TMDB's list for the title.
+
+  - name: stg_tmdb__genres
+    description: TMDB genre names, one row per media type and genre ID.

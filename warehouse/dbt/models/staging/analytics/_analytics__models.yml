@@ -1,0 +1,23 @@
+models:
+  - name: stg_analytics__events
+    description: >
+      One row per loaded analytics event, with the timestamp and properties
+      parsed and the taxonomy v3 properties as typed columns. Synthetic and
+      real internal events stay labeled by data_origin.
+    columns:
+      - name: event_uuid
+        description: PostHog's event UUID, or a seeded UUID for synthetic events.
+      - name: event_at
+        description: Parsed event time. Null when the timestamp text cannot be parsed.
+      - name: distinct_id
+        description: Pseudonymous browser ID. Synthetic IDs start with "synthetic-".
+      - name: data_origin
+        description: synthetic or posthog_internal, from the source file name.
+      - name: session_id
+        description: Pseudonymous page-session ID from the event properties.
+      - name: recommendation_session_id
+        description: Pseudonymous ID for one recommendation journey.
+      - name: recommendation_item_id
+        description: Opaque per-card ID. It never contains title identity.
+      - name: properties
+        description: The full parsed property object. Null when the JSON is invalid.

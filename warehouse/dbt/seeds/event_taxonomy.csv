@@ -1,0 +1,18 @@
+event_name,event_group,funnel_step_order,requires_recommendation_scope,requires_recommendation_item,description
+app_opened,session,1,false,false,Analytics became active in the current page session
+consent_responded,session,,false,false,The user accepted analytics
+picker_started,picker,2,false,false,First deliberate interaction with the picker in this attempt
+picker_step_completed,picker,,false,false,The user advanced from preference entry to the review step
+picker_abandoned,picker,,false,false,Explicit in-app abandonment after starting and before submitting
+context_submitted,picker,3,true,false,A valid context submission started a new recommendation journey
+recommendation_batch_viewed,recommendation,4,true,false,A successful recommendation batch became available to the user
+recommendation_empty_shown,recommendation,,true,false,A request succeeded but returned no eligible recommendations
+recommendation_item_shown,recommendation,,true,true,A recommendation card became newly visible
+recommendation_opened,engagement,,true,true,The user deliberately opened a recommendation's details
+trailer_clicked,engagement,,true,true,The user followed a trailer link
+recommendation_saved,engagement,,true,true,Save added the title to the local watchlist
+recommendation_rejected,engagement,,true,true,The user deliberately rejected a recommendation
+recommendations_refreshed,engagement,,true,false,A neutral Replace action installed a replacement title
+watch_intent_confirmed,decision,5,true,true,The user selected Choose Tonight. This is intent and not a completed viewing
+feedback_submitted,feedback,,true,false,The user submitted a structured feedback reason
+api_error_shown,error,,true,false,A recommendation request failure became visible to the user
