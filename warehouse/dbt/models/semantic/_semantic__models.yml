@@ -1,0 +1,337 @@
+# The semantic view and its 20 verified questions.
+#
+# Each question has a semantic_sql answer through the semantic view and an
+# independent truth_sql answer on the marts. The test
+# verified_questions_match_truth runs both on every build and fails if any
+# answer differs. The same questions are written into the view's
+# AI_VERIFIED_QUERIES clause for Cortex Analyst, so what Cortex Analyst
+# trusts is exactly what the build has proven.
+#
+# Placeholders: {sv} is the semantic view, and {<mart name>} is a mart. See
+# macros/semantic_view.sql. Rates are rounded to 4 decimals and averages to 2
+# on both sides, so the answers compare exactly.
+#
+# To add a question: append an entry with a new id, both answers, and the
+# date you checked it. "dbt build --select sv_picktonight+" proves it.
+
+models:
+  - name: sv_picktonight
+    description: >
+      Semantic view over the PickTonight star schema: product analytics
+      (journeys, events, funnel, moods) and the title catalog (genres, rule
+      moods, popularity history). It gives AI tools and analysts business
+      names, declared joins, and tested metric definitions, so a question in
+      plain language becomes correct SQL. Counts and rates only: no
+      identifiers. Built with Snowflake Labs' dbt_semantic_view package.
+    config:
+      meta:
+        owner: ZK Zhao
+        verified_by: zk_zhao
+        verified_questions:
+          - id: journeys_by_origin
+            category: journeys
+            onboarding: true
+            verified_on: "2026-10-28"
+            question: How many recommendation journeys were there for each data origin?
+            semantic_sql: |-
+              SELECT data_origin, journey_count
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS journeys.data_origin
+                METRICS journeys.journey_count)
+            truth_sql: |-
+              SELECT data_origin, COUNT(*) AS journey_count
+              FROM {fct_recommendation_journeys}
+              GROUP BY data_origin
+          - id: pick_rate_by_origin
+            category: journeys
+            onboarding: true
+            verified_on: "2026-10-28"
+            question: What share of journeys ended with the user picking a title, for each data origin?
+            semantic_sql: |-
+              SELECT data_origin, ROUND(pick_rate, 4) AS pick_rate
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS journeys.data_origin
+                METRICS journeys.pick_rate)
+            truth_sql: |-
+              SELECT data_origin, ROUND(AVG(IFF(chose_title, 1, 0)), 4) AS pick_rate
+              FROM {fct_recommendation_journeys}
+              GROUP BY data_origin
+          - id: pick_rate_by_mood
+            category: journeys
+            verified_on: "2026-10-28"
+            question: In the synthetic data, what is the pick rate for each requested mood?
+            semantic_sql: |-
+              SELECT mood_code, journey_count, ROUND(pick_rate, 4) AS pick_rate
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS moods.mood_code
+                METRICS journeys.journey_count, journeys.pick_rate
+                WHERE journeys.data_origin = 'synthetic')
+            truth_sql: |-
+              SELECT m.mood_code, COUNT(*) AS journey_count, ROUND(AVG(IFF(j.chose_title, 1, 0)), 4) AS pick_rate
+              FROM {fct_recommendation_journeys} AS j
+              JOIN {dim_mood} AS m ON m.mood_key = j.mood_key
+              WHERE j.data_origin = 'synthetic'
+              GROUP BY m.mood_code
+          - id: decision_time_by_origin
+            category: journeys
+            verified_on: "2026-10-28"
+            question: For journeys that ended with a pick, how many seconds did it take to decide, on average and at the median, for each data origin?
+            semantic_sql: |-
+              SELECT data_origin,
+                ROUND(avg_seconds_to_decision, 2) AS avg_seconds_to_decision,
+                ROUND(median_seconds_to_decision, 2) AS median_seconds_to_decision
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS journeys.data_origin
+                METRICS journeys.avg_seconds_to_decision, journeys.median_seconds_to_decision)
+            truth_sql: |-
+              SELECT data_origin,
+                ROUND(AVG(seconds_to_decision), 2) AS avg_seconds_to_decision,
+                ROUND(MEDIAN(seconds_to_decision), 2) AS median_seconds_to_decision
+              FROM {fct_recommendation_journeys}
+              GROUP BY data_origin
+          - id: decision_time_weekend
+            category: journeys
+            verified_on: "2026-10-28"
+            question: In the synthetic data, do people decide faster on weekends than on weekdays?
+            semantic_sql: |-
+              SELECT is_weekend, journey_count, ROUND(avg_seconds_to_decision, 2) AS avg_seconds_to_decision
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS dates.is_weekend
+                METRICS journeys.journey_count, journeys.avg_seconds_to_decision
+                WHERE journeys.data_origin = 'synthetic')
+            truth_sql: |-
+              SELECT d.is_weekend, COUNT(*) AS journey_count, ROUND(AVG(j.seconds_to_decision), 2) AS avg_seconds_to_decision
+              FROM {fct_recommendation_journeys} AS j
+              JOIN {dim_date} AS d ON d.date_key = j.submitted_date_key
+              WHERE j.data_origin = 'synthetic'
+              GROUP BY d.is_weekend
+          - id: pick_rate_by_companion
+            category: journeys
+            verified_on: "2026-10-28"
+            question: In the synthetic data, what is the pick rate by who the user is watching with?
+            semantic_sql: |-
+              SELECT companion, ROUND(pick_rate, 4) AS pick_rate
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS journeys.companion
+                METRICS journeys.pick_rate
+                WHERE journeys.data_origin = 'synthetic')
+            truth_sql: |-
+              SELECT companion_code, ROUND(AVG(IFF(chose_title, 1, 0)), 4) AS pick_rate
+              FROM {fct_recommendation_journeys}
+              WHERE data_origin = 'synthetic'
+              GROUP BY companion_code
+          - id: pick_rate_typed_input
+            category: journeys
+            verified_on: "2026-10-28"
+            question: In the synthetic data, do journeys with a typed request end with a pick more often than journeys without one?
+            semantic_sql: |-
+              SELECT used_typed_input, journey_count, ROUND(pick_rate, 4) AS pick_rate
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS journeys.used_typed_input
+                METRICS journeys.journey_count, journeys.pick_rate
+                WHERE journeys.data_origin = 'synthetic')
+            truth_sql: |-
+              SELECT used_typed_input, COUNT(*) AS journey_count, ROUND(AVG(IFF(chose_title, 1, 0)), 4) AS pick_rate
+              FROM {fct_recommendation_journeys}
+              WHERE data_origin = 'synthetic'
+              GROUP BY used_typed_input
+          - id: rejections_by_mood
+            category: journeys
+            verified_on: "2026-10-28"
+            question: In the synthetic data, how many recommendations are rejected per journey on average, for each mood?
+            semantic_sql: |-
+              SELECT mood_code, ROUND(avg_rejections, 2) AS avg_rejections
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS moods.mood_code
+                METRICS journeys.avg_rejections
+                WHERE journeys.data_origin = 'synthetic')
+            truth_sql: |-
+              SELECT m.mood_code, ROUND(AVG(j.items_rejected), 2) AS avg_rejections
+              FROM {fct_recommendation_journeys} AS j
+              JOIN {dim_mood} AS m ON m.mood_key = j.mood_key
+              WHERE j.data_origin = 'synthetic'
+              GROUP BY m.mood_code
+          - id: empty_and_error_rates
+            category: journeys
+            verified_on: "2026-10-28"
+            question: In the synthetic data, what share of journeys ended with no results or with an error, for each requested media type?
+            semantic_sql: |-
+              SELECT requested_media_type, ROUND(empty_rate, 4) AS empty_rate, ROUND(error_rate, 4) AS error_rate
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS journeys.requested_media_type
+                METRICS journeys.empty_rate, journeys.error_rate
+                WHERE journeys.data_origin = 'synthetic')
+            truth_sql: |-
+              SELECT media_type_code,
+                ROUND(AVG(IFF(ended_empty, 1, 0)), 4) AS empty_rate,
+                ROUND(AVG(IFF(ended_with_error, 1, 0)), 4) AS error_rate
+              FROM {fct_recommendation_journeys}
+              WHERE data_origin = 'synthetic'
+              GROUP BY media_type_code
+          - id: weekly_journeys_and_picks
+            category: journeys
+            verified_on: "2026-10-28"
+            question: How many journeys and how many picks happened each week, for each data origin?
+            semantic_sql: |-
+              SELECT week_start_date, data_origin, journey_count, picked_journey_count
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS dates.week_start_date, journeys.data_origin
+                METRICS journeys.journey_count, journeys.picked_journey_count)
+            truth_sql: |-
+              SELECT d.week_start_date, j.data_origin, COUNT(*) AS journey_count, COUNT_IF(j.chose_title) AS picked_journey_count
+              FROM {fct_recommendation_journeys} AS j
+              JOIN {dim_date} AS d ON d.date_key = j.submitted_date_key
+              GROUP BY d.week_start_date, j.data_origin
+          - id: events_by_group
+            category: events
+            onboarding: true
+            verified_on: "2026-10-28"
+            question: How many events were logged in each event group, for each data origin?
+            semantic_sql: |-
+              SELECT event_group, data_origin, event_count
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS event_types.event_group, events.data_origin
+                METRICS events.event_count)
+            truth_sql: |-
+              SELECT t.event_group, e.data_origin, COUNT(*) AS event_count
+              FROM {fct_events} AS e
+              JOIN {dim_event_type} AS t ON t.event_type_key = e.event_type_key
+              GROUP BY t.event_group, e.data_origin
+          - id: funnel_sessions
+            category: events
+            verified_on: "2026-10-28"
+            question: How many distinct page sessions reached each step of the picker funnel, for each data origin?
+            semantic_sql: |-
+              SELECT funnel_step_order, event_name, data_origin, session_count
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS event_types.funnel_step_order, event_types.event_name, events.data_origin
+                METRICS events.session_count
+                WHERE event_types.is_funnel_step)
+            truth_sql: |-
+              SELECT t.funnel_step_order, t.event_name, e.data_origin, COUNT(DISTINCT e.session_id) AS session_count
+              FROM {fct_events} AS e
+              JOIN {dim_event_type} AS t ON t.event_type_key = e.event_type_key
+              WHERE t.is_funnel_step
+              GROUP BY t.funnel_step_order, t.event_name, e.data_origin
+          - id: rejection_reasons
+            category: events
+            verified_on: "2026-10-28"
+            question: In the synthetic data, how often was each rejection reason given?
+            semantic_sql: |-
+              SELECT rejection_reason, event_count
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS events.rejection_reason
+                METRICS events.event_count
+                WHERE event_types.event_name = 'recommendation_rejected' AND events.data_origin = 'synthetic')
+            truth_sql: |-
+              SELECT rejection_reason, COUNT(*) AS event_count
+              FROM {fct_events}
+              WHERE event_name = 'recommendation_rejected' AND data_origin = 'synthetic'
+              GROUP BY rejection_reason
+          - id: api_error_kinds
+            category: events
+            verified_on: "2026-10-28"
+            question: How many API errors of each kind were shown, for each data origin?
+            semantic_sql: |-
+              SELECT error_kind, data_origin, event_count
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS events.error_kind, events.data_origin
+                METRICS events.event_count
+                WHERE event_types.event_name = 'api_error_shown')
+            truth_sql: |-
+              SELECT error_kind, data_origin, COUNT(*) AS event_count
+              FROM {fct_events}
+              WHERE event_name = 'api_error_shown'
+              GROUP BY error_kind, data_origin
+          - id: catalog_by_type_and_confidence
+            category: catalog
+            onboarding: true
+            verified_on: "2026-10-28"
+            question: How many titles are in the current catalog, by media type and rating confidence?
+            semantic_sql: |-
+              SELECT media_type, rating_confidence, title_count
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS titles.media_type, titles.rating_confidence
+                METRICS titles.title_count)
+            truth_sql: |-
+              SELECT media_type, rating_confidence, COUNT(*) AS title_count
+              FROM {title_catalog_current}
+              GROUP BY media_type, rating_confidence
+          - id: genres_by_media_type
+            category: catalog
+            verified_on: "2026-10-28"
+            question: How many movies and how many TV series are in each genre?
+            semantic_sql: |-
+              SELECT genre_name, media_type, titles_in_genre
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS title_genres.genre_name, titles.media_type
+                METRICS title_genres.titles_in_genre)
+            truth_sql: |-
+              SELECT genre_name, media_type, COUNT(DISTINCT title_key) AS titles_in_genre
+              FROM {bridge_title_genre}
+              GROUP BY genre_name, media_type
+          - id: titles_per_mood
+            category: catalog
+            verified_on: "2026-10-28"
+            question: How many catalog titles do the app's genre rules give each mood?
+            semantic_sql: |-
+              SELECT mood_code, titles_for_mood
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS moods.mood_code
+                METRICS title_moods.titles_for_mood)
+            truth_sql: |-
+              SELECT mood, COUNT(DISTINCT title_key) AS titles_for_mood
+              FROM {title_rule_moods}
+              GROUP BY mood
+          - id: ratings_by_language
+            category: catalog
+            verified_on: "2026-10-28"
+            question: For original languages with at least 20 titles, how many titles are there and what is their average TMDB rating?
+            semantic_sql: |-
+              SELECT original_language, title_count, ROUND(avg_vote_average, 2) AS avg_vote_average
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS titles.original_language
+                METRICS titles.title_count, titles.avg_vote_average)
+              WHERE title_count >= 20
+            truth_sql: |-
+              SELECT original_language, COUNT(*) AS title_count, ROUND(AVG(vote_average), 2) AS avg_vote_average
+              FROM {title_catalog_current}
+              GROUP BY original_language
+              HAVING COUNT(*) >= 20
+          - id: popularity_by_export
+            category: catalog
+            verified_on: "2026-10-28"
+            question: For each catalog export date, how many title snapshots were stored, and what was the average popularity score?
+            semantic_sql: |-
+              SELECT date_day, title_snapshot_count, ROUND(avg_popularity_score, 2) AS avg_popularity_score
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS dates.date_day
+                METRICS title_popularity.title_snapshot_count, title_popularity.avg_popularity_score)
+            truth_sql: |-
+              SELECT d.date_day, COUNT(*) AS title_snapshot_count, ROUND(AVG(p.popularity), 2) AS avg_popularity_score
+              FROM {fct_title_popularity} AS p
+              JOIN {dim_date} AS d ON d.date_key = p.export_date_key
+              GROUP BY d.date_day
+          - id: mood_demand_vs_supply
+            category: cross_domain
+            verified_on: "2026-10-28"
+            question: For each mood, how many journeys asked for it, and how many catalog titles fit it?
+            semantic_sql: |-
+              SELECT mood_code, journey_count, titles_for_mood
+              FROM SEMANTIC_VIEW({sv}
+                DIMENSIONS moods.mood_code
+                METRICS journeys.journey_count, title_moods.titles_for_mood)
+            truth_sql: |-
+              SELECT m.mood_code, j.journey_count, t.titles_for_mood
+              FROM {dim_mood} AS m
+              LEFT JOIN (
+                SELECT mood_key, COUNT(*) AS journey_count
+                FROM {fct_recommendation_journeys}
+                GROUP BY mood_key
+              ) AS j ON j.mood_key = m.mood_key
+              LEFT JOIN (
+                SELECT mood, COUNT(DISTINCT title_key) AS titles_for_mood
+                FROM {title_rule_moods}
+                GROUP BY mood
+              ) AS t ON t.mood = m.mood_code
+              WHERE j.journey_count IS NOT NULL OR t.titles_for_mood IS NOT NULL

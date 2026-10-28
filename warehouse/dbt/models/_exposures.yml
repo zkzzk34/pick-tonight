@@ -34,3 +34,20 @@ exposures:
       - ref('title_catalog_current')
     owner:
       name: ZK Zhao
+
+  - name: cortex_analyst
+    label: Cortex Analyst questions
+    type: application
+    maturity: low
+    url: https://github.com/zkzzk34/pick-tonight/blob/main/warehouse/snowflake/10_cortex_analyst_evaluation_paid.sql
+    description: >
+      Questions in plain language, answered by Cortex Analyst over
+      sv_picktonight and guided by its 20 verified questions. Cortex is not
+      available on the Snowflake trial, so this consumer is ready but not
+      live. 10_cortex_analyst_evaluation_paid.sql runs Snowflake's accuracy
+      evaluation on a paid account. Until then, the test
+      verified_questions_match_truth proves every verified answer.
+    depends_on:
+      - ref('sv_picktonight')
+    owner:
+      name: ZK Zhao

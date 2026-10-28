@@ -599,6 +599,12 @@ models:
       - name: title_key
         description: "{{ doc('col_title_key') }}"
         data_type: varchar
+        data_tests:
+          # The semantic view joins genres to titles on this key.
+          - relationships:
+              arguments:
+                to: ref('title_catalog_current')
+                field: title_key
       - name: media_type
         description: movie or tv. Genre IDs are scoped to a media type.
         data_type: varchar
@@ -631,9 +637,21 @@ models:
       - name: title_key
         description: "{{ doc('col_title_key') }}"
         data_type: varchar
+        data_tests:
+          # The semantic view joins rule moods to titles on this key.
+          - relationships:
+              arguments:
+                to: ref('title_catalog_current')
+                field: title_key
       - name: mood
         description: Mood code the rules give the title.
         data_type: varchar
+        data_tests:
+          # The semantic view joins rule moods to the mood dimension by code.
+          - relationships:
+              arguments:
+                to: ref('dim_mood')
+                field: mood_code
       - name: mood_mapping_version
         description: Version label of the mood mapping.
         data_type: varchar

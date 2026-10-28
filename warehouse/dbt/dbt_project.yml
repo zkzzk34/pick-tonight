@@ -9,6 +9,8 @@
 #   DBT_SNAPSHOTS     type 2 history of title attributes, kept across loads
 #   DBT_MARTS         the star schema: dimensions, facts, and aggregates
 #   DBT_ANALYST       secure views, the analyst role's only path to event rows
+#   DBT_SEMANTIC      a semantic view: business names, joins, and metrics for
+#                     questions in plain language
 #   DBT_SEEDS         small reviewed reference lists kept in Git
 #
 # The schema names come from the profile's base schema (DBT) plus each
@@ -77,11 +79,24 @@ models:
         columns: true
       +grants:
         select: ['picktonight_analyst']
+    semantic:
+      # A Snowflake semantic view, built by Snowflake Labs' dbt_semantic_view
+      # package. It can't carry a contract or column docs, so its verified
+      # questions are tested against the marts instead.
+      +schema: semantic
+      +materialized: semantic_view
+      +access: public
+      # The package does not apply dbt's grants config, so a post-hook grants
+      # access after every rebuild. The analyst role gets counts and rates
+      # through the view without SELECT on the event facts underneath.
+      +post-hook:
+        - "grant select on semantic view {{ this }} to role picktonight_analyst"
 
 # dbt grants SELECT on each model, but not USAGE on the schema around it.
 on-run-end:
   - "{{ grant_schema_usage('marts', 'picktonight_analyst') }}"
   - "{{ grant_schema_usage('analyst', 'picktonight_analyst') }}"
+  - "{{ grant_schema_usage('semantic', 'picktonight_analyst') }}"
 
 snapshots:
   picktonight:

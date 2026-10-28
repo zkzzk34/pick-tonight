@@ -2,4 +2,7 @@ packages:
   - name: dbt_utils
     package: dbt-labs/dbt_utils
     version: 1.4.1
-sha1_hash: 12792467f594b92b80d3b31eaa4e3014de94fae4
+  - name: dbt_semantic_view
+    package: Snowflake-Labs/dbt_semantic_view
+    version: 1.0.6
+sha1_hash: 5574c326f91eef3555a8dff4d93a1818a50503f6

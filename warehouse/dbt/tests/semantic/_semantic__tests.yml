@@ -1,0 +1,8 @@
+data_tests:
+  - name: verified_questions_match_truth
+    description: >
+      Each of the semantic view's verified questions returns the same rows
+      through the semantic view as an independent query on the marts. It
+      proves the metric definitions, the declared joins, and the SQL that
+      Cortex Analyst will trust, because Snowflake does not check verified
+      question SQL itself. An empty question list fails too.
