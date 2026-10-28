@@ -1,0 +1,13 @@
+# dbt_utils supplies standard helpers used in later models and tests, such as
+# surrogate keys, a date spine, and range tests. The range accepts any 1.x
+# release from 1.4.0, which supports both dbt Core 1.12 and dbt v2.
+#
+# dbt_semantic_view is Snowflake Labs' materialization for semantic views.
+# It passes the model body straight to CREATE SEMANTIC VIEW, so new Snowflake
+# syntax needs no package update. 1.0.2 is the first release that runs model
+# hooks, which grant the analyst role access.
+packages:
+  - package: dbt-labs/dbt_utils
+    version: [">=1.4.0", "<2.0.0"]
+  - package: Snowflake-Labs/dbt_semantic_view
+    version: [">=1.0.2", "<2.0.0"]

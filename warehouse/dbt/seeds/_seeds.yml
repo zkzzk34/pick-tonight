@@ -1,0 +1,208 @@
+# Seeds are small reviewed lists kept in Git. Changing one is a code change
+# with a pull request, which is the point: these lists define what the
+# warehouse accepts.
+
+seeds:
+  - name: event_taxonomy
+    description: >
+      The 17 product events in taxonomy v3 (docs/event-taxonomy.md), with the
+      funnel order and which events must carry recommendation identifiers.
+    config:
+      column_types:
+        event_name: varchar
+        event_group: varchar
+        funnel_step_order: integer
+        requires_recommendation_scope: boolean
+        requires_recommendation_item: boolean
+        description: varchar
+    columns:
+      - name: event_name
+        description: Event name exactly as the app sends it.
+        data_tests:
+          - unique
+          - not_null
+      - name: event_group
+        description: Broad stage of the journey the event belongs to.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['session', 'picker', 'recommendation', 'engagement', 'decision', 'feedback', 'error']
+      - name: funnel_step_order
+        description: Position in the picker funnel, 1 to 5. Null for events outside the funnel.
+        data_tests:
+          - unique
+      - name: requires_recommendation_scope
+        description: True when the event must carry recommendation_session_id and algorithm_version.
+      - name: requires_recommendation_item
+        description: True when the event must also carry recommendation_item_id, media_type, and position.
+
+  - name: analytics_property_allowlist
+    description: >
+      Every event property the warehouse accepts. It mirrors the app's reviewed
+      allowlist (docs/analytics-property-allowlist.md) plus two PostHog SDK
+      transport fields. Any other property on a stored event fails the privacy test.
+    config:
+      column_types:
+        property_name: varchar
+        property_source: varchar
+        is_pseudonymous_id: boolean
+        description: varchar
+    columns:
+      - name: property_name
+        description: Property key exactly as stored in the event JSON.
+        data_tests:
+          - unique
+          - not_null
+      - name: property_source
+        description: taxonomy_v3 for the app's own properties, posthog_sdk for SDK transport fields.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['taxonomy_v3', 'posthog_sdk']
+      - name: is_pseudonymous_id
+        description: True for identifiers that the masking policies hide from analysts.
+
+  - name: data_metric_definitions
+    description: >
+      Which data quality metric to measure on which mart column, and the range
+      it must stay in. The scheduled task in warehouse/snowflake/09_data_metrics.sql
+      reads this list, so adding a check is a reviewed one-line change. Metric
+      names follow Snowflake's system data metric functions.
+    config:
+      column_types:
+        metric_id: varchar
+        table_name: varchar
+        column_name: varchar
+        metric_name: varchar
+        min_expected: number
+        max_expected: number
+        description: varchar
+    data_tests:
+      - dbt_utils.expression_is_true:
+          name: data_metric_definitions__column_given_when_needed
+          arguments:
+            expression: "metric_name = 'ROW_COUNT' or column_name is not null"
+      - dbt_utils.expression_is_true:
+          name: data_metric_definitions__has_a_bound
+          arguments:
+            expression: "min_expected is not null or max_expected is not null"
+    columns:
+      - name: metric_id
+        description: Stable ID in the form table__column__metric.
+        data_tests:
+          - unique
+          - not_null
+      - name: table_name
+        description: Schema and table inside the PICKTONIGHT database, in uppercase.
+        data_tests:
+          - not_null
+      - name: column_name
+        description: Column to measure. Empty for ROW_COUNT.
+      - name: metric_name
+        description: >
+          ROW_COUNT, NULL_COUNT, DUPLICATE_COUNT (extra copies of non-null
+          values), or FRESHNESS (seconds since the column's newest timestamp).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['ROW_COUNT', 'NULL_COUNT', 'DUPLICATE_COUNT', 'FRESHNESS']
+      - name: min_expected
+        description: Lowest passing value. Empty means no lower bound.
+      - name: max_expected
+        description: Highest passing value. Empty means no upper bound.
+
+  - name: ai_quality_gates
+    description: >
+      The bar a newly trained model must clear before it goes live. Each row
+      gates one metric: a floor, and how far the metric may drop below the
+      live model. AI.TRAIN_TITLE_MODELS() reads this list, so changing a gate
+      is a reviewed one-line change. The first floors are the scores of the
+      model that was live on 2026-10-28, minus 0.05, rounded down.
+    config:
+      column_types:
+        gate_id: varchar
+        metric_name: varchar
+        scope: varchar
+        min_value: float
+        max_drop: float
+        description: varchar
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: ai_quality_gates__one_gate_per_metric
+          arguments:
+            combination_of_columns: [metric_name, scope]
+      - dbt_utils.expression_is_true:
+          name: ai_quality_gates__has_a_limit
+          arguments:
+            expression: "min_value is not null or max_drop is not null"
+    columns:
+      - name: gate_id
+        description: Stable ID, the metric name plus the scope when it is not "all".
+        data_tests:
+          - unique
+          - not_null
+      - name: metric_name
+        description: A metric that AI.TRAIN_TITLE_MODELS() records in AI.MODEL_RUN_METRICS.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - mood_micro_f1
+                  - mood_f1
+                  - mood_precision
+                  - mood_recall
+                  - search_mean_precision_at_10
+                  - search_min_precision_at_10
+                  - search_precision_at_10
+                  - embedding_dimensions
+                  - embedding_explained_variance
+      - name: scope
+        description: all, a mood, or a search query ID.
+        data_tests:
+          - not_null
+      - name: min_value
+        description: Lowest passing value. Empty means no floor.
+      - name: max_drop
+        description: >
+          How far below the live model's value a new model may fall. Empty
+          means no comparison with the live model.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+
+  - name: search_eval_queries
+    description: >
+      Test queries for title search. Each one describes a plot without naming
+      its genre. A hit is a top-10 result of the same media type whose genres
+      include the expected genre. The training gate and 06_vector_search.sql
+      both score this list.
+    config:
+      column_types:
+        query_id: varchar
+        search_text: varchar
+        expected_genre: varchar
+        media_type: varchar
+    columns:
+      - name: query_id
+        description: Stable ID, used as the scope of the per-query search metric.
+        data_tests:
+          - unique
+          - not_null
+      - name: search_text
+        description: The query, in plain words.
+        data_tests:
+          - unique
+          - not_null
+      - name: expected_genre
+        description: A TMDB genre name for the query's media type. A test checks it exists.
+        data_tests:
+          - not_null
+      - name: media_type
+        description: movie or tv. Only titles of this type are searched.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['movie', 'tv']

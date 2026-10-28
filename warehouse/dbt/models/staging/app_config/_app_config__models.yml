@@ -1,0 +1,12 @@
+models:
+  - name: stg_app_config__mood_rules
+    description: >
+      The app's rule-based mood mapping, one row per mood, signal, and media
+      type. The marts use the genre signals to give each title its rule moods.
+    columns:
+      - name: mood
+        description: One of the app's supported moods, for example relaxed or spooked.
+      - name: signal_kind
+        description: genre for a genre-based rule, or discovery for the cross-genre variety signal.
+      - name: mood_mapping_version
+        description: Version label of the mapping in the app code when it was exported.

@@ -1,0 +1,13 @@
+metric_id,table_name,column_name,metric_name,min_expected,max_expected,description
+dim_title__title_version_key__duplicate_count,DBT_MARTS.DIM_TITLE,TITLE_VERSION_KEY,DUPLICATE_COUNT,,0,Every title version has its own surrogate key
+dim_title__title_version_key__null_count,DBT_MARTS.DIM_TITLE,TITLE_VERSION_KEY,NULL_COUNT,,0,Every title version has a surrogate key
+fct_events__event_uuid__duplicate_count,DBT_MARTS.FCT_EVENTS,EVENT_UUID,DUPLICATE_COUNT,,0,No event is stored twice
+fct_events__event_uuid__null_count,DBT_MARTS.FCT_EVENTS,EVENT_UUID,NULL_COUNT,,0,Every event has an ID
+fct_events__loaded_at__freshness,DBT_MARTS.FCT_EVENTS,LOADED_AT,FRESHNESS,,2592000,Events were loaded in the last 30 days
+fct_events__row_count,DBT_MARTS.FCT_EVENTS,,ROW_COUNT,1,,The event fact is not empty
+fct_recommendation_journeys__journey_key__duplicate_count,DBT_MARTS.FCT_RECOMMENDATION_JOURNEYS,JOURNEY_KEY,DUPLICATE_COUNT,,0,No journey is stored twice
+fct_recommendation_journeys__journey_key__null_count,DBT_MARTS.FCT_RECOMMENDATION_JOURNEYS,JOURNEY_KEY,NULL_COUNT,,0,Every journey has a surrogate key
+fct_title_popularity__title_popularity_key__duplicate_count,DBT_MARTS.FCT_TITLE_POPULARITY,TITLE_POPULARITY_KEY,DUPLICATE_COUNT,,0,No export of a title is stored twice
+title_catalog_current__loaded_at__freshness,DBT_MARTS.TITLE_CATALOG_CURRENT,LOADED_AT,FRESHNESS,,2592000,The catalog was loaded in the last 30 days
+title_catalog_current__row_count,DBT_MARTS.TITLE_CATALOG_CURRENT,,ROW_COUNT,1000,,A broken export would shrink the catalog below 1000 titles
+title_catalog_current__title_key__duplicate_count,DBT_MARTS.TITLE_CATALOG_CURRENT,TITLE_KEY,DUPLICATE_COUNT,,0,Each title appears once in the current catalog

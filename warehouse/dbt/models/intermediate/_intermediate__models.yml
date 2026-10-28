@@ -1,0 +1,24 @@
+models:
+  - name: int_title_genres
+    description: "Grain: one row per title and genre ID. Adds the genre name to stg_tmdb__title_genres."
+    columns:
+      - name: genre_name
+        description: Null when the genre ID is missing from TMDB's genre list for that media type.
+
+  - name: int_titles__enriched
+    description: >
+      Grain: one row per title in the latest export. Adds genre names, the
+      rating confidence band, and the search document the embedding model
+      reads. Matches the original MARTS.DIM_TITLE column for column.
+    columns:
+      - name: rating_confidence
+        description: limited, medium, or strong, using the app's rating confidence rules.
+      - name: popularity_rank
+        description: Rank within its media type in this export.
+      - name: search_document
+        description: Title, type, year, genres, and overview. The text the embedding model reads.
+
+  - name: int_title_attributes
+    description: >
+      Grain: one row per title in the latest export. Only the slowly changing
+      attributes, which the snapshot tracks for type 2 history.

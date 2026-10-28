@@ -4,10 +4,16 @@
 --
 --   AI.SIMILAR_TITLES      top 5 nearest titles of the same media type
 --   AI.SEARCH_TITLES(...)  table function: free-text query to ranked titles
---   AI.SEARCH_EVAL         genre precision@10 for a fixed set of test queries
+--   AI.SEARCH_EVAL         genre precision@10 of the live search, for the
+--                          test queries in DBT_SEEDS.SEARCH_EVAL_QUERIES
 --
--- The embeddings come from 05_snowpark_ml.sql. Similarity is cosine, computed
--- by Snowflake's VECTOR_COSINE_SIMILARITY.
+-- The embeddings come from the live model trained by 05_snowpark_ml.sql.
+-- Similarity is cosine, computed by Snowflake's VECTOR_COSINE_SIMILARITY.
+-- Title details come from DBT_MARTS.TITLE_CATALOG_CURRENT, built by dbt.
+--
+-- Training already scores the same test queries in Python before a model
+-- can go live. This file scores the live search again in SQL, through the
+-- real UDF and vector functions, and compares the two at the end.
 -- =============================================================================
 
 USE ROLE ACCOUNTADMIN;
@@ -37,8 +43,8 @@ SELECT
   d.genre_names_text,
   ROUND(s.similarity, 3)       AS similarity
 FROM PICKTONIGHT.AI.SIMILAR_TITLES AS s
-JOIN PICKTONIGHT.MARTS.DIM_TITLE AS seed ON seed.title_key = s.title_key
-JOIN PICKTONIGHT.MARTS.DIM_TITLE AS d    ON d.title_key = s.similar_title_key
+JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS seed ON seed.title_key = s.title_key
+JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS d    ON d.title_key = s.similar_title_key
 WHERE seed.media_type = 'movie'
   AND seed.popularity_rank <= 5
 ORDER BY seed.popularity_rank, s.similarity DESC;
@@ -74,7 +80,7 @@ $$
     d.genre_names_text,
     VECTOR_COSINE_SIMILARITY(e.embedding, q.v) AS score
   FROM PICKTONIGHT.AI.TITLE_EMBEDDINGS AS e
-  JOIN PICKTONIGHT.MARTS.DIM_TITLE AS d
+  JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS d
     ON d.title_key = e.title_key
   CROSS JOIN query_vector AS q
   WHERE media_type_filter IS NULL
@@ -89,56 +95,69 @@ SELECT * FROM TABLE(PICKTONIGHT.AI.SEARCH_TITLES('a tense mystery with a twist n
 ORDER BY score DESC;
 
 -- Search evaluation ---------------------------------------------------------
--- Each test query describes a plot without naming its genre. A hit is a top-10
--- movie whose TMDB genres include the expected genre. This is a rough
--- relevance check, not a full benchmark, but it is repeatable after retraining.
+-- Each test query describes a plot without naming its genre. A hit is a
+-- top-10 title of the query's media type whose TMDB genres include the
+-- expected genre. This is a rough relevance check, not a full benchmark,
+-- but it is repeatable. The queries are a reviewed dbt seed, the same list
+-- the training gate uses.
+--
+-- Step 1 embeds each test query once, into a temporary table. Inside one big
+-- join, Snowflake's planner may call the Python UDF once per joined row
+-- (every query x every title) instead of once per query. That wastes work
+-- and exhausted the UDF's memory on an X-Small warehouse, so the join in
+-- step 2 is plain SQL over vectors that already exist.
+CREATE OR REPLACE TEMPORARY TABLE PICKTONIGHT.AI.SEARCH_EVAL_QUERIES AS
+SELECT
+  query_id,
+  search_text,
+  expected_genre,
+  media_type,
+  PICKTONIGHT.AI.EMBED_TEXT(search_text)::VECTOR(FLOAT, 128) AS v
+FROM PICKTONIGHT.DBT_SEEDS.SEARCH_EVAL_QUERIES;
+
+-- Step 2: compare every embedded query with every title of its media type
+-- and keep the top ten.
 CREATE OR REPLACE TABLE PICKTONIGHT.AI.SEARCH_EVAL AS
-WITH test_queries AS (
-  SELECT column1 AS search_text, column2 AS expected_genre
-  FROM VALUES
-    ('a ghost haunts a family after they move into an old house', 'Horror'),
-    ('two strangers slowly fall in love over one summer', 'Romance'),
-    ('a detective hunts a killer through the city', 'Crime'),
-    ('astronauts travel to a distant planet to save humanity', 'Science Fiction'),
-    ('a talking animal and its friends go on a colorful journey', 'Animation'),
-    ('soldiers fight to survive on the front lines', 'War'),
-    ('friends get into ridiculous trouble during a wild weekend', 'Comedy'),
-    ('a superhero battles a villain to save the world', 'Action')
-),
-query_vectors AS (
+WITH top_ten AS (
   SELECT
-    search_text,
-    expected_genre,
-    PICKTONIGHT.AI.EMBED_TEXT(search_text)::VECTOR(FLOAT, 128) AS v
-  FROM test_queries
-),
-top_ten AS (
-  SELECT
+    q.query_id,
     q.search_text,
     q.expected_genre,
     d.title,
     d.genre_names,
     VECTOR_COSINE_SIMILARITY(e.embedding, q.v) AS score
-  FROM query_vectors AS q
+  FROM PICKTONIGHT.AI.SEARCH_EVAL_QUERIES AS q
   CROSS JOIN PICKTONIGHT.AI.TITLE_EMBEDDINGS AS e
-  JOIN PICKTONIGHT.MARTS.DIM_TITLE AS d
+  JOIN PICKTONIGHT.DBT_MARTS.TITLE_CATALOG_CURRENT AS d
     ON d.title_key = e.title_key
-  WHERE d.media_type = 'movie'
-  QUALIFY ROW_NUMBER() OVER (PARTITION BY q.search_text ORDER BY score DESC) <= 10
+  WHERE d.media_type = q.media_type
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY q.query_id ORDER BY score DESC) <= 10
 )
 SELECT
+  query_id,
   search_text,
   expected_genre,
   COUNT_IF(ARRAY_CONTAINS(expected_genre::VARIANT, genre_names)) AS hits,
   ROUND(hits / 10, 2)                                            AS precision_at_10,
   ARRAY_AGG(title) WITHIN GROUP (ORDER BY score DESC)            AS top_titles
 FROM top_ten
-GROUP BY search_text, expected_genre;
+GROUP BY query_id, search_text, expected_genre;
 
-SELECT search_text, expected_genre, precision_at_10, top_titles
+SELECT query_id, expected_genre, precision_at_10, top_titles
 FROM PICKTONIGHT.AI.SEARCH_EVAL
 ORDER BY precision_at_10 DESC;
 
--- One number for the whole evaluation.
-SELECT ROUND(AVG(precision_at_10), 2) AS mean_genre_precision_at_10
-FROM PICKTONIGHT.AI.SEARCH_EVAL;
+-- The live search scored here in SQL, next to what the training gate
+-- measured for the live model in Python. They should match. A gap of one
+-- hit can come from float rounding when two titles nearly tie.
+SELECT
+  ROUND(AVG(e.precision_at_10), 4) AS sql_mean_precision_at_10,
+  ROUND(ANY_VALUE(g.metric_value), 4) AS gate_mean_precision_at_10,
+  ANY_VALUE(g.run_id)              AS live_run_id
+FROM PICKTONIGHT.AI.SEARCH_EVAL AS e
+CROSS JOIN (
+  SELECT m.run_id, m.metric_value
+  FROM PICKTONIGHT.AI.MODEL_RUN_METRICS AS m
+  JOIN PICKTONIGHT.AI.LIVE_MODEL_RUN AS r ON r.run_id = m.run_id
+  WHERE m.metric_name = 'search_mean_precision_at_10'
+) AS g;

@@ -1,0 +1,74 @@
+# Aggregates for product analytics. Contracts use the exact decimal types
+# Snowflake produces, so rates keep their three decimal places.
+
+models:
+  - name: agg_picker_funnel_daily
+    description: "Grain: one row per event date and data origin. Distinct page sessions reaching each funnel step."
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [event_date, data_origin]
+    columns:
+      - name: event_date
+        data_type: date
+      - name: data_origin
+        description: "{{ doc('col_data_origin') }}"
+        data_type: varchar
+      - name: sessions_opened
+        description: Sessions with app_opened, funnel step 1.
+        data_type: number(18,0)
+      - name: sessions_started_picker
+        description: Sessions with picker_started, funnel step 2.
+        data_type: number(18,0)
+      - name: sessions_submitted
+        description: Sessions with context_submitted, funnel step 3.
+        data_type: number(18,0)
+      - name: sessions_saw_picks
+        description: Sessions with recommendation_batch_viewed, funnel step 4.
+        data_type: number(18,0)
+      - name: sessions_chose
+        description: Sessions with watch_intent_confirmed, funnel step 5.
+        data_type: number(18,0)
+      - name: start_rate
+        description: sessions_started_picker divided by sessions_opened.
+        data_type: number(25,3)
+      - name: submit_rate
+        description: sessions_submitted divided by sessions_started_picker.
+        data_type: number(25,3)
+      - name: choose_rate
+        description: sessions_chose divided by sessions_saw_picks.
+        data_type: number(25,3)
+
+  - name: agg_mood_outcomes
+    description: "Grain: one row per data origin and requested mood. Journey outcomes by mood."
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [data_origin, mood_code]
+    columns:
+      - name: data_origin
+        description: "{{ doc('col_data_origin') }}"
+        data_type: varchar
+      - name: mood_code
+        description: Requested mood. "none" when no mood was given.
+        data_type: varchar
+      - name: journeys
+        data_type: number(18,0)
+      - name: choose_rate
+        description: Share of journeys that ended in Choose Tonight.
+        data_type: number(20,3)
+      - name: avg_rejections
+        description: Average rejections per journey.
+        data_type: number(32,2)
+      - name: median_seconds_to_decision
+        description: Median seconds from submission to a choice, over journeys that chose.
+        data_type: number(21,3)
+      - name: empty_rate
+        description: Share of journeys that returned no eligible recommendations.
+        data_type: number(20,3)

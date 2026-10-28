@@ -1,0 +1,59 @@
+# Exposures record who uses the data product outside dbt. They appear in the
+# lineage graph, so a change to an upstream model shows which consumers it
+# could break. Run "dbt build --select +exposure:snowpark_title_models" to
+# rebuild and test everything a consumer depends on.
+
+exposures:
+  - name: snowpark_title_models
+    label: Snowpark title models
+    type: ml
+    maturity: medium
+    url: https://github.com/zkzzk34/pick-tonight/blob/main/warehouse/snowflake/05_snowpark_ml.sql
+    description: >
+      AI.TRAIN_TITLE_MODELS(), a Snowpark Python stored procedure, trains
+      TF-IDF and SVD title embeddings and a 5-fold cross-validated mood
+      classifier inside Snowflake. The rule moods are its weak labels. Each
+      run is checked against ai_quality_gates, including search precision on
+      search_eval_queries, and goes live only if every gate passes. Every
+      run records its metrics, gate verdicts, and the fingerprints of the
+      data it was trained on.
+    depends_on:
+      - ref('title_catalog_current')
+      - ref('title_rule_moods')
+      - ref('ai_quality_gates')
+      - ref('search_eval_queries')
+    owner:
+      name: ZK Zhao
+
+  - name: title_vector_search
+    label: Title vector search
+    type: application
+    maturity: medium
+    url: https://github.com/zkzzk34/pick-tonight/blob/main/warehouse/snowflake/06_vector_search.sql
+    description: >
+      "More like this" and free-text search over the title embeddings with
+      VECTOR_COSINE_SIMILARITY, plus the search_eval_queries test set that
+      measures genre precision@10 of the live search. Title details come
+      from title_catalog_current.
+    depends_on:
+      - ref('title_catalog_current')
+      - ref('search_eval_queries')
+    owner:
+      name: ZK Zhao
+
+  - name: cortex_analyst
+    label: Cortex Analyst questions
+    type: application
+    maturity: low
+    url: https://github.com/zkzzk34/pick-tonight/blob/main/warehouse/snowflake/10_cortex_analyst_evaluation_paid.sql
+    description: >
+      Questions in plain language, answered by Cortex Analyst over
+      sv_picktonight and guided by its 20 verified questions. Cortex is not
+      available on the Snowflake trial, so this consumer is ready but not
+      live. 10_cortex_analyst_evaluation_paid.sql runs Snowflake's accuracy
+      evaluation on a paid account. Until then, the test
+      verified_questions_match_truth proves every verified answer.
+    depends_on:
+      - ref('sv_picktonight')
+    owner:
+      name: ZK Zhao

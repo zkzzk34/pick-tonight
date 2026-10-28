@@ -1,0 +1,185 @@
+# Secure views for the analyst role, in the DBT_ANALYST schema.
+#
+# Analysts have no grant on the two event facts. These views are their only
+# path to event and journey rows. The facts' tag-based masking still applies
+# through the views, so pseudonymous IDs reach analysts as stable hashes.
+# Contracts use the same types as the facts. Views cannot hold constraints,
+# and their columns carry no sensitivity meta: the tag belongs on the table
+# column that the masking policy protects.
+
+models:
+  - name: analyst_events
+    description: >
+      Grain: one row per analytics event. Secure view of fct_events without the
+      raw properties JSON and file lineage columns.
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('fct_events')
+    columns:
+      - name: event_uuid
+        description: "Event ID from PostHog or the synthetic generator. The fact's primary key."
+        data_type: varchar
+      - name: date_key
+        description: "{{ doc('col_date_key') }}"
+        data_type: number(38,0)
+      - name: event_type_key
+        description: "{{ doc('col_event_type_key') }}"
+        data_type: varchar
+      - name: mood_key
+        description: "Points to the requested mood on context_submitted events. \"-2\" on every other event."
+        data_type: varchar
+      - name: event_name
+        description: "Event name, kept next to event_type_key for simple queries."
+        data_type: varchar
+      - name: event_at
+        description: "When the event happened."
+        data_type: timestamp_tz
+      - name: event_date
+        description: "Calendar date of event_at."
+        data_type: date
+      - name: data_origin
+        description: "{{ doc('col_data_origin') }}"
+        data_type: varchar
+      - name: distinct_id
+        description: "{{ doc('col_distinct_id') }} Hashed for the analyst role by tag-based masking."
+        data_type: varchar
+      - name: session_id
+        description: "{{ doc('col_session_id') }} Hashed for the analyst role by tag-based masking."
+        data_type: varchar
+      - name: recommendation_session_id
+        description: "{{ doc('col_recommendation_session_id') }} Hashed for the analyst role by tag-based masking."
+        data_type: varchar
+      - name: recommendation_item_id
+        description: "{{ doc('col_recommendation_item_id') }} Hashed for the analyst role by tag-based masking."
+        data_type: varchar
+      - name: algorithm_version
+        description: "{{ doc('col_algorithm_version') }}"
+        data_type: varchar
+      - name: analytics_environment
+        description: "development or pilot."
+        data_type: varchar
+      - name: traffic_class
+        description: "internal or participant."
+        data_type: varchar
+      - name: media_type
+        description: "movie or tv, on recommendation item events."
+        data_type: varchar
+      - name: position
+        description: "One-based position of the card in the displayed set."
+        data_type: number(38,0)
+      - name: batch_sequence
+        description: "Positive sequence number of the recommendation batch."
+        data_type: number(38,0)
+      - name: mood_code
+        description: "Requested mood code, on context_submitted events."
+        data_type: varchar
+      - name: media_type_code
+        description: "Requested media type, on context_submitted events."
+        data_type: varchar
+      - name: companion_code
+        description: "Who the user is watching with, on context_submitted events."
+        data_type: varchar
+      - name: used_typed_input
+        description: "Whether the request used typed input."
+        data_type: boolean
+      - name: required_restriction_count
+        description: "Number of hard restrictions in the request."
+        data_type: number(38,0)
+      - name: rejection_reason
+        description: "Coded reason on recommendation_rejected events."
+        data_type: varchar
+      - name: feedback_reason
+        description: "Coded reason on feedback_submitted events."
+        data_type: varchar
+      - name: error_kind
+        description: "Coded failure kind on api_error_shown events."
+        data_type: varchar
+      - name: candidate_age_code
+        description: "recent, established, or unknown, on recommendation_item_shown events."
+        data_type: varchar
+      - name: rating_confidence_code
+        description: "limited, medium, or strong, on recommendation_item_shown events."
+        data_type: varchar
+
+  - name: analyst_journeys
+    description: >
+      Grain: one row per recommendation journey. Secure view of
+      fct_recommendation_journeys.
+    config:
+      contract:
+        enforced: true
+    data_tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('fct_recommendation_journeys')
+    columns:
+      - name: journey_key
+        description: "Surrogate key. A hash of recommendation_session_id."
+        data_type: varchar
+      - name: submitted_date_key
+        description: "{{ doc('col_date_key') }}"
+        data_type: number(38,0)
+      - name: mood_key
+        description: "{{ doc('col_mood_key') }}"
+        data_type: varchar
+      - name: recommendation_session_id
+        description: "{{ doc('col_recommendation_session_id') }} Hashed for the analyst role by tag-based masking."
+        data_type: varchar
+      - name: data_origin
+        description: "{{ doc('col_data_origin') }}"
+        data_type: varchar
+      - name: algorithm_version
+        description: "{{ doc('col_algorithm_version') }}"
+        data_type: varchar
+      - name: submitted_at
+        description: "When the context was submitted. Null if the journey has no context_submitted event."
+        data_type: timestamp_tz
+      - name: mood_code
+        description: "Requested mood code."
+        data_type: varchar
+      - name: media_type_code
+        description: "Requested media type."
+        data_type: varchar
+      - name: companion_code
+        description: "Who the user is watching with."
+        data_type: varchar
+      - name: used_typed_input
+        description: "Whether the request used typed input."
+        data_type: boolean
+      - name: items_shown
+        description: "Recommendation cards shown in the journey."
+        data_type: number(13,0)
+      - name: items_opened
+        description: "Detail opens in the journey."
+        data_type: number(13,0)
+      - name: trailers_clicked
+        description: "Trailer clicks in the journey."
+        data_type: number(13,0)
+      - name: items_saved
+        description: "Titles saved to the watchlist in the journey."
+        data_type: number(13,0)
+      - name: items_rejected
+        description: "Rejected recommendations in the journey."
+        data_type: number(13,0)
+      - name: items_refreshed
+        description: "Neutral replacements in the journey."
+        data_type: number(13,0)
+      - name: ended_empty
+        description: "True when the request returned no eligible recommendations."
+        data_type: boolean
+      - name: ended_with_error
+        description: "True when a request failure was shown."
+        data_type: boolean
+      - name: chosen_at
+        description: "When the user selected Choose Tonight. Null if no title was chosen."
+        data_type: timestamp_tz
+      - name: chose_title
+        description: "True when the journey ended in a choice. This is intent, not a completed viewing."
+        data_type: boolean
+      - name: seconds_to_decision
+        description: "Seconds from context submission to Choose Tonight. Null when no title was chosen."
+        data_type: number(18,0)

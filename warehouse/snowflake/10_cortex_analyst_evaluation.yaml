@@ -1,0 +1,19 @@
+# Cortex Analyst evaluation config for the PickTonight semantic view.
+# NOT RUN: Cortex is not available on the Snowflake trial.
+# Used by 10_cortex_analyst_evaluation_paid.sql, which uploads it to a stage.
+#
+# For each verified question, Cortex Analyst writes SQL from the question
+# alone, Snowflake runs it, and a judge model compares the result with the
+# verified answer. Selected questions are removed from a temporary copy of
+# the view during the run, so Cortex Analyst cannot copy the answers.
+evaluation:
+  analyst_params:
+    analyst_name: "SV_PICKTONIGHT"
+    analyst_type: "SEMANTIC VIEW"
+  source_metadata:
+    type: "verified_queries"
+    # No verified_queries list here, so all 20 are evaluated.
+
+metrics:
+  - name: "sql_correctness"
+    version: "v3"

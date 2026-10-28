@@ -1,0 +1,109 @@
+# dbt project for the PickTonight Snowflake warehouse.
+#
+# dbt rebuilds the hand-written layers from warehouse/snowflake/ as tested,
+# documented models. It writes to its own schemas, so the original STAGING
+# and MARTS objects keep working while the two versions are compared:
+#
+#   DBT_STAGING       typed views over RAW, one per source table
+#   DBT_INTERMEDIATE  views that join and derive, shared by several marts
+#   DBT_SNAPSHOTS     type 2 history of title attributes, kept across loads
+#   DBT_MARTS         the star schema: dimensions, facts, and aggregates
+#   DBT_ANALYST       secure views, the analyst role's only path to event rows
+#   DBT_SEMANTIC      a semantic view: business names, joins, and metrics for
+#                     questions in plain language
+#   DBT_SEEDS         small reviewed reference lists kept in Git
+#
+# The schema names come from the profile's base schema (DBT) plus each
+# folder's +schema, which is dbt's default naming behavior.
+
+name: picktonight
+version: "1.0.0"
+profile: picktonight
+
+# Works on dbt Core 1.12 today and is ready for the planned move to dbt v2.
+require-dbt-version: [">=1.12.0", "<3.0.0"]
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+clean-targets: ["target", "dbt_packages"]
+
+flags:
+  # Matches the app's privacy stance: no usage telemetry leaves this project.
+  send_anonymous_usage_stats: false
+
+models:
+  picktonight:
+    # Every model belongs to one data product with one owner.
+    +group: picktonight_analytics
+    staging:
+      # Views cost nothing to store and always reflect the latest RAW load.
+      +schema: staging
+      +materialized: view
+      # Protected: building blocks for this project, not for other teams.
+      +access: protected
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+      +access: protected
+    marts:
+      # Tables, so analysts and the ML steps read precomputed results.
+      +schema: marts
+      +materialized: table
+      # Public: the data product's output ports, with enforced contracts.
+      +access: public
+      # Copy descriptions into Snowflake table and column comments, so they
+      # show up in Snowsight and for any tool that reads the catalog.
+      +persist_docs:
+        relation: true
+        columns: true
+      # Analysts may read the public marts. The two event facts override this
+      # in their own config, so analysts reach events only through DBT_ANALYST.
+      +grants:
+        select: ['picktonight_analyst']
+      # Rebuilding a table drops its column tags, so set them again right
+      # after every build. The tags are what trigger masking.
+      +post-hook:
+        - "{{ apply_sensitivity_tags() }}"
+    analyst:
+      # Secure views: the definition is hidden from consumers, and Snowflake
+      # avoids optimizations that could expose rows a view filters out.
+      +schema: analyst
+      +materialized: view
+      +secure: true
+      +access: public
+      +persist_docs:
+        relation: true
+        columns: true
+      +grants:
+        select: ['picktonight_analyst']
+    semantic:
+      # A Snowflake semantic view, built by Snowflake Labs' dbt_semantic_view
+      # package. It can't carry a contract or column docs, so its verified
+      # questions are tested against the marts instead.
+      +schema: semantic
+      +materialized: semantic_view
+      +access: public
+      # The package does not apply dbt's grants config, so a post-hook grants
+      # access after every rebuild. The analyst role gets counts and rates
+      # through the view without SELECT on the event facts underneath.
+      +post-hook:
+        - "grant select on semantic view {{ this }} to role picktonight_analyst"
+
+# dbt grants SELECT on each model, but not USAGE on the schema around it.
+on-run-end:
+  - "{{ grant_schema_usage('marts', 'picktonight_analyst') }}"
+  - "{{ grant_schema_usage('analyst', 'picktonight_analyst') }}"
+  - "{{ grant_schema_usage('semantic', 'picktonight_analyst') }}"
+
+snapshots:
+  picktonight:
+    +schema: snapshots
+
+seeds:
+  picktonight:
+    +schema: seeds
+    # Keep seed column names unquoted, so they behave like every other column.
+    +quote_columns: false

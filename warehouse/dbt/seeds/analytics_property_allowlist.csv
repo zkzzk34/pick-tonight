@@ -1,0 +1,39 @@
+property_name,property_source,is_pseudonymous_id,description
+$process_person_profile,posthog_sdk,false,PostHog transport flag that keeps person profiles off
+$sent_at,posthog_sdk,false,Send time the PostHog SDK adds to stored events
+taxonomy_version,taxonomy_v3,false,Event contract version. Always 3
+ui_locale,taxonomy_v3,false,Interface locale. Always en-US for the MVP
+analytics_environment,taxonomy_v3,false,development or pilot
+traffic_class,taxonomy_v3,false,internal or participant
+session_id,taxonomy_v3,true,Pseudonymous page-session ID
+response,taxonomy_v3,false,Consent response. Always accepted
+step,taxonomy_v3,false,Picker step that was completed
+reason,taxonomy_v3,false,Coded reason for an explicit picker abandonment
+recommendation_session_id,taxonomy_v3,true,Pseudonymous ID for one recommendation journey
+algorithm_version,taxonomy_v3,false,Recommendation heuristic version label
+used_typed_input,taxonomy_v3,false,Whether the request used typed input
+required_restriction_count,taxonomy_v3,false,Number of hard restrictions in the request
+soft_preference_count,taxonomy_v3,false,Number of soft preferences in the request
+media_type_code,taxonomy_v3,false,Requested media type code
+mood_code,taxonomy_v3,false,Requested mood code
+companion_code,taxonomy_v3,false,Who the user is watching with
+maximum_runtime_minutes,taxonomy_v3,false,Runtime limit in minutes when one was set
+freshness_year,taxonomy_v3,false,Released-since year when one was set
+content_language_code,taxonomy_v3,false,Content language code when one was set
+origin_country_code,taxonomy_v3,false,Origin country code when one was set
+watch_region_code,taxonomy_v3,false,Region code used for provider availability
+batch_sequence,taxonomy_v3,false,Positive sequence number of the recommendation batch
+recommendation_count,taxonomy_v3,false,Number of recommendations in the batch
+recommendation_item_id,taxonomy_v3,true,Opaque per-card analytics ID with no title identity
+media_type,taxonomy_v3,false,movie or tv for a recommendation item
+position,taxonomy_v3,false,One-based position of the card in the set
+impression_sequence,taxonomy_v3,false,Positive sequence number of the card impression
+candidate_age_code,taxonomy_v3,false,recent or established or unknown
+rating_confidence_code,taxonomy_v3,false,limited or medium or strong
+provider_claim_status,taxonomy_v3,false,Whether the card showed a regional provider claim
+repeat_status,taxonomy_v3,false,first-shown or repeated within the journey
+persistence,taxonomy_v3,false,How a save was stored in the browser
+rejection_reason,taxonomy_v3,false,Coded reason for a rejection
+feedback_reason,taxonomy_v3,false,Coded structured feedback reason
+originating_action,taxonomy_v3,false,Action that led to the feedback prompt
+error_kind,taxonomy_v3,false,Coded kind of recommendation request failure

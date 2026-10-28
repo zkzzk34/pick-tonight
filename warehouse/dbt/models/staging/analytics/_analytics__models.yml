@@ -1,0 +1,77 @@
+# Data tests on the analytics events. Each test keeps the name of the check
+# it replaces in warehouse/snowflake/04_data_quality.sql. Two more checks
+# need custom SQL and live in tests/quality/: recommendation_scope_present
+# and property_allowlist.
+
+models:
+  - name: stg_analytics__events
+    description: >
+      One row per loaded analytics event, with the timestamp and properties
+      parsed and the taxonomy v3 properties as typed columns. Synthetic and
+      real internal events stay labeled by data_origin.
+    columns:
+      - name: event_uuid
+        description: PostHog's event UUID, or a seeded UUID for synthetic events.
+        data_tests:
+          - unique:
+              name: event_uuid_unique
+              description: No event is loaded twice.
+      - name: event_name
+        data_tests:
+          - relationships:
+              name: event_name_in_taxonomy
+              description: Only the 17 taxonomy v3 events in the event_taxonomy seed are present.
+              arguments:
+                to: ref('event_taxonomy')
+                field: event_name
+      - name: event_at
+        description: Parsed event time. Null when the timestamp text cannot be parsed.
+        data_tests:
+          - not_null:
+              name: event_timestamp_parses
+              description: The timestamp column parses as a timestamp.
+      - name: distinct_id
+        description: Pseudonymous browser ID. Synthetic IDs start with "synthetic-".
+      - name: data_origin
+        description: synthetic or posthog_internal, from the source file name.
+        data_tests:
+          - accepted_values:
+              name: data_origin_known
+              arguments:
+                values: ['synthetic', 'posthog_internal']
+      - name: taxonomy_version
+        data_tests:
+          - accepted_values:
+              name: taxonomy_version_is_3
+              description: Every event declares taxonomy version 3.
+              arguments:
+                values: [3]
+                quote: false
+          - not_null:
+              name: taxonomy_version_is_3__not_null
+      - name: traffic_class
+        description: internal or participant. The real PostHog export must hold internal traffic only.
+        data_tests:
+          - accepted_values:
+              name: no_participant_rows_in_internal_export
+              description: "Privacy: the real PostHog export holds internal traffic only."
+              arguments:
+                values: ['internal']
+              config:
+                where: "data_origin = 'posthog_internal'"
+          - not_null:
+              name: no_participant_rows_in_internal_export__not_null
+              config:
+                where: "data_origin = 'posthog_internal'"
+      - name: session_id
+        description: Pseudonymous page-session ID from the event properties.
+      - name: recommendation_session_id
+        description: Pseudonymous ID for one recommendation journey.
+      - name: recommendation_item_id
+        description: Opaque per-card ID. It never contains title identity.
+      - name: properties
+        description: The full parsed property object. Null when the JSON is invalid.
+        data_tests:
+          - not_null:
+              name: event_properties_parse
+              description: The properties column is valid JSON.

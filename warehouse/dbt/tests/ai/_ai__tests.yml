@@ -1,0 +1,18 @@
+data_tests:
+  - name: ai_live_model_meets_gates
+    description: >
+      The live model meets every floor in ai_quality_gates, judged on its
+      recorded metrics. Fails when a run was promoted without passing, when a
+      floor was raised above the live model, or when a gate was added that
+      the live model was never measured on.
+
+  - name: ai_live_model_is_current
+    description: >
+      The live model's training fingerprints match the current catalog and
+      rule moods, and every current title has a live embedding. A warning:
+      after a reload, retrain with 05_snowpark_ml.sql.
+    config:
+      severity: warn
+
+  - name: search_queries_use_real_genres
+    description: Every search test query expects a TMDB genre that exists for its media type.

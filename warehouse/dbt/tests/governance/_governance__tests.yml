@@ -1,0 +1,7 @@
+data_tests:
+  - name: sensitive_columns_are_tagged
+    description: >
+      Every column marked with meta.sensitivity carries the matching
+      DATA_SENSITIVITY tag in Snowflake, so tag-based masking protects it.
+    config:
+      severity: error

@@ -1,0 +1,13 @@
+# Custom data tests that need their own SQL. Both replace checks from
+# warehouse/snowflake/04_data_quality.sql and keep their names.
+
+data_tests:
+  - name: recommendation_scope_present
+    description: Recommendation events carry a journey ID and an algorithm version.
+    config:
+      severity: error
+
+  - name: property_allowlist
+    description: "Privacy: no event carries a property outside the reviewed allowlist."
+    config:
+      severity: error

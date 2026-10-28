@@ -1,0 +1,19 @@
+# Product analytics events in taxonomy v3. Two files share one layout:
+#   synthetic_events_v3.csv       seeded synthetic sessions for volume testing
+#   posthog_internal_events.csv   the operator's own internal PostHog traffic
+# Real participant events never leave PostHog.
+
+sources:
+  - name: analytics
+    description: Product analytics events loaded from CSV. Columns stay as text in RAW.
+    schema: RAW
+    config:
+      loaded_at_field: loaded_at
+      freshness:
+        warn_after: {count: 7, period: day}
+        error_after: {count: 30, period: day}
+    tables:
+      - name: events
+        description: >
+          One row per event as text. Staging parses the timestamp and JSON, so
+          a bad value becomes a data quality finding instead of a failed load.
