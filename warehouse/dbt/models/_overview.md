@@ -32,7 +32,16 @@ The lineage graph shows the two consumers outside dbt as exposures.
 - **Quality:** every build runs data tests on keys, required fields, value ranges, referential integrity, and privacy. Error-level failures stop the build. A unit test checks the rating confidence rules against the app's own logic.
 - **Freshness:** sources warn when the latest load is more than 7 days old and fail after 30.
 - **History:** `dim_title` keeps every version of the tracked title attributes. `fct_title_popularity` keeps every export, and full refresh is turned off for it so a rebuild cannot erase that history.
-- **Privacy:** events never carry title identity. Any event property outside the reviewed allowlist fails the build. Pseudonymous ID columns are marked with `meta.sensitivity`, so the governance layer can tag and mask them.
+- **Privacy:** events never carry title identity. Any event property outside the reviewed allowlist fails the build. Pseudonymous ID columns are marked with `meta.sensitivity`, dbt sets the matching Snowflake tag after every build, and a test fails if any tag is missing.
+
+## Access
+
+| Role | Can read | Identifiers |
+|---|---|---|
+| `PICKTONIGHT_ENGINEER` | every layer | real |
+| `PICKTONIGHT_ANALYST` | the public marts except the two event facts, plus the secure views `analyst_events` and `analyst_journeys` | hashed |
+
+Masking is tag-based. Two masking policies sit on the `DATA_SENSITIVITY` tag, so any column carrying the tag is protected, including columns added later. The hash is deterministic: the same ID always gives the same hash, so analysts can still count distinct sessions and join events to journeys. The secure views leave out the raw event JSON and the file lineage columns.
 
 ## Keys and default rows
 

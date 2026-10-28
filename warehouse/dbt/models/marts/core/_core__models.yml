@@ -7,8 +7,9 @@
 #
 # Every dimension has a hashed surrogate key and at least one default row,
 # and every fact key falls back to a default row instead of null.
-# Columns holding pseudonymous IDs carry meta sensitivity, which the
-# governance layer uses to tag and mask them.
+# Columns holding pseudonymous IDs carry meta sensitivity. After every build,
+# the apply_sensitivity_tags post-hook sets the matching Snowflake tag, and the
+# tag's masking policy hashes them for anyone who is not an engineer.
 
 models:
   - name: dim_title
@@ -292,10 +293,15 @@ models:
         data_type: boolean
 
   - name: fct_events
-    description: "Grain: one row per analytics event that parsed cleanly."
+    description: >
+      Grain: one row per analytics event that parsed cleanly. Engineers only:
+      analysts read events through the secure view analyst_events.
     config:
       contract:
         enforced: true
+      # No analyst grant. This replaces the marts-wide grant in dbt_project.yml.
+      grants:
+        select: []
     columns:
       - name: event_uuid
         description: Event ID from PostHog or the synthetic generator. The fact's primary key.
@@ -431,10 +437,14 @@ models:
   - name: fct_recommendation_journeys
     description: >
       Grain: one row per recommendation journey, from context submission to a
-      choice, an empty result, an error, or leaving. An accumulating snapshot fact.
+      choice, an empty result, an error, or leaving. An accumulating snapshot
+      fact. Engineers only: analysts read it through analyst_journeys.
     config:
       contract:
         enforced: true
+      # No analyst grant. This replaces the marts-wide grant in dbt_project.yml.
+      grants:
+        select: []
     columns:
       - name: journey_key
         description: Surrogate key. A hash of recommendation_session_id.

@@ -8,6 +8,7 @@
 #   DBT_INTERMEDIATE  views that join and derive, shared by several marts
 #   DBT_SNAPSHOTS     type 2 history of title attributes, kept across loads
 #   DBT_MARTS         the star schema: dimensions, facts, and aggregates
+#   DBT_ANALYST       secure views, the analyst role's only path to event rows
 #   DBT_SEEDS         small reviewed reference lists kept in Git
 #
 # The schema names come from the profile's base schema (DBT) plus each
@@ -56,6 +57,31 @@ models:
       +persist_docs:
         relation: true
         columns: true
+      # Analysts may read the public marts. The two event facts override this
+      # in their own config, so analysts reach events only through DBT_ANALYST.
+      +grants:
+        select: ['picktonight_analyst']
+      # Rebuilding a table drops its column tags, so set them again right
+      # after every build. The tags are what trigger masking.
+      +post-hook:
+        - "{{ apply_sensitivity_tags() }}"
+    analyst:
+      # Secure views: the definition is hidden from consumers, and Snowflake
+      # avoids optimizations that could expose rows a view filters out.
+      +schema: analyst
+      +materialized: view
+      +secure: true
+      +access: public
+      +persist_docs:
+        relation: true
+        columns: true
+      +grants:
+        select: ['picktonight_analyst']
+
+# dbt grants SELECT on each model, but not USAGE on the schema around it.
+on-run-end:
+  - "{{ grant_schema_usage('marts', 'picktonight_analyst') }}"
+  - "{{ grant_schema_usage('analyst', 'picktonight_analyst') }}"
 
 snapshots:
   picktonight:
