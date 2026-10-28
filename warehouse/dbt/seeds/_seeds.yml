@@ -111,3 +111,98 @@ seeds:
         description: Lowest passing value. Empty means no lower bound.
       - name: max_expected
         description: Highest passing value. Empty means no upper bound.
+
+  - name: ai_quality_gates
+    description: >
+      The bar a newly trained model must clear before it goes live. Each row
+      gates one metric: a floor, and how far the metric may drop below the
+      live model. AI.TRAIN_TITLE_MODELS() reads this list, so changing a gate
+      is a reviewed one-line change. The first floors are the scores of the
+      model that was live on 2026-10-28, minus 0.05, rounded down.
+    config:
+      column_types:
+        gate_id: varchar
+        metric_name: varchar
+        scope: varchar
+        min_value: float
+        max_drop: float
+        description: varchar
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: ai_quality_gates__one_gate_per_metric
+          arguments:
+            combination_of_columns: [metric_name, scope]
+      - dbt_utils.expression_is_true:
+          name: ai_quality_gates__has_a_limit
+          arguments:
+            expression: "min_value is not null or max_drop is not null"
+    columns:
+      - name: gate_id
+        description: Stable ID, the metric name plus the scope when it is not "all".
+        data_tests:
+          - unique
+          - not_null
+      - name: metric_name
+        description: A metric that AI.TRAIN_TITLE_MODELS() records in AI.MODEL_RUN_METRICS.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - mood_micro_f1
+                  - mood_f1
+                  - mood_precision
+                  - mood_recall
+                  - search_mean_precision_at_10
+                  - search_min_precision_at_10
+                  - search_precision_at_10
+                  - embedding_dimensions
+                  - embedding_explained_variance
+      - name: scope
+        description: all, a mood, or a search query ID.
+        data_tests:
+          - not_null
+      - name: min_value
+        description: Lowest passing value. Empty means no floor.
+      - name: max_drop
+        description: >
+          How far below the live model's value a new model may fall. Empty
+          means no comparison with the live model.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+
+  - name: search_eval_queries
+    description: >
+      Test queries for title search. Each one describes a plot without naming
+      its genre. A hit is a top-10 result of the same media type whose genres
+      include the expected genre. The training gate and 06_vector_search.sql
+      both score this list.
+    config:
+      column_types:
+        query_id: varchar
+        search_text: varchar
+        expected_genre: varchar
+        media_type: varchar
+    columns:
+      - name: query_id
+        description: Stable ID, used as the scope of the per-query search metric.
+        data_tests:
+          - unique
+          - not_null
+      - name: search_text
+        description: The query, in plain words.
+        data_tests:
+          - unique
+          - not_null
+      - name: expected_genre
+        description: A TMDB genre name for the query's media type. A test checks it exists.
+        data_tests:
+          - not_null
+      - name: media_type
+        description: movie or tv. Only titles of this type are searched.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['movie', 'tv']

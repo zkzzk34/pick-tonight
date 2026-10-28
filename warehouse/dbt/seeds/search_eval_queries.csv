@@ -1,0 +1,9 @@
+query_id,search_text,expected_genre,media_type
+action,a superhero battles a villain to save the world,Action,movie
+animation,a talking animal and its friends go on a colorful journey,Animation,movie
+comedy,friends get into ridiculous trouble during a wild weekend,Comedy,movie
+crime,a detective hunts a killer through the city,Crime,movie
+horror,a ghost haunts a family after they move into an old house,Horror,movie
+romance,two strangers slowly fall in love over one summer,Romance,movie
+science_fiction,astronauts travel to a distant planet to save humanity,Science Fiction,movie
+war,soldiers fight to survive on the front lines,War,movie

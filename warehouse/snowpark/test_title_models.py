@@ -4,7 +4,11 @@ Run from the repository root (needs scikit-learn and numpy):
     python3 -m unittest discover -s warehouse/snowpark -v
 """
 
+import json
+import os
+import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -131,6 +135,317 @@ class DisagreementTests(unittest.TestCase):
         self.assertEqual(tm.disagreement_kind(0.1, 1), "rules_give_mood_text_does_not_support")
         self.assertIsNone(tm.disagreement_kind(0.6, 0))
         self.assertIsNone(tm.disagreement_kind(0.6, 1))
+
+
+class SearchPrecisionTests(unittest.TestCase):
+    def setUp(self):
+        # Three movies and one TV title in a two-dimension space.
+        self.vectors = np.array([[1.0, 0.0], [0.9, 0.1], [0.0, 1.0], [1.0, 0.0]])
+        self.media_types = ["movie", "movie", "movie", "tv"]
+        self.genres = [["Horror"], ["Horror", "Thriller"], ["Romance"], ["Horror"]]
+
+    def score(self, query, vector, k=2):
+        return tm.search_precision_at_k(
+            np.array([vector]), self.vectors, self.media_types, self.genres, [query], k=k
+        )[0]
+
+    def test_counts_hits_in_the_top_results(self):
+        query = tm.SearchQuery("horror", "ghosts", "Horror", "movie")
+        self.assertEqual(
+            self.score(query, [1.0, 0.0]),
+            {"query_id": "horror", "hits": 2, "precision_at_k": 1.0},
+        )
+
+    def test_only_titles_of_the_query_media_type_count(self):
+        query = tm.SearchQuery("horror_tv", "ghosts", "Horror", "tv")
+        # One TV title exists, so 1 hit out of k=2.
+        self.assertEqual(self.score(query, [1.0, 0.0])["precision_at_k"], 0.5)
+
+    def test_a_wrong_genre_is_a_miss(self):
+        query = tm.SearchQuery("romance", "love", "Romance", "movie")
+        self.assertEqual(self.score(query, [1.0, 0.0])["hits"], 0)
+
+    def test_genres_arrive_as_json_text_from_snowpark(self):
+        self.assertEqual(tm.genre_list('[\n  "Action",\n  "Drama"\n]'), ["Action", "Drama"])
+        self.assertEqual(tm.genre_list(["Action"]), ["Action"])
+        self.assertEqual(tm.genre_list(None), [])
+
+
+class GateTests(unittest.TestCase):
+    GATE = tm.Gate("mood_f1__laughing", "mood_f1", "laughing", 0.50, 0.05)
+    KEY = ("mood_f1", "laughing")
+
+    def check(self, value, live=None):
+        live_values = {self.KEY: live} if live is not None else {}
+        return tm.evaluate_gates({self.KEY: value}, [self.GATE], live_values)[0]
+
+    def test_passes_above_the_floor_with_no_live_model(self):
+        self.assertTrue(self.check(0.60).passed)
+
+    def test_fails_below_the_floor(self):
+        result = self.check(0.49)
+        self.assertFalse(result.passed)
+        self.assertIn("below the floor", result.reason)
+
+    def test_fails_when_it_drops_too_far_below_the_live_model(self):
+        result = self.check(0.60, live=0.70)
+        self.assertFalse(result.passed)
+        self.assertIn("below the live model", result.reason)
+
+    def test_a_drop_within_the_limit_passes(self):
+        self.assertTrue(self.check(0.66, live=0.70).passed)
+        # Exactly max_drop below is allowed.
+        self.assertTrue(self.check(0.65, live=0.70).passed)
+
+    def test_an_unmeasured_metric_fails(self):
+        result = tm.evaluate_gates({}, [self.GATE])[0]
+        self.assertFalse(result.passed)
+        self.assertIsNone(result.metric_value)
+
+    def test_no_gates_means_no_promotion(self):
+        with self.assertRaises(ValueError):
+            tm.evaluate_gates({self.KEY: 0.9}, [])
+
+    def test_vector_size_is_a_built_in_gate(self):
+        self.assertTrue(tm.storage_contract_result(tm.EMBEDDING_DIMENSIONS).passed)
+        self.assertFalse(tm.storage_contract_result(tm.EMBEDDING_DIMENSIONS - 1).passed)
+
+
+# --------------------------------------------------------------------------
+# The whole procedure, against a fake Snowpark session
+# --------------------------------------------------------------------------
+
+MOOD_TITLES = {
+    "laughing": ("Comedy", [title for _, title, _ in CATALOG[0:3]], [o for _, _, o in CATALOG[0:3]]),
+    "spooked": ("Horror", [title for _, title, _ in CATALOG[3:6]], [o for _, _, o in CATALOG[3:6]]),
+    "romantic": ("Romance", [title for _, title, _ in CATALOG[6:9]], [o for _, _, o in CATALOG[6:9]]),
+    "relaxed": ("Animation", [title for _, title, _ in CATALOG[9:12]], [o for _, _, o in CATALOG[9:12]]),
+    "excited": (
+        "Action",
+        ["Turbo Chase", "Final Heist", "Sky Strike"],
+        [
+            "A high speed car chase with explosions, heists and daring stunts.",
+            "Daring thieves plan an explosive heist with car chases and stunts.",
+            "Fighter pilots race through explosions in a daring high speed mission.",
+        ],
+    ),
+    "thoughtful": (
+        "Drama",
+        ["Quiet Truth", "The Archive", "Long Winter"],
+        [
+            "A grieving philosopher reflects on memory, loss and the meaning of truth.",
+            "A historian reflects on memory and loss while uncovering a quiet truth.",
+            "A lonely professor reflects on grief, memory and the meaning of life.",
+        ],
+    ),
+}
+
+
+def fake_catalog(copies=3):
+    """Catalog rows shaped like DBT_MARTS.TITLE_CATALOG_CURRENT, plus rules."""
+    titles, rules = [], []
+    for copy in range(copies):
+        for mood, (genre, names, overviews) in MOOD_TITLES.items():
+            for index, (name, overview) in enumerate(zip(names, overviews)):
+                key = f"movie:{mood}-{index}-{copy}"
+                titles.append(
+                    {
+                        "TITLE_KEY": key,
+                        "MEDIA_TYPE": "movie",
+                        "TITLE": name,
+                        "OVERVIEW": overview,
+                        "SEARCH_DOCUMENT": f"{name}. {genre}. {overview}",
+                        # Snowpark returns ARRAY columns as JSON text.
+                        "GENRE_NAMES": json.dumps([genre]),
+                    }
+                )
+                rules.append({"TITLE_KEY": key, "MOOD": mood})
+    return titles, rules
+
+
+def gate_row(gate_id, metric_name, scope, min_value, max_drop):
+    return {
+        "GATE_ID": gate_id,
+        "METRIC_NAME": metric_name,
+        "SCOPE": scope,
+        "MIN_VALUE": min_value,
+        "MAX_DROP": max_drop,
+    }
+
+
+PASSABLE_GATES = [
+    gate_row("mood_micro_f1", "mood_micro_f1", "all", 0.0, 0.05),
+    gate_row("search_mean_precision_at_10", "search_mean_precision_at_10", "all", 0.0, 0.05),
+    gate_row("embedding_dimensions", "embedding_dimensions", "all", 8, 0),
+]
+
+SEARCH_QUERIES = [
+    {"QUERY_ID": "horror", "SEARCH_TEXT": "a terrifying ghost screams in a dark house",
+     "EXPECTED_GENRE": "Horror", "MEDIA_TYPE": "movie"},
+    {"QUERY_ID": "romance", "SEARCH_TEXT": "strangers fall in love on a romantic summer",
+     "EXPECTED_GENRE": "Romance", "MEDIA_TYPE": "movie"},
+]
+
+
+class FakeFrame:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def select(self, *columns):
+        return FakeFrame([{column: row[column] for column in columns} for row in self.rows])
+
+    def sort(self, column):
+        return FakeFrame(sorted(self.rows, key=lambda row: row[column]))
+
+    def collect(self):
+        return list(self.rows)
+
+
+class FakeWriter:
+    def __init__(self, session, rows):
+        self.session, self.rows = session, rows
+
+    def save_as_table(self, name, mode=None, table_type=None):
+        self.session.saved.append((name, mode, len(self.rows)))
+
+
+class FakeDataFrame:
+    def __init__(self, session, rows):
+        self.write = FakeWriter(session, rows)
+
+
+class FakeFiles:
+    def __init__(self, session):
+        self.session = session
+
+    def put(self, local_path, stage, auto_compress=True, overwrite=False):
+        self.session.puts.append((os.path.basename(local_path), stage))
+
+
+class FakeQuery:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def collect(self):
+        return self.rows
+
+
+class FakeSession:
+    """Just enough of a Snowpark session to run train_procedure end to end."""
+
+    def __init__(self, gates, live_values=None):
+        titles, rules = fake_catalog()
+        self.tables = {
+            tm._table(tm.CATALOG_TABLE): titles,
+            tm._table(tm.RULE_MOODS_TABLE): rules,
+            tm._table(tm.GATES_TABLE): gates,
+            tm._table(tm.SEARCH_QUERIES_TABLE): SEARCH_QUERIES,
+        }
+        self.live_values = live_values
+        self.statements, self.saved, self.puts = [], [], []
+        self.file = FakeFiles(self)
+
+    def table(self, name):
+        return FakeFrame(self.tables[name])
+
+    def create_dataframe(self, rows, schema):
+        return FakeDataFrame(self, rows)
+
+    def sql(self, text):
+        self.statements.append(text)
+        if "HASH_AGG" in text:
+            return FakeQuery([{"ROW_COUNT": 1, "FINGERPRINT": "12345",
+                               "EXPORTED_AT": "2026-10-26 10:00:00", "MAPPING_VERSIONS": "v1"}])
+        if tm.LIVE_RUN_VIEW in text:
+            if self.live_values is None:
+                return FakeQuery([])
+            return FakeQuery([
+                {"RUN_ID": "live-run", "METRIC_NAME": name, "SCOPE": scope, "METRIC_VALUE": value}
+                for (name, scope), value in self.live_values.items()
+            ])
+        return FakeQuery([])
+
+    def inserted(self, table):
+        """Statements that insert into a table, by full name."""
+        return [text for text in self.statements if text.startswith(f"INSERT INTO {tm._table(table)} ")]
+
+    def json_rows(self, table):
+        """The JSON array a FLATTEN insert sent, decoded."""
+        text = self.inserted(table)[0]
+        literal = text.split("PARSE_JSON('", 1)[1].rsplit("'))) AS f", 1)[0]
+        return json.loads(literal.replace("''", "'").replace("\\\\", "\\"))
+
+
+class TrainProcedureTests(unittest.TestCase):
+    def run_procedure(self, gates, live_values=None, dimensions=8):
+        session = FakeSession(gates, live_values)
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(tm, "EMBEDDING_DIMENSIONS", dimensions), \
+                mock.patch.object(tm.tempfile, "gettempdir", return_value=directory):
+            summary = tm.train_procedure(session)
+        return session, summary
+
+    def test_a_passing_first_run_is_promoted_with_its_record(self):
+        session, summary = self.run_procedure(PASSABLE_GATES)
+        self.assertEqual(summary["status"], "promoted")
+        self.assertIsNone(summary["live_run_before"])
+        # Outputs and the file AI.EMBED_TEXT loads are written...
+        self.assertEqual(len(session.inserted(tm.EMBEDDINGS_HISTORY_TABLE)), 1)
+        self.assertEqual(len(session.inserted(tm.PREDICTIONS_HISTORY_TABLE)), 1)
+        self.assertIn((tm.EMBEDDER_FILE_NAME, f"@{tm._table(tm.MODEL_STAGE)}"), session.puts)
+        # ...and the run row comes last, so the live views switch in one step.
+        last = session.statements[-1]
+        self.assertTrue(last.startswith(f"INSERT INTO {tm._table(tm.RUNS_TABLE)} "))
+        self.assertIn("'promoted'", last)
+        # Every gate, plus the built-in vector size gate, is recorded.
+        results = session.json_rows(tm.GATE_RESULTS_TABLE)
+        self.assertEqual(len(results), len(PASSABLE_GATES) + 1)
+        self.assertTrue(all(row["passed"] for row in results))
+        # Search was scored with the candidate, for every test query.
+        metrics = {(row["metric_name"], row["scope"]) for row in session.json_rows(tm.RUN_METRICS_TABLE)}
+        self.assertIn(("search_precision_at_10", "horror"), metrics)
+        self.assertIn(("search_mean_precision_at_10", "all"), metrics)
+
+    def test_the_run_records_what_it_trained_on(self):
+        session, _ = self.run_procedure(PASSABLE_GATES)
+        run_row = session.statements[-1]
+        lineage_text = run_row.rsplit("PARSE_JSON('", 1)[1].rsplit("')", 1)[0]
+        lineage = json.loads(lineage_text.replace("''", "'"))
+        self.assertEqual(lineage["training_data"]["catalog"]["fingerprint"], "12345")
+        self.assertEqual(
+            lineage["training_data"]["catalog"]["fingerprint_columns"],
+            tm.CATALOG_FINGERPRINT_COLUMNS,
+        )
+        self.assertEqual(lineage["code"]["sha256"], tm.module_checksum())
+        self.assertEqual(lineage["settings"]["embedding_dimensions"], 8)
+
+    def test_a_failed_gate_keeps_the_live_model(self):
+        gates = PASSABLE_GATES + [gate_row("impossible", "mood_micro_f1", "all", 1.01, None)]
+        session, summary = self.run_procedure(gates, live_values={("mood_micro_f1", "all"): 0.5})
+        self.assertEqual(summary["status"], "rejected")
+        self.assertIn("impossible", summary["failed_gates"])
+        # No outputs, and the live embedder file is untouched...
+        self.assertEqual(session.inserted(tm.EMBEDDINGS_HISTORY_TABLE), [])
+        self.assertEqual(session.inserted(tm.PREDICTIONS_HISTORY_TABLE), [])
+        self.assertNotIn((tm.EMBEDDER_FILE_NAME, f"@{tm._table(tm.MODEL_STAGE)}"), session.puts)
+        # ...but the run, its metrics, and the reasons are still recorded.
+        self.assertIn("'rejected'", session.statements[-1])
+        self.assertTrue(any(name.startswith("title_embedder_") for name, _ in session.puts))
+        failed = [row for row in session.json_rows(tm.GATE_RESULTS_TABLE) if not row["passed"]]
+        self.assertEqual([row["gate_id"] for row in failed], ["impossible"])
+
+    def test_a_big_drop_below_the_live_model_is_rejected(self):
+        session, summary = self.run_procedure(
+            PASSABLE_GATES, live_values={("mood_micro_f1", "all"): 2.0}
+        )
+        self.assertEqual(summary["status"], "rejected")
+        self.assertIn("below the live model", summary["failed_gates"]["mood_micro_f1"])
+
+    def test_a_wrong_vector_size_is_never_promoted(self):
+        # The fake catalog is too small for 128 dimensions, so the run makes fewer.
+        session, summary = self.run_procedure(PASSABLE_GATES, dimensions=128)
+        self.assertEqual(summary["status"], "rejected")
+        self.assertIn("embedding_storage_contract", summary["failed_gates"])
 
 
 if __name__ == "__main__":

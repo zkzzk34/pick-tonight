@@ -1,0 +1,17 @@
+gate_id,metric_name,scope,min_value,max_drop,description
+embedding_dimensions,embedding_dimensions,all,128,0,The search functions and the history table expect 128-dimension vectors
+mood_f1__excited,mood_f1,excited,0.71,0.05,Cross-validated F1 for excited
+mood_f1__laughing,mood_f1,laughing,0.54,0.05,Cross-validated F1 for laughing
+mood_f1__relaxed,mood_f1,relaxed,0.59,0.05,Cross-validated F1 for relaxed
+mood_f1__romantic,mood_f1,romantic,0.54,0.05,Cross-validated F1 for romantic
+mood_f1__spooked,mood_f1,spooked,0.52,0.05,Cross-validated F1 for spooked
+mood_f1__thoughtful,mood_f1,thoughtful,0.60,0.05,Cross-validated F1 for thoughtful
+mood_micro_f1,mood_micro_f1,all,0.60,0.05,Cross-validated F1 over all six moods together
+mood_precision__excited,mood_precision,excited,0.70,0.05,Cross-validated precision for excited
+mood_precision__laughing,mood_precision,laughing,0.55,0.05,Cross-validated precision for laughing
+mood_precision__relaxed,mood_precision,relaxed,0.61,0.05,Cross-validated precision for relaxed
+mood_precision__romantic,mood_precision,romantic,0.55,0.05,Cross-validated precision for romantic
+mood_precision__spooked,mood_precision,spooked,0.54,0.05,Cross-validated precision for spooked
+mood_precision__thoughtful,mood_precision,thoughtful,0.60,0.05,Cross-validated precision for thoughtful
+search_mean_precision_at_10,search_mean_precision_at_10,all,0.62,0.05,Average genre precision in the top 10 over the test queries
+search_min_precision_at_10,search_min_precision_at_10,all,0.20,0.10,Genre precision in the top 10 for the worst test query

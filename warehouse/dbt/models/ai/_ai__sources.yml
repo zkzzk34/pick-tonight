@@ -1,0 +1,24 @@
+# The training procedure's records in the AI schema, written by
+# AI.TRAIN_TITLE_MODELS() from warehouse/snowflake/05_snowpark_ml.sql.
+# dbt does not build these. It reads them to hold the live model to the
+# reviewed gates and to the current marts:
+#   - ai_live_model_meets_gates fails if the live model misses a floor
+#   - ai_live_model_is_current warns when the marts changed after training
+
+sources:
+  - name: ai
+    description: Model runs, metrics, gate verdicts, and the live model's outputs.
+    schema: AI
+    tables:
+      - name: model_runs
+        description: >
+          One row per training run: status (promoted or rejected), a summary,
+          and in LINEAGE the record of what the run was trained on.
+      - name: model_run_metrics
+        description: Every number each run produced, by metric name and scope.
+      - name: model_gate_results
+        description: Each quality gate's verdict for each run, with the reason.
+      - name: live_model_run
+        description: View. The newest run that passed every gate.
+      - name: title_embeddings
+        description: View. The live model's title embeddings.

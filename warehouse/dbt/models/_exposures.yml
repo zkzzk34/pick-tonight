@@ -12,12 +12,16 @@ exposures:
     description: >
       AI.TRAIN_TITLE_MODELS(), a Snowpark Python stored procedure, trains
       TF-IDF and SVD title embeddings and a 5-fold cross-validated mood
-      classifier inside Snowflake. It writes AI.TITLE_EMBEDDINGS,
-      AI.MOOD_MODEL_METRICS, AI.TITLE_MOODS_PREDICTED, and AI.MODEL_RUNS.
-      The rule moods are its weak labels.
+      classifier inside Snowflake. The rule moods are its weak labels. Each
+      run is checked against ai_quality_gates, including search precision on
+      search_eval_queries, and goes live only if every gate passes. Every
+      run records its metrics, gate verdicts, and the fingerprints of the
+      data it was trained on.
     depends_on:
       - ref('title_catalog_current')
       - ref('title_rule_moods')
+      - ref('ai_quality_gates')
+      - ref('search_eval_queries')
     owner:
       name: ZK Zhao
 
@@ -28,10 +32,12 @@ exposures:
     url: https://github.com/zkzzk34/pick-tonight/blob/main/warehouse/snowflake/06_vector_search.sql
     description: >
       "More like this" and free-text search over the title embeddings with
-      VECTOR_COSINE_SIMILARITY, plus a fixed evaluation set that measures
-      genre precision@10. Title details come from title_catalog_current.
+      VECTOR_COSINE_SIMILARITY, plus the search_eval_queries test set that
+      measures genre precision@10 of the live search. Title details come
+      from title_catalog_current.
     depends_on:
       - ref('title_catalog_current')
+      - ref('search_eval_queries')
     owner:
       name: ZK Zhao
 
